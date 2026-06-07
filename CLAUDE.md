@@ -4,6 +4,10 @@ This file provides guidance to Claude Code when working in this workspace.
 
 ---
 
+# Instructions Générales
+- Réponds toujours en français.
+- Rédige les commentaires du code et la documentation en français.
+
 ## What This Is
 
 Ce workspace est l'assistant personnel Oscar d'Ibrahim. Il a été créé avec le Oscar Starter Kit pour servir d'assistant IA personnel au quotidien.
