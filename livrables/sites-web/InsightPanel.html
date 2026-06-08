@@ -650,7 +650,14 @@
     </div>
     <div class="form-group">
       <label>Mot de passe</label>
-      <input type="password" id="login-pwd" placeholder="votre mot de passe" autocomplete="current-password">
+      <div style="position:relative">
+        <input type="password" id="login-pwd" placeholder="votre mot de passe" autocomplete="current-password" style="padding-right:42px">
+        <button type="button" onclick="togglePwd()" id="pwd-toggle"
+          style="position:absolute;right:0;top:0;height:100%;width:42px;background:none;border:none;cursor:pointer;color:var(--gray-text);font-size:15px;display:flex;align-items:center;justify-content:center"
+          aria-label="Afficher / masquer le mot de passe">
+          <i class="fa fa-eye" id="pwd-eye"></i>
+        </button>
+      </div>
     </div>
     <div id="login-error" style="display:none;background:#f8d7da;color:#721c24;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:12px">
       <i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.
@@ -1619,6 +1626,18 @@
     showView(defaultView[user.role] || 'agent', firstNav);
 
     if (['dg','dga','dcc','dc','ra'].includes(user.role)) renderSalesChart();
+  }
+
+  function togglePwd() {
+    const input = document.getElementById('login-pwd');
+    const icon  = document.getElementById('pwd-eye');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'fa fa-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'fa fa-eye';
+    }
   }
 
   function toggleSidebar() {
