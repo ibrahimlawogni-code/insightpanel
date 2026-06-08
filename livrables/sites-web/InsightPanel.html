@@ -455,14 +455,43 @@
     .progress-wrap { width: 72px; height: 5px; background: var(--gray-border); border-radius: 3px; overflow: hidden; }
     .progress-bar { height: 100%; border-radius: 3px; }
 
-    /* --- Zone performance bars --- */
-    .zone-list { display: flex; flex-direction: column; gap: 13px; }
-    .zone-row { display: flex; align-items: center; gap: 10px; }
-    .zone-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .zone-name { font-size: 13px; font-weight: 600; width: 80px; flex-shrink: 0; }
-    .zone-track { flex: 1; height: 7px; background: var(--gray-border); border-radius: 4px; overflow: hidden; }
-    .zone-fill { height: 100%; border-radius: 4px; }
-    .zone-pct { font-size: 12px; font-weight: 700; width: 36px; text-align: right; }
+    /* --- Superviseurs — Performance par zone --- */
+    .sup-zone-row { display:flex; align-items:flex-start; gap:12px; padding:11px 0; border-bottom:1px solid var(--gray-border); }
+    .sup-zone-row:last-child { border-bottom:none; padding-bottom:0; }
+    .sup-avatar { width:34px; height:34px; border-radius:50%; background:var(--black); color:var(--yellow); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; margin-top:2px; }
+    .sup-info { flex:1; min-width:0; }
+    .sup-name { font-size:13px; font-weight:700; color:var(--black); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sup-zone-label { font-size:11px; color:var(--gray-text); margin-top:2px; }
+    .sup-zone-label i { margin-right:3px; }
+    .sup-bars { margin-top:7px; display:flex; flex-direction:column; gap:4px; }
+    .sup-bar-row { display:flex; align-items:center; gap:6px; }
+    .sup-bar-lbl { font-size:10px; color:var(--gray-text); width:30px; flex-shrink:0; }
+    .sup-bar-track { flex:1; height:5px; background:#e9e9e9; border-radius:3px; overflow:hidden; }
+    .sup-bar-fill { height:100%; border-radius:3px; }
+    .sup-bar-pct { font-size:10px; font-weight:700; width:34px; text-align:right; flex-shrink:0; }
+
+    /* --- Compteurs d'équipe (DFA / Superviseurs) --- */
+    .team-stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+    .team-stat-card { background:var(--white); border:1px solid var(--gray-border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:14px; }
+    .tsc-icon { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .tsc-val  { font-size:30px; font-weight:900; color:var(--black); line-height:1; }
+    .tsc-lbl  { font-size:11px; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.4px; margin-top:4px; }
+
+    /* --- Objectifs périodiques --- */
+    .objectifs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .objectif-period { background:var(--gray-bg); border-radius:10px; padding:16px; }
+    .objp-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .objp-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+    .objp-title { font-size:14px; font-weight:800; color:var(--black); }
+    .objp-sub { font-size:11px; color:var(--gray-text); margin-top:2px; }
+    .objp-metrics { display:flex; flex-direction:column; gap:12px; }
+    .objp-metric-lbl { font-size:11px; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
+    .objp-metric-vals { display:flex; align-items:baseline; gap:4px; margin-bottom:5px; }
+    .objp-actual { font-size:22px; font-weight:900; color:var(--black); }
+    .objp-sep { font-size:13px; color:var(--gray-text); }
+    .objp-target { font-size:13px; color:var(--gray-text); }
+    .objp-bar { height:6px; background:#ddd; border-radius:3px; overflow:hidden; }
+    .objp-bar div { height:100%; border-radius:3px; }
 
     /* --- Mini stats row --- */
     .mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
@@ -503,6 +532,103 @@
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+
+    /* Bouton hamburger (masqué sur desktop) */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      padding: 6px;
+      background: none;
+      border: none;
+      flex-shrink: 0;
+    }
+    .hamburger span { display: block; width: 20px; height: 2px; background: var(--black); border-radius: 2px; }
+
+    /* Overlay sidebar */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 190;
+    }
+    .sidebar-overlay.visible { display: block; }
+
+    /* Transition sidebar */
+    .sidebar { transition: transform 0.25s ease; }
+
+    @media (max-width: 1023px) {
+      /* Sidebar : masquée par défaut, overlay au tap du hamburger */
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform: translateX(-224px); width: 224px; }
+      .sidebar.open { transform: translateX(0); box-shadow: 6px 0 32px rgba(0,0,0,0.25); }
+      .main-content { margin-left: 0; }
+      .hamburger { display: flex; }
+      .topbar-date { display: none; }
+      .topbar { padding: 12px 16px; }
+      .view { padding: 16px; }
+
+      /* Grilles */
+      .kpi-grid       { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .grid-2         { grid-template-columns: 1fr; }
+      .grid-3-1       { grid-template-columns: 1fr; }
+      .team-stats-row { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .objectifs-grid { grid-template-columns: 1fr; }
+      .mini-stats     { gap: 10px; }
+
+      /* Tables : scroll horizontal dans la carte */
+      .card > table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .card .card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .card .card-body table { min-width: 480px; }
+
+      /* Card header */
+      .card-header { flex-wrap: wrap; gap: 8px; }
+
+      /* Page header */
+      .page-header { flex-direction: column; align-items: flex-start; }
+    }
+
+    @media (max-width: 600px) {
+      /* Login */
+      .login-card { width: calc(100% - 32px); padding: 32px 20px; border-radius: 12px; }
+
+      /* Grilles narrow */
+      .kpi-grid       { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .team-stats-row { grid-template-columns: 1fr; }
+      .form-grid      { grid-template-columns: 1fr; }
+      .form-grid .span-2 { grid-column: span 1; }
+
+      /* Valeurs KPI */
+      .kpi-value { font-size: 24px; }
+      .kpi-card  { padding: 14px; }
+
+      /* Tabs */
+      .tab { padding: 5px 9px; font-size: 11px; }
+
+      /* Carte objectif */
+      .objp-actual { font-size: 18px; }
+      .objectif-period { padding: 12px; }
+
+      /* Team stat compact */
+      .team-stat-card { padding: 12px 14px; gap: 10px; }
+      .tsc-val  { font-size: 24px; }
+      .tsc-icon { width: 34px; height: 34px; font-size: 14px; }
+
+      /* Topbar */
+      .topbar-title { font-size: 13px; }
+      .btn.btn-sm   { font-size: 11px; padding: 6px 10px; }
+
+      /* View */
+      .view { padding: 12px; }
+      .page-title { font-size: 17px; }
+    }
   </style>
 </head>
 <body>
@@ -520,23 +646,14 @@
 
     <div class="form-group">
       <label>Identifiant</label>
-      <input type="text" value="ibrahim.lawogni" placeholder="identifiant">
+      <input type="text" id="login-id" placeholder="votre identifiant" autocomplete="username">
     </div>
     <div class="form-group">
       <label>Mot de passe</label>
-      <input type="password" value="••••••••" placeholder="mot de passe">
+      <input type="password" id="login-pwd" placeholder="votre mot de passe" autocomplete="current-password">
     </div>
-    <div class="form-group">
-      <label>Rôle</label>
-      <select id="role-select">
-        <option value="dg">Directeur Général (DG)</option>
-        <option value="dga">Directeur Général Adjoint (DGA)</option>
-        <option value="dcc">DCC</option>
-        <option value="dc">Directeur Commercial (DC)</option>
-        <option value="ra">Responsable Acquisition (RA)</option>
-        <option value="superviseur">Superviseur MPOS</option>
-        <option value="agent">Agent Terrain (DFA)</option>
-      </select>
+    <div id="login-error" style="display:none;background:#f8d7da;color:#721c24;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:12px">
+      <i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.
     </div>
     <button class="btn-login" onclick="doLogin()">Se connecter</button>
   </div>
@@ -546,6 +663,9 @@
      APPLICATION
 ================================================================ -->
 <div id="app">
+
+  <!-- OVERLAY SIDEBAR MOBILE -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
@@ -603,6 +723,9 @@
 
     <!-- TOP BAR -->
     <div class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title" id="topbar-title">Vue d'ensemble — Tableau de bord</div>
       <div class="topbar-right">
         <span class="topbar-date" id="topbar-date"></span>
@@ -635,13 +758,13 @@
       <!-- KPI CARDS -->
       <div class="kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-label">Ventes GSM du jour</div>
+          <div class="kpi-label">Gross Add du jour</div>
           <div class="kpi-value">247</div>
           <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +18 % vs hier</div>
           <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Activations MoMo</div>
+          <div class="kpi-label">New MoMo User</div>
           <div class="kpi-value">134</div>
           <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +9 % vs hier</div>
           <div class="kpi-bg-icon"><i class="fa fa-wallet"></i></div>
@@ -660,12 +783,51 @@
         </div>
       </div>
 
+      <!-- TEAM STATS COUNTERS -->
+      <div class="team-stats-row" id="team-stats-row">
+        <div class="team-stat-card">
+          <div class="tsc-icon" style="background:#eef2ff"><i class="fa fa-users" style="color:#4c6ef5"></i></div>
+          <div>
+            <div class="tsc-val" id="stat-dfa-total">—</div>
+            <div class="tsc-lbl">DFA enregistrés</div>
+          </div>
+        </div>
+        <div class="team-stat-card">
+          <div class="tsc-icon" style="background:#f0fdf4"><i class="fa fa-circle-check" style="color:var(--green)"></i></div>
+          <div>
+            <div class="tsc-val" id="stat-dfa-actifs">—</div>
+            <div class="tsc-lbl">DFA actifs</div>
+          </div>
+        </div>
+        <div class="team-stat-card">
+          <div class="tsc-icon" style="background:#fffbeb"><i class="fa fa-user-shield" style="color:var(--yellow)"></i></div>
+          <div>
+            <div class="tsc-val" id="stat-superviseurs">—</div>
+            <div class="tsc-lbl">Superviseurs actifs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBJECTIFS PÉRIODIQUES -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Objectifs</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:12px;color:var(--gray-text)"><i class="fa fa-calendar-day" style="margin-right:5px"></i>Date de référence</span>
+            <input type="date" id="objectif-date" class="input-field" style="width:auto;padding:6px 12px;font-size:13px" onchange="renderObjectifs()">
+          </div>
+        </div>
+        <div class="card-body" id="objectifs-body">
+          <div style="text-align:center;padding:20px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+      </div>
+
       <!-- CHART + ZONE MAP -->
       <div class="grid-3-1">
         <div class="card">
           <div class="card-header">
             <div class="card-title">Évolution des ventes — 7 derniers jours</div>
-            <span class="badge badge-yellow"><i class="fa fa-chart-bar"></i> GSM + MoMo</span>
+            <span class="badge badge-yellow"><i class="fa fa-chart-bar"></i> Gross Add + New MoMo User</span>
           </div>
           <div class="card-body">
             <canvas id="salesChart" height="190"></canvas>
@@ -674,51 +836,27 @@
 
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Zones — Performance</div>
+            <div class="card-title">Superviseurs — Performance par zone</div>
+            <span class="badge badge-black"><span id="superviseur-zone-count">…</span> actif(s)</span>
           </div>
-          <div class="card-body">
-            <div class="zone-list">
-              <div class="zone-row">
-                <div class="zone-dot" style="background:var(--green)"></div>
-                <div class="zone-name">Avrankou</div>
-                <div class="zone-track"><div class="zone-fill" style="width:88%;background:var(--green)"></div></div>
-                <div class="zone-pct" style="color:var(--green)">88 %</div>
-              </div>
-              <div class="zone-row">
-                <div class="zone-dot" style="background:var(--green)"></div>
-                <div class="zone-name">Missérété</div>
-                <div class="zone-track"><div class="zone-fill" style="width:82%;background:var(--green)"></div></div>
-                <div class="zone-pct" style="color:var(--green)">82 %</div>
-              </div>
-              <div class="zone-row">
-                <div class="zone-dot" style="background:var(--orange)"></div>
-                <div class="zone-name">Adjohoun</div>
-                <div class="zone-track"><div class="zone-fill" style="width:71%;background:var(--orange)"></div></div>
-                <div class="zone-pct" style="color:var(--orange)">71 %</div>
-              </div>
-              <div class="zone-row">
-                <div class="zone-dot" style="background:var(--orange)"></div>
-                <div class="zone-name">Dangbo</div>
-                <div class="zone-track"><div class="zone-fill" style="width:65%;background:var(--orange)"></div></div>
-                <div class="zone-pct" style="color:var(--orange)">65 %</div>
-              </div>
-              <div class="zone-row">
-                <div class="zone-dot" style="background:var(--red)"></div>
-                <div class="zone-name">Bonou</div>
-                <div class="zone-track"><div class="zone-fill" style="width:54%;background:var(--red)"></div></div>
-                <div class="zone-pct" style="color:var(--red)">54 %</div>
-              </div>
-            </div>
+          <div class="card-body" id="superviseur-zone-list">
+            <div style="text-align:center;padding:20px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
+          </div>
+        </div>
+      </div>
 
-            <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--gray-border)">
-              <div style="font-size:11px; font-weight:700; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px">Légende</div>
-              <div style="display:flex; gap:14px; font-size:12px;">
-                <span><span style="display:inline-block;width:9px;height:9px;background:var(--green);border-radius:50%;margin-right:5px"></span>Bon (&ge;80 %)</span>
-                <span><span style="display:inline-block;width:9px;height:9px;background:var(--orange);border-radius:50%;margin-right:5px"></span>Moyen</span>
-                <span><span style="display:inline-block;width:9px;height:9px;background:var(--red);border-radius:50%;margin-right:5px"></span>Alerte</span>
-              </div>
-            </div>
+      <!-- SUIVI PERFORMANCE SUPERVISEURS -->
+      <div class="card" id="sup-perf-card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Suivi performance — Superviseurs</div>
+          <div class="tabs" id="sup-perf-tabs">
+            <button class="tab active" onclick="setSuperviseurPeriod('jour',this)">Aujourd'hui</button>
+            <button class="tab" onclick="setSuperviseurPeriod('semaine',this)">Semaine</button>
+            <button class="tab" onclick="setSuperviseurPeriod('mois',this)">Mois</button>
           </div>
+        </div>
+        <div id="sup-perf-body">
+          <div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
         </div>
       </div>
 
@@ -735,8 +873,8 @@
                 <th>#</th>
                 <th>Agent</th>
                 <th>Zone</th>
-                <th>GSM</th>
-                <th>MoMo</th>
+                <th>Gross Add</th>
+                <th>New MoMo User</th>
                 <th>Perf.</th>
               </tr>
             </thead>
@@ -857,8 +995,8 @@
             <tr>
               <th>Agent</th>
               <th>Zone</th>
-              <th>GSM</th>
-              <th>MoMo</th>
+              <th>Gross Add</th>
+              <th>New MoMo User</th>
               <th>Conformité</th>
               <th>Évolution</th>
               <th>Statut</th>
@@ -960,12 +1098,82 @@
     <div class="view" id="view-agent">
       <div class="page-header">
         <div>
-          <div class="page-title">Saisie quotidienne</div>
+          <div class="page-title">Mon espace — Agent DFA</div>
           <div class="page-subtitle">Kofi MENSAH &nbsp;·&nbsp; Agent terrain &nbsp;·&nbsp; Zone Avrankou</div>
         </div>
         <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
       </div>
 
+      <!-- PERFORMANCE RÉSUMÉE -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Résumé de performance</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="navPerfDate(-1)"><i class="fa fa-chevron-left"></i></button>
+            <span id="perf-date-label" style="font-size:13px;font-weight:600;min-width:190px;text-align:center">—</span>
+            <button class="btn btn-secondary btn-sm" onclick="navPerfDate(1)"><i class="fa fa-chevron-right"></i></button>
+            <div class="tabs" id="perf-tabs">
+              <button class="tab active" onclick="setPerfPeriod('jour',this)">Jour</button>
+              <button class="tab" onclick="setPerfPeriod('semaine',this)">Semaine</button>
+              <button class="tab" onclick="setPerfPeriod('mois',this)">Mois</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body" id="perf-kpi-grid"></div>
+      </div>
+
+      <!-- OBJECTIFS -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Mes objectifs</div>
+          <span class="badge badge-yellow">Gross Add + New MoMo User</span>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-sun" style="color:var(--yellow)"></i> Journalier</div>
+              <div style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">16 / 10</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:100%;background:var(--green)"></div></div>
+                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">160 % — Dépassé</div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">9 / 12</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:75%;background:var(--orange)"></div></div>
+                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">75 % — En cours</div>
+              </div>
+            </div>
+            <div style="border-left:1px solid var(--gray-border);padding-left:24px">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-calendar-week" style="color:var(--yellow)"></i> Hebdomadaire</div>
+              <div style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">74 / 70</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:100%;background:var(--green)"></div></div>
+                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">106 % — Dépassé</div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">42 / 50</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:84%;background:var(--green)"></div></div>
+                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">84 % — Bon rythme</div>
+              </div>
+            </div>
+            <div style="border-left:1px solid var(--gray-border);padding-left:24px">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-calendar" style="color:var(--yellow)"></i> Mensuel</div>
+              <div style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">186 / 300</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:62%;background:var(--orange)"></div></div>
+                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">62 % — 22 jours restants</div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">112 / 180</span></div>
+                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:62%;background:var(--orange)"></div></div>
+                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">62 % — 22 jours restants</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM + STATS -->
       <div class="grid-2">
         <!-- FORM -->
         <div class="card">
@@ -1007,10 +1215,7 @@
                 <textarea class="input-field" id="field-observation" placeholder="Signaler un problème, une rupture, un incident terrain..."></textarea>
               </div>
             </div>
-
-            <!-- Feedback message -->
             <div id="form-feedback" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
-
             <div style="display:flex;gap:10px;margin-top:16px">
               <button class="btn btn-primary" id="btn-submit" onclick="submitToSheets()">
                 <i class="fa fa-floppy-disk"></i> Enregistrer
@@ -1020,7 +1225,7 @@
           </div>
         </div>
 
-        <!-- STATS + RANK -->
+        <!-- STATS + CLASSEMENT + HISTORIQUE -->
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="card">
             <div class="card-header">
@@ -1030,11 +1235,11 @@
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
                 <div class="mini-stat">
                   <div class="val" style="color:var(--yellow)">74</div>
-                  <div class="lbl">GSM vendus</div>
+                  <div class="lbl">Gross Add</div>
                 </div>
                 <div class="mini-stat">
                   <div class="val" style="color:var(--yellow)">42</div>
-                  <div class="lbl">MoMo activ.</div>
+                  <div class="lbl">New MoMo User</div>
                 </div>
                 <div class="mini-stat">
                   <div class="val" style="color:var(--green)">83 %</div>
@@ -1052,28 +1257,11 @@
               <div class="rank-box">
                 <div class="rank-number">#7</div>
                 <div>
-                  <div style="font-size:14px;font-weight:700">Sur 12 agents de la zone</div>
+                  <div style="font-size:14px;font-weight:700">Sur 24 agents terrain</div>
                   <div style="font-size:12px;color:var(--gray-text);margin-top:2px">Performance globale : 83 %</div>
                   <div style="font-size:12px;color:var(--orange);margin-top:5px">
                     <i class="fa fa-arrow-up"></i> +2 places vs semaine dernière
                   </div>
-                </div>
-              </div>
-              <div style="margin-top:14px;background:var(--gray-bg);border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.7">
-                <strong>Objectif semaine :</strong> 80 GSM + 50 MoMo<br>
-                <div style="margin-top:4px">
-                  GSM : <strong>74 / 80</strong>
-                  <div class="zone-track" style="display:inline-block;width:80px;vertical-align:middle;margin:0 6px">
-                    <div class="zone-fill" style="width:93%;background:var(--yellow)"></div>
-                  </div>
-                  93 %
-                </div>
-                <div>
-                  MoMo : <strong>42 / 50</strong>
-                  <div class="zone-track" style="display:inline-block;width:80px;vertical-align:middle;margin:0 6px">
-                    <div class="zone-fill" style="width:84%;background:var(--yellow)"></div>
-                  </div>
-                  84 %
                 </div>
               </div>
             </div>
@@ -1085,7 +1273,7 @@
             </div>
             <table>
               <thead>
-                <tr><th>Date</th><th>GSM</th><th>MoMo</th><th>Statut</th></tr>
+                <tr><th>Date</th><th>Gross Add</th><th>New MoMo User</th><th>Statut</th></tr>
               </thead>
               <tbody>
                 <tr><td>05/06</td><td>16</td><td>9</td><td><span class="badge badge-green">Validé</span></td></tr>
@@ -1094,6 +1282,154 @@
                 <tr><td>02/06</td><td>23</td><td>12</td><td><span class="badge badge-green">Validé</span></td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP 10 DFA -->
+      <div class="card" style="margin-top:20px;margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Top 10 Agents DFA — Semaine 23</div>
+          <span class="badge badge-black">10 / 24 agents</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Agent DFA</th>
+              <th>Zone</th>
+              <th>Gross Add</th>
+              <th>New MoMo User</th>
+              <th>Moy. / Jour</th>
+              <th>Taux activ.</th>
+              <th>Évaluation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><i class="fa fa-medal medal-1"></i></td>
+              <td><strong>Kossi ADJOVI</strong></td>
+              <td>Avrankou</td><td>143</td><td>87</td><td>20.4</td>
+              <td><span class="badge badge-green">96 %</span></td>
+              <td><span class="badge badge-green">Excellent</span></td>
+            </tr>
+            <tr>
+              <td><i class="fa fa-medal medal-2"></i></td>
+              <td><strong>Aïssatou GNONA</strong></td>
+              <td>Missérété</td><td>128</td><td>79</td><td>18.3</td>
+              <td><span class="badge badge-green">91 %</span></td>
+              <td><span class="badge badge-green">Excellent</span></td>
+            </tr>
+            <tr>
+              <td><i class="fa fa-medal medal-3"></i></td>
+              <td><strong>Mouftaou SABI</strong></td>
+              <td>Avrankou</td><td>117</td><td>65</td><td>16.7</td>
+              <td><span class="badge badge-green">88 %</span></td>
+              <td><span class="badge badge-green">Très bien</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">4</td>
+              <td>Clarisse YOVO</td>
+              <td>Adjohoun</td><td>104</td><td>58</td><td>14.9</td>
+              <td><span class="badge badge-orange">79 %</span></td>
+              <td><span class="badge badge-orange">Bien</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">5</td>
+              <td>Romuald AGBO</td>
+              <td>Dangbo</td><td>98</td><td>51</td><td>14.0</td>
+              <td><span class="badge badge-orange">74 %</span></td>
+              <td><span class="badge badge-orange">Bien</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">6</td>
+              <td>Félicité DOSSOU</td>
+              <td>Avrankou</td><td>87</td><td>44</td><td>12.4</td>
+              <td><span class="badge badge-orange">68 %</span></td>
+              <td><span class="badge badge-orange">Moyen</span></td>
+            </tr>
+            <tr style="background:var(--yellow-light)">
+              <td><strong>#7</strong></td>
+              <td><strong>Kofi MENSAH</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span></td>
+              <td>Avrankou</td><td>74</td><td>42</td><td>10.6</td>
+              <td><span class="badge badge-orange">83 %</span></td>
+              <td><span class="badge badge-green">Bien</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">8</td>
+              <td>Brice HOUINATO</td>
+              <td>Missérété</td><td>76</td><td>39</td><td>10.9</td>
+              <td><span class="badge badge-red">62 %</span></td>
+              <td><span class="badge badge-red">À améliorer</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">9</td>
+              <td>Sènan AKAKPO</td>
+              <td>Bonou</td><td>68</td><td>33</td><td>9.7</td>
+              <td><span class="badge badge-red">58 %</span></td>
+              <td><span class="badge badge-red">À améliorer</span></td>
+            </tr>
+            <tr>
+              <td style="color:#bbb">10</td>
+              <td>Mariam OUOROU</td>
+              <td>Dangbo</td><td>61</td><td>28</td><td>8.7</td>
+              <td><span class="badge badge-red">54 %</span></td>
+              <td><span class="badge badge-red">À améliorer</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ÉVALUATION -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Mon évaluation de performance</div>
+          <span class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">B+ &nbsp; Bon</span>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+              <div style="font-size:26px;font-weight:900;color:var(--orange)">80 %</div>
+              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Atteinte objectifs</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+              <div style="font-size:26px;font-weight:900;color:var(--green)">7 / 7</div>
+              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Jours actifs (sem.)</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+              <div style="font-size:26px;font-weight:900;color:var(--green)">83 %</div>
+              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Conformité</div>
+            </div>
+            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+              <div style="font-size:26px;font-weight:900;color:var(--orange)">+2</div>
+              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Places gagnées</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif Gross Add hebdo</span>
+              <span class="badge badge-green">93 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif New MoMo User hebdo</span>
+              <span class="badge badge-green">84 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-calendar-check" style="color:var(--yellow);margin-right:8px"></i>Régularité terrain</span>
+              <span class="badge badge-green">Excellent</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-shield-halved" style="color:var(--yellow);margin-right:8px"></i>Conformité des bases</span>
+              <span class="badge badge-orange">83 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-chart-line" style="color:var(--yellow);margin-right:8px"></i>Tendance générale</span>
+              <span class="badge badge-green">En progression</span>
+            </div>
+          </div>
+          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
+            <strong>Appréciation :</strong> Bonne performance globale avec une régularité exemplaire (7/7 jours actifs). L'objectif Gross Add hebdomadaire est quasi atteint (93 %). New MoMo User en bon rythme (84 %).<br>
+            <strong>Point de vigilance :</strong> Objectif journalier New MoMo User pas encore atteint systématiquement. Viser 12 New MoMo User/jour minimum pour tenir l'objectif mensuel de 180. Conformité à renforcer (objectif : 90 %+).
           </div>
         </div>
       </div>
@@ -1118,8 +1454,50 @@
     </div>
 
     <div class="view" id="view-equipes">
-      <div class="page-header"><div><div class="page-title">Équipes</div><div class="page-subtitle">Gestion des comptes et des droits d'accès</div></div></div>
-      <div class="card"><div class="empty-state"><i class="fa fa-user-gear"></i><p>Module disponible prochainement</p></div></div>
+      <div class="page-header">
+        <div>
+          <div class="page-title">Équipes</div>
+          <div class="page-subtitle">Gestion des comptes et des droits d'accès</div>
+        </div>
+        <button class="btn btn-primary" onclick="openUserModal()">
+          <i class="fa fa-user-plus"></i> Nouveau compte
+        </button>
+      </div>
+
+      <div class="mini-stats" style="margin-bottom:20px">
+        <div class="mini-stat">
+          <div class="val" id="stat-total-users">—</div>
+          <div class="lbl">Comptes total</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--green)" id="stat-actif-users">—</div>
+          <div class="lbl">Comptes actifs</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)" id="stat-agent-users">—</div>
+          <div class="lbl">Agents DFA</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Comptes enregistrés</div>
+          <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Identifiant</th>
+              <th>Rôle</th>
+              <th>Zone</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="view" id="view-parametres">
@@ -1133,6 +1511,18 @@
 <script>
   /* ---- URL Apps Script — À REMPLACER après déploiement ---- */
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzV6szgPrFdkfTIXki1gkp3Qr0iIdcOU0jfBpJXtO_r83nTSNn96axZrDp9XKbhRpbu/exec';
+
+  /* ---- Comptes utilisateurs ---- */
+  /* Comptes locaux de secours (actifs si Google Sheets inaccessible) */
+  const USERS_SEED = [
+    { id: 'Ibrahim.Lawogni', pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',   role: 'ra',          zone: 'Avrankou-Missérété', initiales: 'IL', statut: 'actif' },
+    { id: 'Dg.Zephir',       pwd: 'Admin@2026',  nom: 'Directeur Général', role: 'dg',          zone: 'Toutes zones',       initiales: 'DG', statut: 'actif' },
+    { id: 'Superviseur1',    pwd: 'Zephir@2026', nom: 'Superviseur Test',  role: 'superviseur', zone: 'Avrankou-Missérété', initiales: 'ST', statut: 'actif' },
+    { id: 'Agent.Test',      pwd: 'Zephir@2026', nom: 'Kofi MENSAH',       role: 'agent',       zone: 'Avrankou',           initiales: 'KM', statut: 'actif' },
+  ];
+  let USERS         = [...USERS_SEED];
+  let currentUser   = null;
+  let editingUserId = null;
 
   /* ---- Init ---- */
   const today = new Date();
@@ -1160,29 +1550,89 @@
     agent:       'Agent Terrain (DFA)'
   };
 
-  function doLogin() {
-    const role = document.getElementById('role-select').value;
-    document.getElementById('user-role').textContent = roleLabels[role] || role;
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
+  /* Normalise l'identifiant au format Prenom.Nom quelle que soit la casse saisie */
+  function normalizeId(raw) {
+    return raw.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join('.');
+  }
 
-    /* Filtrer la navigation selon le rôle */
+  async function doLogin() {
+    const identifiant = normalizeId(document.getElementById('login-id').value.trim());
+    const password    = document.getElementById('login-pwd').value;
+    const errEl       = document.getElementById('login-error');
+    const btn         = document.querySelector('.btn-login');
+
+    errEl.style.display = 'none';
+    if (!identifiant || !password) {
+      errEl.innerHTML     = '<i class="fa fa-circle-exclamation"></i> Veuillez remplir tous les champs.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Connexion…';
+
+    let user = null;
+
+    /* Vérification via Google Sheets */
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'login', id: identifiant, pwd: password })
+      });
+      const json = await res.json();
+      if (json.success) user = json.user;
+    } catch (e) {
+      /* Fallback local si Sheets inaccessible */
+      user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password && u.statut === 'actif') || null;
+    }
+
+    btn.disabled    = false;
+    btn.textContent = 'Se connecter';
+
+    if (!user) {
+      errEl.innerHTML     = '<i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.';
+      errEl.style.display = 'block';
+      document.getElementById('login-pwd').value = '';
+      return;
+    }
+
+    currentUser = user;
+    document.getElementById('user-name').textContent   = user.nom;
+    document.getElementById('user-role').textContent   = roleLabels[user.role] || user.role;
+    document.getElementById('user-avatar').textContent = user.initiales;
+
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display        = 'block';
+
     document.querySelectorAll('[data-roles]').forEach(el => {
       const allowed = el.getAttribute('data-roles').split(',');
-      el.style.display = allowed.includes(role) ? '' : 'none';
+      el.style.display = allowed.includes(user.role) ? '' : 'none';
     });
 
-    /* Vue par défaut selon le rôle */
     const defaultView = {
       dg: 'dashboard', dga: 'dashboard', dcc: 'dashboard',
-      dc: 'dashboard', ra: 'dashboard',
+      dc: 'dashboard',  ra: 'dashboard',
       superviseur: 'superviseur',
       agent: 'agent'
     };
-    const firstNav = document.querySelector(`.nav-item[data-roles*="${role}"]`);
-    showView(defaultView[role] || 'agent', firstNav);
+    const firstNav = document.querySelector(`.nav-item[data-roles*="${user.role}"]`);
+    showView(defaultView[user.role] || 'agent', firstNav);
 
-    if (['dg','dga','dcc','dc','ra'].includes(role)) renderSalesChart();
+    if (['dg','dga','dcc','dc','ra'].includes(user.role)) renderSalesChart();
+  }
+
+  function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const open    = sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible', open);
+  }
+
+  function closeSidebarMobile() {
+    if (window.innerWidth <= 1023) {
+      document.querySelector('.sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('visible');
+    }
   }
 
   function doLogout() {
@@ -1192,6 +1642,7 @@
 
   /* ---- Navigation ---- */
   function showView(name, el) {
+    closeSidebarMobile();
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -1210,6 +1661,13 @@
       parametres:  'Paramètres'
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
+    if (name === 'agent')     updatePerfDisplay();
+    if (name === 'equipes')   loadUsers();
+    if (name === 'dashboard') {
+      const di = document.getElementById('objectif-date');
+      if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
+      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); loadUsers();
+    }
   }
 
   /* ---- Sales Chart (Canvas pur, pas de dépendance externe) ---- */
@@ -1289,12 +1747,12 @@
     ctx.fillStyle = '#888';
     ctx.textAlign = 'left';
     ctx.font      = '10px Segoe UI, sans-serif';
-    ctx.fillText('GSM', lx + 15, 13);
+    ctx.fillText('Gross Add', lx + 15, 13);
 
     ctx.fillStyle = '#1A1A1A';
     ctx.fillRect(lx + 54, 5, 12, 8);
     ctx.fillStyle = '#888';
-    ctx.fillText('MoMo', lx + 69, 13);
+    ctx.fillText('New MoMo', lx + 69, 13);
   }
 
   /* ---- Envoi vers Google Sheets ---- */
@@ -1377,6 +1835,595 @@
     tab.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
   });
+
+  /* ---- Gestion des comptes (Équipes) ---- */
+
+  /* Chargement depuis Google Sheets, puis rendu */
+  async function loadUsers() {
+    const tbody = document.getElementById('users-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>';
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'getUsers' })
+      });
+      const json = await res.json();
+      if (json.success) USERS = json.users;
+    } catch (e) { /* utilise USERS_SEED si Sheets inaccessible */ }
+    renderUsersTable();
+    renderTeamStats();
+    renderObjectifs();
+    renderSuperviseurZones();
+    renderSuperviseurPerf();
+  }
+
+  function renderUsersTable(filter = '') {
+    const tbody = document.getElementById('users-tbody');
+    if (!tbody) return;
+    const q        = (filter || '').toLowerCase();
+    const filtered = USERS.filter(u => u.nom.toLowerCase().includes(q) || u.id.toLowerCase().includes(q));
+    document.getElementById('stat-total-users').textContent = USERS.length;
+    document.getElementById('stat-actif-users').textContent = USERS.filter(u => u.statut === 'actif').length;
+    document.getElementById('stat-agent-users').textContent = USERS.filter(u => u.role === 'agent').length;
+    tbody.innerHTML = filtered.length ? filtered.map(u => `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:32px;height:32px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:var(--black);flex-shrink:0">${u.initiales}</div>
+            <strong>${u.nom}</strong>
+          </div>
+        </td>
+        <td><code style="background:var(--gray-bg);padding:2px 8px;border-radius:4px;font-size:12px">${u.id}</code></td>
+        <td>${roleLabels[u.role] || u.role}</td>
+        <td>${u.zone}</td>
+        <td><span class="badge ${u.statut === 'actif' ? 'badge-green' : 'badge-gray'}">${u.statut === 'actif' ? 'Actif' : 'Inactif'}</span></td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="openUserModal('${u.id}')"><i class="fa fa-pen"></i></button>
+            <button class="btn ${u.statut === 'actif' ? 'btn-danger' : 'btn-secondary'} btn-sm" onclick="toggleUserStatus('${u.id}')">
+              ${u.statut === 'actif' ? '<i class="fa fa-ban"></i>' : '<i class="fa fa-circle-check"></i>'}
+            </button>
+          </div>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-text)">Aucun résultat.</td></tr>';
+  }
+
+  function filterUsers(val) { renderUsersTable(val); }
+
+  /* ---- Compteurs d'équipe ---- */
+  function renderTeamStats() {
+    const dfaTotal  = USERS.filter(u => u.role === 'agent').length;
+    const dfaActifs = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
+    const nbSup     = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif').length;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('stat-dfa-total',   dfaTotal);
+    set('stat-dfa-actifs',  dfaActifs);
+    set('stat-superviseurs', nbSup);
+  }
+
+  /* Mock performance par superviseur et par période (à remplacer par vraies données Sheets) */
+  const SUP_PERF_DATA = {
+    'Superviseur1': {
+      jour:    { grossAdd: 87,   newMomo: 54,   target: 120,  moyJour: 87,  evolutif: 12  },
+      semaine: { grossAdd: 567,  newMomo: 341,  target: 700,  moyJour: 81,  evolutif: 8   },
+      mois:    { grossAdd: 2180, newMomo: 1342, target: 2800, moyJour: 73,  evolutif: -3  },
+    },
+  };
+
+  let currentSupPeriod = 'semaine';
+
+  function setSuperviseurPeriod(period, btn) {
+    currentSupPeriod = period;
+    document.querySelectorAll('#sup-perf-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderSuperviseurPerf();
+  }
+
+  function renderSuperviseurPerf() {
+    const container = document.getElementById('sup-perf-body');
+    if (!container) return;
+
+    const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+    if (!superviseurs.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fa fa-users"></i><p>Aucun superviseur actif</p></div>';
+      return;
+    }
+
+    const rows = superviseurs.map(sup => {
+      const d     = (SUP_PERF_DATA[sup.id] || {})[currentSupPeriod] || { grossAdd: 0, newMomo: 0, target: 70, moyJour: 0, evolutif: 0 };
+      const pct   = d.target > 0 ? Math.min(100, Math.round(d.grossAdd / d.target * 100)) : 0;
+      const color = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
+      const bdg   = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
+      const sign  = d.evolutif >= 0 ? '+' : '';
+      const ec    = d.evolutif > 0 ? 'var(--green)' : d.evolutif < 0 ? 'var(--red)' : 'var(--gray-text)';
+      const ei    = d.evolutif > 0 ? 'fa-arrow-trend-up' : d.evolutif < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+      return `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:9px">
+              <div class="sup-avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0">${sup.initiales}</div>
+              <div>
+                <div style="font-weight:700;font-size:13px">${sup.nom}</div>
+                <div style="font-size:11px;color:var(--gray-text)"><i class="fa fa-location-dot" style="margin-right:3px"></i>${sup.zone}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:7px;background:#e9e9e9;border-radius:4px;min-width:60px">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div>
+              </div>
+              <span class="badge ${bdg}" style="min-width:46px;text-align:center">${pct} %</span>
+            </div>
+          </td>
+          <td style="text-align:center;font-weight:800;font-size:15px">${d.grossAdd}</td>
+          <td style="text-align:center;font-weight:800;font-size:15px">${d.newMomo}</td>
+          <td style="text-align:center;font-weight:700;font-size:14px">${d.moyJour}</td>
+          <td style="text-align:center">
+            <span style="font-weight:700;color:${ec};font-size:13px">
+              <i class="fa ${ei}" style="margin-right:3px"></i>${sign}${d.evolutif} %
+            </span>
+          </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Superviseur / Zone</th>
+            <th>Perf. globale</th>
+            <th style="text-align:center">Gross Add</th>
+            <th style="text-align:center">New MoMo</th>
+            <th style="text-align:center">Moy./Jour</th>
+            <th style="text-align:center">Évolution</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  /* ---- Objectifs périodiques ---- */
+
+  /* Cibles officielles fixées par MTN, par mois — { gsm: Gross Add, momo: New MoMo User (null = non défini) } */
+  const MONTHLY_TARGETS = {
+    '2026-06': { gsm: 18660, momo: 16794 },  /* Gross Add : 18 117 × 1,03 — New MoMo : 90 % du Gross Add */
+  };
+
+  /* Données réalisées mock par date (à remplacer par vraies données Sheets) */
+  const REALISE_DATA = {
+    '2026-06-08': { gsm: 214,  momo: 132  },
+    '2026-06-07': { gsm: 197,  momo: 118  },
+    '2026-06-06': { gsm: 231,  momo: 141  },
+    '2026-W23':   { gsm: 1342, momo: 812  },
+    '2026-W22':   { gsm: 1198, momo: 743  },
+    '2026-06':    { gsm: 4870, momo: 2980 },
+    '2026-05':    { gsm: 5120, momo: 3105 },
+  };
+
+  function renderObjectifs() {
+    const container = document.getElementById('objectifs-body');
+    if (!container) return;
+
+    const input   = document.getElementById('objectif-date');
+    const dateStr = (input && input.value) ? input.value : new Date().toISOString().slice(0, 10);
+    const date    = new Date(dateStr + 'T00:00:00');
+
+    /* Clés de lookup */
+    const keyJour  = dateStr;
+    const keyWeek  = date.getFullYear() + '-W' + getWeekNumber(date);
+    const keyMois  = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+
+    /* Cibles : priorité MONTHLY_TARGETS, fallback calcul dynamique sur nbDFA */
+    const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const mCible  = MONTHLY_TARGETS[keyMois];
+    const nbDFA   = Math.max(1, USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length);
+
+    const tMois      = mCible ? mCible.gsm  : 10 * nbDFA * daysInMonth;
+    const tMoisMomo  = (mCible && mCible.momo) ? mCible.momo : Math.round(tMois * 0.90);
+    const tJour      = Math.round(tMois / daysInMonth);
+    const tJourMomo  = Math.round(tMoisMomo / daysInMonth);
+    const tSemaine   = Math.round(tMois * 7 / daysInMonth);
+    const tSemMomo   = Math.round(tMoisMomo * 7 / daysInMonth);
+
+    /* Réalisés */
+    const rJour    = REALISE_DATA[keyJour] || { gsm: 0, momo: 0 };
+    const rSemaine = REALISE_DATA[keyWeek] || { gsm: 0, momo: 0 };
+    const rMois    = REALISE_DATA[keyMois] || { gsm: 0, momo: 0 };
+
+    /* Labels */
+    const lblJour = date.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    const ws = new Date(date);
+    const wd = date.getDay() || 7;
+    ws.setDate(date.getDate() - wd + 1);
+    const we = new Date(ws); we.setDate(ws.getDate() + 6);
+    const fmtShort   = d => d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' });
+    const lblSemaine = 'S' + getWeekNumber(date) + ' — du ' + fmtShort(ws) + ' au ' + fmtShort(we);
+    const lblMois    = date.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+
+    function period(icon, title, sub, accentColor, tGsm, tMomo, realise) {
+      const gsmPct  = tGsm  > 0 ? Math.min(100, Math.round(realise.gsm  / tGsm  * 100)) : 0;
+      const momoPct = tMomo > 0 ? Math.min(100, Math.round(realise.momo / tMomo * 100)) : 0;
+      const avgPct  = Math.round((gsmPct + momoPct) / 2);
+      const bdg      = avgPct >= 80 ? 'badge-green' : avgPct >= 65 ? 'badge-orange' : 'badge-red';
+      const barColor = avgPct >= 80 ? 'var(--green)' : avgPct >= 65 ? 'var(--orange)' : 'var(--red)';
+      return `
+        <div class="objectif-period">
+          <div class="objp-header">
+            <div class="objp-icon" style="background:${accentColor}22"><i class="fa ${icon}" style="color:${accentColor}"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="objp-title">${title}</div>
+              <div class="objp-sub">${sub}</div>
+            </div>
+            <span class="badge ${bdg}">${avgPct} %</span>
+          </div>
+          <div class="objp-metrics">
+            <div>
+              <div class="objp-metric-lbl">Gross Add</div>
+              <div class="objp-metric-vals">
+                <span class="objp-actual">${realise.gsm.toLocaleString('fr-FR')}</span>
+                <span class="objp-sep">/</span>
+                <span class="objp-target">${tGsm.toLocaleString('fr-FR')}</span>
+              </div>
+              <div class="objp-bar"><div style="width:${gsmPct}%;background:${barColor}"></div></div>
+            </div>
+            <div>
+              <div class="objp-metric-lbl">New MoMo User</div>
+              <div class="objp-metric-vals">
+                <span class="objp-actual">${realise.momo.toLocaleString('fr-FR')}</span>
+                <span class="objp-sep">/</span>
+                <span class="objp-target">${tMomo.toLocaleString('fr-FR')}</span>
+              </div>
+              <div class="objp-bar"><div style="width:${momoPct}%;background:${barColor}"></div></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    container.innerHTML = `<div class="objectifs-grid">
+      ${period('fa-calendar-day',  'Journalier',   lblJour,    '#4c6ef5', tJour,    tJourMomo, rJour)}
+      ${period('fa-calendar-week', 'Hebdomadaire', lblSemaine, '#f59f00', tSemaine, tSemMomo,  rSemaine)}
+      ${period('fa-calendar',      'Mensuel',      lblMois,    '#2f9e44', tMois,    tMoisMomo, rMois)}
+    </div>`;
+  }
+
+  /* Données de performance par zone (mock — à remplacer par vraies données Sheets) */
+  const ZONE_PERF = {
+    'Avrankou':           { gsm: 88, momo: 82 },
+    'Missérété':          { gsm: 82, momo: 75 },
+    'Avrankou-Missérété': { gsm: 85, momo: 78 },
+    'Dangbo':             { gsm: 65, momo: 58 },
+    'Adjohoun':           { gsm: 71, momo: 63 },
+    'Bonou':              { gsm: 54, momo: 49 },
+    'Toutes zones':       { gsm: 80, momo: 72 },
+  };
+
+  function renderSuperviseurZones() {
+    const container = document.getElementById('superviseur-zone-list');
+    const countEl   = document.getElementById('superviseur-zone-count');
+    if (!container) return;
+
+    const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+    if (countEl) countEl.textContent = superviseurs.length;
+
+    if (!superviseurs.length) {
+      container.innerHTML = '<div class="empty-state"><i class="fa fa-users"></i><p>Aucun superviseur actif</p></div>';
+      return;
+    }
+
+    container.innerHTML = superviseurs.map(sup => {
+      const perf  = ZONE_PERF[sup.zone] || { gsm: 0, momo: 0 };
+      const avg   = Math.round((perf.gsm + perf.momo) / 2);
+      const color = avg >= 80 ? 'var(--green)' : avg >= 65 ? 'var(--orange)' : 'var(--red)';
+      const bdg   = avg >= 80 ? 'badge-green'  : avg >= 65 ? 'badge-orange'  : 'badge-red';
+      const lbl   = avg >= 80 ? 'Bon'          : avg >= 65 ? 'Moyen'         : 'Alerte';
+      return `
+        <div class="sup-zone-row">
+          <div class="sup-avatar">${sup.initiales}</div>
+          <div class="sup-info">
+            <div class="sup-name">${sup.nom}</div>
+            <div class="sup-zone-label"><i class="fa fa-location-dot"></i> ${sup.zone}</div>
+            <div class="sup-bars">
+              <div class="sup-bar-row">
+                <span class="sup-bar-lbl">Gross Add</span>
+                <div class="sup-bar-track"><div class="sup-bar-fill" style="width:${perf.gsm}%;background:${color}"></div></div>
+                <span class="sup-bar-pct" style="color:${color}">${perf.gsm} %</span>
+              </div>
+              <div class="sup-bar-row">
+                <span class="sup-bar-lbl">New MoMo</span>
+                <div class="sup-bar-track"><div class="sup-bar-fill" style="width:${perf.momo}%;background:${color}"></div></div>
+                <span class="sup-bar-pct" style="color:${color}">${perf.momo} %</span>
+              </div>
+            </div>
+          </div>
+          <span class="badge ${bdg}" style="flex-shrink:0;margin-top:4px">${lbl}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function openUserModal(editId) {
+    editingUserId = editId || null;
+    const modal = document.getElementById('user-modal');
+    document.getElementById('modal-feedback').style.display = 'none';
+    if (editId) {
+      const u = USERS.find(u => u.id === editId);
+      if (!u) return;
+      document.getElementById('modal-title').textContent  = 'Modifier le compte';
+      document.getElementById('modal-nom').value          = u.nom;
+      document.getElementById('modal-id').value           = u.id;
+      document.getElementById('modal-id').disabled        = true;
+      document.getElementById('modal-pwd').value          = '';
+      document.getElementById('modal-pwd').placeholder    = 'Laisser vide pour ne pas changer';
+      document.getElementById('modal-role').value         = u.role;
+      document.getElementById('modal-zone').value         = u.zone;
+      document.getElementById('modal-statut').value       = u.statut;
+    } else {
+      document.getElementById('modal-title').textContent  = 'Nouveau compte';
+      document.getElementById('modal-nom').value          = '';
+      document.getElementById('modal-id').value           = '';
+      document.getElementById('modal-id').disabled        = false;
+      document.getElementById('modal-pwd').value          = '';
+      document.getElementById('modal-pwd').placeholder    = 'Mot de passe';
+      document.getElementById('modal-role').value         = 'agent';
+      document.getElementById('modal-zone').value         = 'Avrankou-Missérété';
+      document.getElementById('modal-statut').value       = 'actif';
+    }
+    modal.style.display = 'flex';
+  }
+
+  function closeUserModal() {
+    document.getElementById('user-modal').style.display = 'none';
+    editingUserId = null;
+  }
+
+  function togglePwd() {
+    const inp = document.getElementById('modal-pwd');
+    const eye = document.getElementById('pwd-eye');
+    if (inp.type === 'password') { inp.type = 'text';     eye.className = 'fa fa-eye-slash'; }
+    else                         { inp.type = 'password'; eye.className = 'fa fa-eye'; }
+  }
+
+  async function saveUser() {
+    const nom    = document.getElementById('modal-nom').value.trim();
+    const id     = document.getElementById('modal-id').value.trim().toLowerCase();
+    const pwd    = document.getElementById('modal-pwd').value;
+    const role   = document.getElementById('modal-role').value;
+    const zone   = document.getElementById('modal-zone').value;
+    const statut = document.getElementById('modal-statut').value;
+    const fb     = document.getElementById('modal-feedback');
+    const btn    = document.querySelector('#user-modal .btn-primary');
+
+    const showErr = msg => {
+      fb.style.display    = 'block';
+      fb.style.background = '#f8d7da';
+      fb.style.color      = '#721c24';
+      fb.textContent      = msg;
+    };
+
+    if (!nom || !id)                  return showErr('Nom et identifiant sont obligatoires.');
+    if (!editingUserId && !pwd)        return showErr('Le mot de passe est obligatoire pour un nouveau compte.');
+    if (!editingUserId && !/^[a-z0-9._-]+$/.test(id)) return showErr('Identifiant invalide (minuscules, chiffres, . _ - uniquement).');
+    if (!editingUserId && USERS.find(u => u.id === id)) return showErr('Cet identifiant est déjà utilisé.');
+
+    btn.disabled  = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Enregistrement…';
+
+    const initiales = nom.split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 2);
+    const action    = editingUserId ? 'updateUser' : 'createUser';
+    const body      = { action, id: editingUserId || id, nom, role, zone, initiales, statut };
+    if (pwd) body.pwd = pwd;
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!json.success) {
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer';
+        return showErr(json.error || 'Erreur lors de l\'enregistrement.');
+      }
+    } catch (e) {
+      /* Fallback local si Sheets inaccessible */
+      if (editingUserId) {
+        const idx = USERS.findIndex(u => u.id === editingUserId);
+        if (idx !== -1) USERS[idx] = { ...USERS[idx], nom, role, zone, initiales, statut, ...(pwd && { pwd }) };
+      } else {
+        USERS.push({ id, pwd, nom, role, zone, initiales, statut });
+      }
+    }
+
+    btn.disabled  = false;
+    btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer';
+    closeUserModal();
+    loadUsers();
+  }
+
+  async function toggleUserStatus(id) {
+    const u = USERS.find(u => u.id === id);
+    if (!u) return;
+    const newStatut = u.statut === 'actif' ? 'inactif' : 'actif';
+    try {
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'toggleStatus', id, statut: newStatut })
+      });
+    } catch (e) {
+      u.statut = newStatut;
+    }
+    loadUsers();
+  }
+
+  /* Fermer le modal en cliquant en dehors */
+  document.getElementById('user-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('user-modal')) closeUserModal();
+  });
+
+  /* ---- Performance Agent DFA ---- */
+  let perfPeriod = 'jour';
+  let perfDate   = new Date('2026-06-08');
+
+  const agentPerfData = {
+    jour: {
+      '2026-06-08': { gsm: 16, momo: 9,  tauxGSM: 100, tauxMomo: 75,  moyJour: 16,   moyHebdo: '—' },
+      '2026-06-07': { gsm: 0,  momo: 0,  tauxGSM: 0,   tauxMomo: 0,   moyJour: 0,    moyHebdo: '—' },
+      '2026-06-06': { gsm: 14, momo: 7,  tauxGSM: 100, tauxMomo: 58,  moyJour: 14,   moyHebdo: '—' },
+      '2026-06-05': { gsm: 16, momo: 9,  tauxGSM: 100, tauxMomo: 75,  moyJour: 16,   moyHebdo: '—' },
+      '2026-06-04': { gsm: 21, momo: 13, tauxGSM: 100, tauxMomo: 100, moyJour: 21,   moyHebdo: '—' },
+      '2026-06-03': { gsm: 14, momo: 8,  tauxGSM: 100, tauxMomo: 67,  moyJour: 14,   moyHebdo: '—' },
+      '2026-06-02': { gsm: 23, momo: 12, tauxGSM: 100, tauxMomo: 100, moyJour: 23,   moyHebdo: '—' },
+    },
+    semaine: {
+      '2026-W23': { gsm: 74, momo: 42, tauxGSM: 100, tauxMomo: 84, moyJour: 10.6, moyHebdo: 74 },
+      '2026-W22': { gsm: 68, momo: 38, tauxGSM: 97,  tauxMomo: 76, moyJour: 9.7,  moyHebdo: 68 },
+      '2026-W21': { gsm: 71, momo: 40, tauxGSM: 100, tauxMomo: 80, moyJour: 10.1, moyHebdo: 71 },
+    },
+    mois: {
+      '2026-06': { gsm: 186, momo: 112, tauxGSM: 89, tauxMomo: 62, moyJour: 26.6, moyHebdo: 74 },
+      '2026-05': { gsm: 268, momo: 160, tauxGSM: 96, tauxMomo: 89, moyJour: 8.9,  moyHebdo: 67 },
+      '2026-04': { gsm: 241, momo: 144, tauxGSM: 86, tauxMomo: 80, moyJour: 8.0,  moyHebdo: 60 },
+    }
+  };
+
+  function getWeekNumber(d) {
+    const dt  = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - day);
+    const jan1 = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+    return Math.ceil(((dt - jan1) / 86400000 + 1) / 7);
+  }
+
+  function getPerfKey() {
+    if (perfPeriod === 'jour')
+      return perfDate.toISOString().split('T')[0];
+    if (perfPeriod === 'semaine')
+      return perfDate.getFullYear() + '-W' + getWeekNumber(perfDate);
+    return perfDate.getFullYear() + '-' + String(perfDate.getMonth() + 1).padStart(2, '0');
+  }
+
+  function formatPerfLabel() {
+    if (perfPeriod === 'jour')
+      return perfDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (perfPeriod === 'semaine')
+      return 'Semaine ' + getWeekNumber(perfDate) + ' — ' + perfDate.getFullYear();
+    return perfDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  }
+
+  function navPerfDate(dir) {
+    if (perfPeriod === 'jour')    perfDate.setDate(perfDate.getDate() + dir);
+    if (perfPeriod === 'semaine') perfDate.setDate(perfDate.getDate() + dir * 7);
+    if (perfPeriod === 'mois')    perfDate.setMonth(perfDate.getMonth() + dir);
+    updatePerfDisplay();
+  }
+
+  function setPerfPeriod(p, el) {
+    perfPeriod = p;
+    document.querySelectorAll('#perf-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    updatePerfDisplay();
+  }
+
+  function updatePerfDisplay() {
+    const labelEl = document.getElementById('perf-date-label');
+    const gridEl  = document.getElementById('perf-kpi-grid');
+    if (!labelEl || !gridEl) return;
+    labelEl.textContent = formatPerfLabel();
+    const key = getPerfKey();
+    const d   = (agentPerfData[perfPeriod] || {})[key];
+    if (!d) {
+      gridEl.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px">Aucune donnée disponible pour cette période.</div>';
+      return;
+    }
+    const tc = v => v >= 80 ? 'var(--green)' : v >= 60 ? 'var(--orange)' : 'var(--red)';
+    gridEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)">${d.gsm}</div>
+          <div class="lbl">Gross Add</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)">${d.momo}</div>
+          <div class="lbl">New MoMo User</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val">${d.moyJour}</div>
+          <div class="lbl">Moy. Journalière</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val">${d.moyHebdo}</div>
+          <div class="lbl">Moy. Hebdo</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:${tc(d.tauxGSM)}">${d.tauxGSM} %</div>
+          <div class="lbl">Taux Activation</div>
+        </div>
+      </div>`;
+  }
 </script>
+<!-- ================================================================
+     MODAL : GESTION COMPTE
+================================================================ -->
+<div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:16px;padding:32px;width:500px;max-width:92vw;box-shadow:0 24px 80px rgba(0,0,0,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div style="font-size:17px;font-weight:800" id="modal-title">Nouveau compte</div>
+      <button onclick="closeUserModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-text);line-height:1"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="span-2">
+        <label class="input-label">Nom complet</label>
+        <input class="input-field" type="text" id="modal-nom" placeholder="ex : Kossi ADJOVI">
+      </div>
+      <div>
+        <label class="input-label">Identifiant</label>
+        <input class="input-field" type="text" id="modal-id" placeholder="ex : kossi.adjovi">
+      </div>
+      <div>
+        <label class="input-label">Mot de passe</label>
+        <div style="position:relative">
+          <input class="input-field" type="password" id="modal-pwd" placeholder="Mot de passe" style="padding-right:38px">
+          <span onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-text);font-size:14px"><i class="fa fa-eye" id="pwd-eye"></i></span>
+        </div>
+      </div>
+      <div>
+        <label class="input-label">Rôle</label>
+        <select class="input-field" id="modal-role">
+          <option value="dg">Directeur Général (DG)</option>
+          <option value="dga">Directeur Général Adjoint (DGA)</option>
+          <option value="dcc">DCC</option>
+          <option value="dc">Directeur Commercial (DC)</option>
+          <option value="ra">Responsable Acquisition (RA)</option>
+          <option value="superviseur">Superviseur MPOS</option>
+          <option value="agent">Agent Terrain (DFA)</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Zone</label>
+        <select class="input-field" id="modal-zone">
+          <option value="Toutes zones">Toutes zones</option>
+          <option value="Avrankou-Missérété">Avrankou-Missérété</option>
+          <option value="Dangbo">Dangbo</option>
+          <option value="Adjohoun">Adjohoun</option>
+          <option value="Bonou">Bonou</option>
+          <option value="Avrankou">Avrankou</option>
+          <option value="Missérété">Missérété</option>
+        </select>
+      </div>
+      <div class="span-2">
+        <label class="input-label">Statut</label>
+        <select class="input-field" id="modal-statut">
+          <option value="actif">Actif</option>
+          <option value="inactif">Inactif</option>
+        </select>
+      </div>
+    </div>
+    <div id="modal-feedback" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+    <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeUserModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveUser()"><i class="fa fa-floppy-disk"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
