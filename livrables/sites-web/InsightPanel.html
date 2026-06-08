@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsightPanel — ZEPHIR GROUP · MTN Bénin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --yellow: #FFC300;
+      --yellow-light: #fff9e0;
+      --black: #1A1A1A;
+      --white: #FFFFFF;
+      --gray-bg: #F5F5F5;
+      --gray-border: #E0E0E0;
+      --gray-text: #777;
+      --green: #28A745;
+      --orange: #FD7E14;
+      --red: #DC3545;
+      --sidebar-w: 224px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--gray-bg);
+      color: var(--black);
+      font-size: 14px;
+    }
+
+    /* ============================================================
+       LOGIN
+    ============================================================ */
+    #login-page {
+      min-height: 100vh;
+      background: var(--black);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: radial-gradient(circle at 20% 80%, rgba(255,195,0,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255,195,0,0.05) 0%, transparent 50%);
+    }
+
+    .login-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 44px 40px;
+      width: 400px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--yellow);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--black);
+      margin-bottom: 14px;
+    }
+
+    .login-logo h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .login-logo p {
+      font-size: 11px;
+      color: var(--gray-text);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-top: 4px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray-text);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--gray-border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--white);
+      color: var(--black);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .input-field:focus { border-color: var(--yellow); }
+
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: var(--yellow);
+      color: var(--black);
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: transform 0.1s, opacity 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-login:hover { opacity: 0.88; }
+    .btn-login:active { transform: scale(0.99); }
+
+    /* ============================================================
+       LAYOUT
+    ============================================================ */
+    #app { display: none; min-height: 100vh; }
+
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--black);
+      display: flex;
+      flex-direction: column;
+      z-index: 200;
+      overflow-y: auto;
+    }
+
+    .sidebar-brand {
+      padding: 20px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: var(--yellow);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 14px;
+      color: var(--black);
+      flex-shrink: 0;
+    }
+
+    .brand-name { color: var(--white); font-size: 15px; font-weight: 800; }
+    .brand-sub { color: #555; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; }
+
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+
+    .nav-label {
+      padding: 12px 20px 4px;
+      font-size: 9.5px;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 20px;
+      color: #888;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+      user-select: none;
+    }
+
+    .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+
+    .nav-item.active {
+      color: var(--yellow);
+      background: rgba(255,195,0,0.08);
+      border-left-color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .nav-item i { width: 17px; text-align: center; font-size: 13px; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar {
+      width: 36px; height: 36px;
+      background: var(--yellow);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--black);
+      flex-shrink: 0;
+    }
+
+    .user-name { color: var(--white); font-size: 12.5px; font-weight: 700; }
+    .user-role { color: #555; font-size: 10.5px; margin-top: 1px; }
+
+    /* ============================================================
+       MAIN
+    ============================================================ */
+    .main-content { margin-left: var(--sidebar-w); min-height: 100vh; }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-border);
+      padding: 13px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .topbar-title { font-size: 14.5px; font-weight: 700; }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .topbar-date { font-size: 12px; color: var(--gray-text); }
+
+    .notif-btn {
+      position: relative;
+      color: var(--gray-text);
+      font-size: 17px;
+      cursor: pointer;
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: -5px; right: -6px;
+      width: 16px; height: 16px;
+      background: var(--red);
+      color: var(--white);
+      border-radius: 50%;
+      font-size: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    /* ============================================================
+       VIEWS
+    ============================================================ */
+    .view { display: none; padding: 24px 28px; }
+    .view.active { display: block; }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+    .page-subtitle { font-size: 12.5px; color: var(--gray-text); margin-top: 3px; }
+
+    /* ============================================================
+       COMPONENTS
+    ============================================================ */
+
+    /* --- Cards --- */
+    .card {
+      background: var(--white);
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title { font-size: 13.5px; font-weight: 700; }
+    .card-body { padding: 20px; }
+
+    /* --- KPI Grid --- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--yellow);
+    }
+
+    .kpi-label { font-size: 11px; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .kpi-value { font-size: 30px; font-weight: 900; color: var(--black); line-height: 1; }
+    .kpi-delta { font-size: 12px; margin-top: 7px; display: flex; align-items: center; gap: 5px; }
+    .kpi-delta.up { color: var(--green); }
+    .kpi-delta.down { color: var(--red); }
+    .kpi-delta.neutral { color: var(--gray-text); }
+    .kpi-bg-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 38px; opacity: 0.06; }
+
+    /* --- Two-column grid --- */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .grid-3-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+    /* --- Tables --- */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      padding: 9px 16px;
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--gray-text);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--gray-bg);
+      border-bottom: 1px solid var(--gray-border);
+    }
+    tbody tr { border-bottom: 1px solid var(--gray-border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 11px 16px; }
+
+    /* --- Badges --- */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-green { background: #d4edda; color: #155724; }
+    .badge-orange { background: #fff3cd; color: #7d5200; }
+    .badge-red { background: #f8d7da; color: #721c24; }
+    .badge-yellow { background: var(--yellow-light); color: #5c4300; }
+    .badge-gray { background: var(--gray-bg); color: #555; }
+    .badge-black { background: var(--black); color: var(--yellow); }
+
+    /* --- Buttons --- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.87; }
+    .btn-primary { background: var(--yellow); color: var(--black); }
+    .btn-secondary { background: var(--gray-bg); color: var(--black); border: 1.5px solid var(--gray-border); }
+    .btn-danger { background: var(--red); color: var(--white); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* --- Tabs --- */
+    .tabs {
+      display: inline-flex;
+      gap: 2px;
+      background: var(--gray-bg);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .tab {
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--gray-text);
+      font-family: inherit;
+      transition: all 0.12s;
+    }
+    .tab.active { background: var(--white); color: var(--black); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* --- Alerts --- */
+    .alert-stack { display: flex; flex-direction: column; gap: 10px; }
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    .alert-item i { margin-top: 2px; flex-shrink: 0; font-size: 14px; }
+    .alert-item.danger { background: #fdf0f0; color: #6f1a1a; }
+    .alert-item.warning { background: #fffbef; color: #6d4c00; }
+    .alert-item.info { background: #eef7ff; color: #1a4d7a; }
+
+    /* --- Progress bar --- */
+    .progress-wrap { width: 72px; height: 5px; background: var(--gray-border); border-radius: 3px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 3px; }
+
+    /* --- Zone performance bars --- */
+    .zone-list { display: flex; flex-direction: column; gap: 13px; }
+    .zone-row { display: flex; align-items: center; gap: 10px; }
+    .zone-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .zone-name { font-size: 13px; font-weight: 600; width: 80px; flex-shrink: 0; }
+    .zone-track { flex: 1; height: 7px; background: var(--gray-border); border-radius: 4px; overflow: hidden; }
+    .zone-fill { height: 100%; border-radius: 4px; }
+    .zone-pct { font-size: 12px; font-weight: 700; width: 36px; text-align: right; }
+
+    /* --- Mini stats row --- */
+    .mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .mini-stat { background: var(--gray-bg); border-radius: 8px; padding: 14px; text-align: center; }
+    .mini-stat .val { font-size: 22px; font-weight: 900; }
+    .mini-stat .lbl { font-size: 10.5px; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 3px; }
+
+    /* --- Form grid --- */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid .span-2 { grid-column: span 2; }
+    .input-label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+    textarea.input-field { resize: vertical; min-height: 70px; }
+
+    /* --- Medals --- */
+    .medal-1 { color: #FFD700; }
+    .medal-2 { color: #ABABAB; }
+    .medal-3 { color: #CD7F32; }
+
+    /* --- Placeholder --- */
+    .empty-state {
+      text-align: center;
+      padding: 64px 24px;
+      color: var(--gray-text);
+    }
+    .empty-state i { font-size: 48px; opacity: 0.2; display: block; margin-bottom: 16px; }
+    .empty-state p { font-size: 14px; }
+
+    /* --- Rank box --- */
+    .rank-box {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 10px 0;
+    }
+    .rank-number { font-size: 42px; font-weight: 900; color: var(--yellow); line-height: 1; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     PAGE DE CONNEXION
+================================================================ -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-icon">IP</div>
+      <h1>InsightPanel</h1>
+      <p>ZEPHIR GROUP &nbsp;·&nbsp; MTN Bénin</p>
+    </div>
+
+    <div class="form-group">
+      <label>Identifiant</label>
+      <input type="text" value="ibrahim.lawogni" placeholder="identifiant">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" value="••••••••" placeholder="mot de passe">
+    </div>
+    <div class="form-group">
+      <label>Rôle</label>
+      <select id="role-select">
+        <option value="dc">Directeur Commercial (DC)</option>
+        <option value="chef">Chef d'agence</option>
+        <option value="superviseur">Superviseur terrain</option>
+        <option value="agent">Agent terrain</option>
+        <option value="admin">Administration</option>
+      </select>
+    </div>
+    <button class="btn-login" onclick="doLogin()">Se connecter</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     APPLICATION
+================================================================ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">IP</div>
+      <div>
+        <div class="brand-name">InsightPanel</div>
+        <div class="brand-sub">ZEPHIR GROUP</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Tableau de bord</div>
+      <div class="nav-item active" onclick="showView('dashboard', this)">
+        <i class="fa fa-chart-line"></i> Vue d'ensemble
+      </div>
+      <div class="nav-item" onclick="showView('superviseur', this)">
+        <i class="fa fa-users"></i> Vue Superviseur
+      </div>
+      <div class="nav-item" onclick="showView('agent', this)">
+        <i class="fa fa-mobile-screen"></i> Vue Agent terrain
+      </div>
+
+      <div class="nav-label" style="margin-top:8px">Opérations</div>
+      <div class="nav-item" onclick="showView('stocks', this)">
+        <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
+      </div>
+      <div class="nav-item" onclick="showView('rapports', this)">
+        <i class="fa fa-file-lines"></i> Rapports
+      </div>
+      <div class="nav-item" onclick="showView('conformite', this)">
+        <i class="fa fa-circle-check"></i> Conformité
+      </div>
+
+      <div class="nav-label" style="margin-top:8px">Administration</div>
+      <div class="nav-item" onclick="showView('equipes', this)">
+        <i class="fa fa-user-gear"></i> Équipes
+      </div>
+      <div class="nav-item" onclick="showView('parametres', this)">
+        <i class="fa fa-gear"></i> Paramètres
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="user-avatar">IL</div>
+      <div>
+        <div class="user-name" id="user-name">Ibrahim LAWOGNI</div>
+        <div class="user-role" id="user-role">Directeur Commercial</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Vue d'ensemble — Tableau de bord</div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="topbar-date"></span>
+        <div class="notif-btn">
+          <i class="fa fa-bell"></i>
+          <span class="notif-badge">3</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="doLogout()">
+          <i class="fa fa-right-from-bracket"></i> Déconnexion
+        </button>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUE : DASHBOARD (DC)
+    ============================================================ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Tableau de bord</div>
+          <div class="page-subtitle">Performance en temps réel &nbsp;·&nbsp; Lundi 08 juin 2026</div>
+        </div>
+        <div class="tabs">
+          <button class="tab active">Aujourd'hui</button>
+          <button class="tab">Semaine</button>
+          <button class="tab">Mois</button>
+        </div>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Ventes GSM du jour</div>
+          <div class="kpi-value">247</div>
+          <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +18 % vs hier</div>
+          <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Activations MoMo</div>
+          <div class="kpi-value">134</div>
+          <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +9 % vs hier</div>
+          <div class="kpi-bg-icon"><i class="fa fa-wallet"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Taux de conformité</div>
+          <div class="kpi-value">91 %</div>
+          <div class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> &minus;3 pts vs S. dern.</div>
+          <div class="kpi-bg-icon"><i class="fa fa-shield-halved"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Stock disponible (SIM)</div>
+          <div class="kpi-value">1 840</div>
+          <div class="kpi-delta neutral"><i class="fa fa-circle-check"></i> Niveau suffisant</div>
+          <div class="kpi-bg-icon"><i class="fa fa-boxes-stacked"></i></div>
+        </div>
+      </div>
+
+      <!-- CHART + ZONE MAP -->
+      <div class="grid-3-1">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Évolution des ventes — 7 derniers jours</div>
+            <span class="badge badge-yellow"><i class="fa fa-chart-bar"></i> GSM + MoMo</span>
+          </div>
+          <div class="card-body">
+            <canvas id="salesChart" height="190"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Zones — Performance</div>
+          </div>
+          <div class="card-body">
+            <div class="zone-list">
+              <div class="zone-row">
+                <div class="zone-dot" style="background:var(--green)"></div>
+                <div class="zone-name">Avrankou</div>
+                <div class="zone-track"><div class="zone-fill" style="width:88%;background:var(--green)"></div></div>
+                <div class="zone-pct" style="color:var(--green)">88 %</div>
+              </div>
+              <div class="zone-row">
+                <div class="zone-dot" style="background:var(--green)"></div>
+                <div class="zone-name">Missérété</div>
+                <div class="zone-track"><div class="zone-fill" style="width:82%;background:var(--green)"></div></div>
+                <div class="zone-pct" style="color:var(--green)">82 %</div>
+              </div>
+              <div class="zone-row">
+                <div class="zone-dot" style="background:var(--orange)"></div>
+                <div class="zone-name">Adjohoun</div>
+                <div class="zone-track"><div class="zone-fill" style="width:71%;background:var(--orange)"></div></div>
+                <div class="zone-pct" style="color:var(--orange)">71 %</div>
+              </div>
+              <div class="zone-row">
+                <div class="zone-dot" style="background:var(--orange)"></div>
+                <div class="zone-name">Dangbo</div>
+                <div class="zone-track"><div class="zone-fill" style="width:65%;background:var(--orange)"></div></div>
+                <div class="zone-pct" style="color:var(--orange)">65 %</div>
+              </div>
+              <div class="zone-row">
+                <div class="zone-dot" style="background:var(--red)"></div>
+                <div class="zone-name">Bonou</div>
+                <div class="zone-track"><div class="zone-fill" style="width:54%;background:var(--red)"></div></div>
+                <div class="zone-pct" style="color:var(--red)">54 %</div>
+              </div>
+            </div>
+
+            <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--gray-border)">
+              <div style="font-size:11px; font-weight:700; color:var(--gray-text); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px">Légende</div>
+              <div style="display:flex; gap:14px; font-size:12px;">
+                <span><span style="display:inline-block;width:9px;height:9px;background:var(--green);border-radius:50%;margin-right:5px"></span>Bon (&ge;80 %)</span>
+                <span><span style="display:inline-block;width:9px;height:9px;background:var(--orange);border-radius:50%;margin-right:5px"></span>Moyen</span>
+                <span><span style="display:inline-block;width:9px;height:9px;background:var(--red);border-radius:50%;margin-right:5px"></span>Alerte</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP AGENTS + ALERTS -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Top Agents — Semaine 23</div>
+            <span class="badge badge-black">5 sur 24</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Agent</th>
+                <th>Zone</th>
+                <th>GSM</th>
+                <th>MoMo</th>
+                <th>Perf.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><i class="fa fa-medal medal-1"></i></td>
+                <td><strong>Kossi ADJOVI</strong></td>
+                <td>Avrankou</td>
+                <td>143</td><td>87</td>
+                <td><span class="badge badge-green">96 %</span></td>
+              </tr>
+              <tr>
+                <td><i class="fa fa-medal medal-2"></i></td>
+                <td><strong>Aïssatou GNONA</strong></td>
+                <td>Missérété</td>
+                <td>128</td><td>79</td>
+                <td><span class="badge badge-green">91 %</span></td>
+              </tr>
+              <tr>
+                <td><i class="fa fa-medal medal-3"></i></td>
+                <td><strong>Mouftaou SABI</strong></td>
+                <td>Avrankou</td>
+                <td>117</td><td>65</td>
+                <td><span class="badge badge-green">88 %</span></td>
+              </tr>
+              <tr>
+                <td style="color:#bbb">4</td>
+                <td>Clarisse YOVO</td>
+                <td>Adjohoun</td>
+                <td>104</td><td>58</td>
+                <td><span class="badge badge-orange">79 %</span></td>
+              </tr>
+              <tr>
+                <td style="color:#bbb">5</td>
+                <td>Romuald AGBO</td>
+                <td>Dangbo</td>
+                <td>98</td><td>51</td>
+                <td><span class="badge badge-orange">74 %</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Alertes &amp; Notifications</div>
+            <span class="badge badge-red">3 actives</span>
+          </div>
+          <div class="card-body">
+            <div class="alert-stack">
+              <div class="alert-item danger">
+                <i class="fa fa-circle-exclamation"></i>
+                <div>
+                  <strong>Stock critique — Bonou</strong><br>
+                  SIM GSM : 45 unités restantes. Réapprovisionnement urgent requis avant mercredi.
+                </div>
+              </div>
+              <div class="alert-item warning">
+                <i class="fa fa-triangle-exclamation"></i>
+                <div>
+                  <strong>Conformité en baisse — Dangbo</strong><br>
+                  3 agents avec bases MoMo non conformes détectés ce mois.
+                </div>
+              </div>
+              <div class="alert-item info">
+                <i class="fa fa-circle-info"></i>
+                <div>
+                  <strong>Rapport Semaine 22 disponible</strong><br>
+                  La synthèse hebdomadaire est prête. Export PDF disponible.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUE : SUPERVISEUR
+    ============================================================ -->
+    <div class="view" id="view-superviseur">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Vue Superviseur</div>
+          <div class="page-subtitle">Mon équipe &nbsp;·&nbsp; Zones Avrankou-Missérété</div>
+        </div>
+        <button class="btn btn-primary" onclick="alert('Rapport journalier envoyé au DC !')">
+          <i class="fa fa-paper-plane"></i> Envoyer rapport journalier
+        </button>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini-stat">
+          <div class="val">12</div>
+          <div class="lbl">Agents actifs</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)">389</div>
+          <div class="lbl">Ventes cette semaine</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--green)">84 %</div>
+          <div class="lbl">Conformité équipe</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Performances individuelles — Semaine 23</div>
+          <div class="tabs">
+            <button class="tab active">Tous</button>
+            <button class="tab">GSM</button>
+            <button class="tab">MoMo</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Zone</th>
+              <th>GSM</th>
+              <th>MoMo</th>
+              <th>Conformité</th>
+              <th>Évolution</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Kossi ADJOVI</strong></td>
+              <td>Avrankou</td><td>143</td><td>87</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:96%;background:var(--green)"></div></div>
+                  <span>96 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-green"><i class="fa fa-arrow-up"></i> +12 %</span></td>
+              <td><span class="badge badge-green">Actif</span></td>
+            </tr>
+            <tr>
+              <td><strong>Aïssatou GNONA</strong></td>
+              <td>Missérété</td><td>128</td><td>79</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:91%;background:var(--green)"></div></div>
+                  <span>91 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-green"><i class="fa fa-arrow-up"></i> +8 %</span></td>
+              <td><span class="badge badge-green">Actif</span></td>
+            </tr>
+            <tr>
+              <td><strong>Mouftaou SABI</strong></td>
+              <td>Avrankou</td><td>117</td><td>65</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:88%;background:var(--green)"></div></div>
+                  <span>88 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-gray"><i class="fa fa-minus"></i> 0 %</span></td>
+              <td><span class="badge badge-green">Actif</span></td>
+            </tr>
+            <tr>
+              <td><strong>Clarisse YOVO</strong></td>
+              <td>Adjohoun</td><td>104</td><td>58</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:79%;background:var(--orange)"></div></div>
+                  <span>79 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-orange"><i class="fa fa-arrow-up"></i> +3 %</span></td>
+              <td><span class="badge badge-green">Actif</span></td>
+            </tr>
+            <tr>
+              <td><strong>Romuald AGBO</strong></td>
+              <td>Dangbo</td><td>98</td><td>51</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:74%;background:var(--orange)"></div></div>
+                  <span>74 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-red"><i class="fa fa-arrow-down"></i> &minus;5 %</span></td>
+              <td><span class="badge badge-orange">À coacher</span></td>
+            </tr>
+            <tr>
+              <td><strong>Félicité DOSSOU</strong></td>
+              <td>Avrankou</td><td>87</td><td>44</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:68%;background:var(--orange)"></div></div>
+                  <span>68 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-red"><i class="fa fa-arrow-down"></i> &minus;9 %</span></td>
+              <td><span class="badge badge-red">Alerte</span></td>
+            </tr>
+            <tr>
+              <td><strong>Brice HOUINATO</strong></td>
+              <td>Missérété</td><td>76</td><td>39</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-wrap"><div class="progress-bar" style="width:62%;background:var(--red)"></div></div>
+                  <span>62 %</span>
+                </div>
+              </td>
+              <td><span class="badge badge-red"><i class="fa fa-arrow-down"></i> &minus;14 %</span></td>
+              <td><span class="badge badge-red">Alerte</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUE : AGENT TERRAIN
+    ============================================================ -->
+    <div class="view" id="view-agent">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Saisie quotidienne</div>
+          <div class="page-subtitle">Kofi MENSAH &nbsp;·&nbsp; Agent terrain &nbsp;·&nbsp; Zone Avrankou</div>
+        </div>
+        <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
+      </div>
+
+      <div class="grid-2">
+        <!-- FORM -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Saisie rapide</div>
+            <span class="badge badge-yellow" id="form-date-badge">—</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div>
+                <label class="input-label">Date</label>
+                <input class="input-field" type="date" id="field-date">
+              </div>
+              <div>
+                <label class="input-label">DFA (votre nom)</label>
+                <input class="input-field" type="text" id="field-dfa" placeholder="ex : Kossi ADJOVI">
+              </div>
+              <div class="span-2">
+                <label class="input-label">Équipe (zone)</label>
+                <select class="input-field" id="field-equipe">
+                  <option value="">-- Sélectionner une zone --</option>
+                  <option>Avrankou</option>
+                  <option>Missérété</option>
+                  <option>Dangbo</option>
+                  <option>Adjohoun</option>
+                  <option>Bonou</option>
+                </select>
+              </div>
+              <div>
+                <label class="input-label">Activation</label>
+                <input class="input-field" type="number" id="field-activation" placeholder="0" min="0">
+              </div>
+              <div>
+                <label class="input-label">Stock Restant</label>
+                <input class="input-field" type="number" id="field-stock" placeholder="0" min="0">
+              </div>
+              <div class="span-2">
+                <label class="input-label">Observation</label>
+                <textarea class="input-field" id="field-observation" placeholder="Signaler un problème, une rupture, un incident terrain..."></textarea>
+              </div>
+            </div>
+
+            <!-- Feedback message -->
+            <div id="form-feedback" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn btn-primary" id="btn-submit" onclick="submitToSheets()">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+              <button class="btn btn-secondary" onclick="resetForm()">Annuler</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STATS + RANK -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Mes stats — Semaine 23</div>
+            </div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                <div class="mini-stat">
+                  <div class="val" style="color:var(--yellow)">74</div>
+                  <div class="lbl">GSM vendus</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="val" style="color:var(--yellow)">42</div>
+                  <div class="lbl">MoMo activ.</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="val" style="color:var(--green)">83 %</div>
+                  <div class="lbl">Conformité</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Mon classement</div>
+            </div>
+            <div class="card-body">
+              <div class="rank-box">
+                <div class="rank-number">#7</div>
+                <div>
+                  <div style="font-size:14px;font-weight:700">Sur 12 agents de la zone</div>
+                  <div style="font-size:12px;color:var(--gray-text);margin-top:2px">Performance globale : 83 %</div>
+                  <div style="font-size:12px;color:var(--orange);margin-top:5px">
+                    <i class="fa fa-arrow-up"></i> +2 places vs semaine dernière
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:14px;background:var(--gray-bg);border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.7">
+                <strong>Objectif semaine :</strong> 80 GSM + 50 MoMo<br>
+                <div style="margin-top:4px">
+                  GSM : <strong>74 / 80</strong>
+                  <div class="zone-track" style="display:inline-block;width:80px;vertical-align:middle;margin:0 6px">
+                    <div class="zone-fill" style="width:93%;background:var(--yellow)"></div>
+                  </div>
+                  93 %
+                </div>
+                <div>
+                  MoMo : <strong>42 / 50</strong>
+                  <div class="zone-track" style="display:inline-block;width:80px;vertical-align:middle;margin:0 6px">
+                    <div class="zone-fill" style="width:84%;background:var(--yellow)"></div>
+                  </div>
+                  84 %
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Historique récent</div>
+            </div>
+            <table>
+              <thead>
+                <tr><th>Date</th><th>GSM</th><th>MoMo</th><th>Statut</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>05/06</td><td>16</td><td>9</td><td><span class="badge badge-green">Validé</span></td></tr>
+                <tr><td>04/06</td><td>21</td><td>13</td><td><span class="badge badge-green">Validé</span></td></tr>
+                <tr><td>03/06</td><td>14</td><td>8</td><td><span class="badge badge-green">Validé</span></td></tr>
+                <tr><td>02/06</td><td>23</td><td>12</td><td><span class="badge badge-green">Validé</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUES PLACEHOLDER
+    ============================================================ -->
+    <div class="view" id="view-stocks">
+      <div class="page-header"><div><div class="page-title">Stocks &amp; Ressources</div><div class="page-subtitle">Suivi des stocks SIM, MoMo et matériel</div></div></div>
+      <div class="card"><div class="empty-state"><i class="fa fa-boxes-stacked"></i><p>Module disponible prochainement</p></div></div>
+    </div>
+
+    <div class="view" id="view-rapports">
+      <div class="page-header"><div><div class="page-title">Rapports</div><div class="page-subtitle">Rapports journaliers, hebdomadaires et mensuels</div></div></div>
+      <div class="card"><div class="empty-state"><i class="fa fa-file-lines"></i><p>Module disponible prochainement</p></div></div>
+    </div>
+
+    <div class="view" id="view-conformite">
+      <div class="page-header"><div><div class="page-title">Conformité</div><div class="page-subtitle">Audit des bases agents et refilers MoMo</div></div></div>
+      <div class="card"><div class="empty-state"><i class="fa fa-circle-check"></i><p>Module disponible prochainement</p></div></div>
+    </div>
+
+    <div class="view" id="view-equipes">
+      <div class="page-header"><div><div class="page-title">Équipes</div><div class="page-subtitle">Gestion des comptes et des droits d'accès</div></div></div>
+      <div class="card"><div class="empty-state"><i class="fa fa-user-gear"></i><p>Module disponible prochainement</p></div></div>
+    </div>
+
+    <div class="view" id="view-parametres">
+      <div class="page-header"><div><div class="page-title">Paramètres</div><div class="page-subtitle">Configuration de la plateforme</div></div></div>
+      <div class="card"><div class="empty-state"><i class="fa fa-gear"></i><p>Module disponible prochainement</p></div></div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app -->
+
+<script>
+  /* ---- URL Apps Script — À REMPLACER après déploiement ---- */
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzV6szgPrFdkfTIXki1gkp3Qr0iIdcOU0jfBpJXtO_r83nTSNn96axZrDp9XKbhRpbu/exec';
+
+  /* ---- Init ---- */
+  const today = new Date();
+  document.getElementById('topbar-date').textContent = today.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  /* Pré-remplir la date du jour dans le formulaire */
+  const todayISO = today.toISOString().split('T')[0];
+  const dateField = document.getElementById('field-date');
+  if (dateField) {
+    dateField.value = todayISO;
+    const badge = document.getElementById('form-date-badge');
+    if (badge) badge.textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  /* ---- Login / Logout ---- */
+  const roleLabels = {
+    dc: 'Directeur Commercial',
+    chef: "Chef d'agence",
+    superviseur: 'Superviseur terrain',
+    agent: 'Agent terrain',
+    admin: 'Administration'
+  };
+
+  function doLogin() {
+    const role = document.getElementById('role-select').value;
+    document.getElementById('user-role').textContent = roleLabels[role] || role;
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderSalesChart();
+  }
+
+  function doLogout() {
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+  }
+
+  /* ---- Navigation ---- */
+  function showView(name, el) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    const view = document.getElementById('view-' + name);
+    if (view) view.classList.add('active');
+    if (el) el.classList.add('active');
+
+    const titles = {
+      dashboard:   "Vue d'ensemble — Tableau de bord",
+      superviseur: 'Vue Superviseur — Mon équipe',
+      agent:       'Vue Agent terrain — Saisie du jour',
+      stocks:      'Stocks & Ressources',
+      rapports:    'Rapports',
+      conformite:  'Conformité',
+      equipes:     'Équipes',
+      parametres:  'Paramètres'
+    };
+    document.getElementById('topbar-title').textContent = titles[name] || name;
+  }
+
+  /* ---- Sales Chart (Canvas pur, pas de dépendance externe) ---- */
+  function renderSalesChart() {
+    const canvas = document.getElementById('salesChart');
+    if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const W   = canvas.parentElement.clientWidth - 40;
+    const H   = 190;
+
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const days = ['Lun 02', 'Mar 03', 'Mer 04', 'Jeu 05', 'Ven 06', 'Sam 07', 'Dim 08'];
+    const gsm  = [185, 210, 198, 220, 195, 175, 247];
+    const momo = [ 95, 112, 108, 125, 110,  88, 134];
+
+    const pad  = { top: 24, right: 16, bottom: 36, left: 42 };
+    const cW   = W - pad.left - pad.right;
+    const cH   = H - pad.top  - pad.bottom;
+    const maxV = 280;
+    const gW   = cW / days.length;
+    const bW   = gW * 0.28;
+
+    ctx.clearRect(0, 0, W, H);
+
+    /* Grid + Y labels */
+    ctx.strokeStyle = '#EBEBEB';
+    ctx.lineWidth   = 1;
+    ctx.font        = '10px Segoe UI, sans-serif';
+    ctx.fillStyle   = '#AAAAAA';
+    ctx.textAlign   = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.top + (cH / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(W - pad.right, y);
+      ctx.stroke();
+      ctx.fillText(Math.round(maxV * (1 - i / 4)), pad.left - 6, y + 4);
+    }
+
+    /* Bars */
+    days.forEach((day, i) => {
+      const x0 = pad.left + gW * i + gW * 0.1;
+
+      /* GSM — yellow */
+      const gH = (gsm[i] / maxV) * cH;
+      ctx.fillStyle = '#FFC300';
+      ctx.beginPath();
+      ctx.roundRect(x0, pad.top + cH - gH, bW, gH, [3, 3, 0, 0]);
+      ctx.fill();
+
+      /* MoMo — black */
+      const mH = (momo[i] / maxV) * cH;
+      ctx.fillStyle = '#1A1A1A';
+      ctx.beginPath();
+      ctx.roundRect(x0 + bW + 3, pad.top + cH - mH, bW, mH, [3, 3, 0, 0]);
+      ctx.fill();
+
+      /* X label */
+      ctx.fillStyle   = '#AAAAAA';
+      ctx.textAlign   = 'center';
+      ctx.font        = '10px Segoe UI, sans-serif';
+      ctx.fillText(day, x0 + bW + 1.5, H - 10);
+    });
+
+    /* Legend */
+    const lx = pad.left;
+    ctx.fillStyle = '#FFC300';
+    ctx.fillRect(lx, 5, 12, 8);
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'left';
+    ctx.font      = '10px Segoe UI, sans-serif';
+    ctx.fillText('GSM', lx + 15, 13);
+
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(lx + 54, 5, 12, 8);
+    ctx.fillStyle = '#888';
+    ctx.fillText('MoMo', lx + 69, 13);
+  }
+
+  /* ---- Envoi vers Google Sheets ---- */
+  async function submitToSheets() {
+    const dfa          = document.getElementById('field-dfa').value.trim();
+    const equipe       = document.getElementById('field-equipe').value;
+    const activation   = document.getElementById('field-activation').value;
+    const stockRestant = document.getElementById('field-stock').value;
+    const observation  = document.getElementById('field-observation').value.trim();
+    const date         = document.getElementById('field-date').value;
+
+    /* Validation rapide */
+    if (!dfa || !equipe || activation === '') {
+      showFeedback('Merci de renseigner au minimum : DFA, Équipe et Activation.', 'error');
+      return;
+    }
+
+    if (APPS_SCRIPT_URL === 'COLLER_ICI_VOTRE_URL_APPS_SCRIPT') {
+      showFeedback('URL Apps Script non configurée. Suivez les instructions de déploiement.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi en cours...';
+
+    const payload = {
+      date:         new Date(date).toLocaleDateString('fr-FR'),
+      dfa,
+      equipe,
+      activation:   Number(activation),
+      stockRestant: Number(stockRestant) || 0,
+      observation
+    };
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        showFeedback('Données enregistrées dans Google Sheets.', 'success');
+        resetForm();
+      } else {
+        showFeedback('Erreur : ' + (json.error || 'réponse inattendue.'), 'error');
+      }
+    } catch (err) {
+      showFeedback('Impossible de joindre le serveur. Vérifiez votre connexion.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer';
+    }
+  }
+
+  function showFeedback(msg, type) {
+    const el = document.getElementById('form-feedback');
+    el.style.display = 'block';
+    el.textContent   = msg;
+    el.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+    el.style.color      = type === 'success' ? '#155724' : '#721c24';
+    if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  function resetForm() {
+    document.getElementById('field-dfa').value         = '';
+    document.getElementById('field-equipe').value      = '';
+    document.getElementById('field-activation').value  = '';
+    document.getElementById('field-stock').value       = '';
+    document.getElementById('field-observation').value = '';
+    document.getElementById('field-date').value        = todayISO;
+    document.getElementById('form-feedback').style.display = 'none';
+  }
+
+  /* ---- Tab click behavior (cosmetic) ---- */
+  document.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    tab.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+</script>
+</body>
+</html>
