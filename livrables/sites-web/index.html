@@ -557,32 +557,32 @@
 
     <nav class="sidebar-nav">
       <div class="nav-label">Tableau de bord</div>
-      <div class="nav-item active" onclick="showView('dashboard', this)">
+      <div class="nav-item active" data-roles="dc,chef,admin" onclick="showView('dashboard', this)">
         <i class="fa fa-chart-line"></i> Vue d'ensemble
       </div>
-      <div class="nav-item" onclick="showView('superviseur', this)">
+      <div class="nav-item" data-roles="dc,chef,superviseur,admin" onclick="showView('superviseur', this)">
         <i class="fa fa-users"></i> Vue Superviseur
       </div>
-      <div class="nav-item" onclick="showView('agent', this)">
+      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('agent', this)">
         <i class="fa fa-mobile-screen"></i> Vue Agent terrain
       </div>
 
-      <div class="nav-label" style="margin-top:8px">Opérations</div>
-      <div class="nav-item" onclick="showView('stocks', this)">
+      <div class="nav-label" style="margin-top:8px" data-roles="dc,chef,superviseur,agent,admin">Opérations</div>
+      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('stocks', this)">
         <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
       </div>
-      <div class="nav-item" onclick="showView('rapports', this)">
+      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('rapports', this)">
         <i class="fa fa-file-lines"></i> Rapports
       </div>
-      <div class="nav-item" onclick="showView('conformite', this)">
+      <div class="nav-item" data-roles="dc,chef,superviseur,admin" onclick="showView('conformite', this)">
         <i class="fa fa-circle-check"></i> Conformité
       </div>
 
-      <div class="nav-label" style="margin-top:8px">Administration</div>
-      <div class="nav-item" onclick="showView('equipes', this)">
+      <div class="nav-label" style="margin-top:8px" data-roles="dc,admin">Administration</div>
+      <div class="nav-item" data-roles="dc,admin" onclick="showView('equipes', this)">
         <i class="fa fa-user-gear"></i> Équipes
       </div>
-      <div class="nav-item" onclick="showView('parametres', this)">
+      <div class="nav-item" data-roles="dc,admin" onclick="showView('parametres', this)">
         <i class="fa fa-gear"></i> Paramètres
       </div>
     </nav>
@@ -1161,7 +1161,19 @@
     document.getElementById('user-role').textContent = roleLabels[role] || role;
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    renderSalesChart();
+
+    /* Filtrer la navigation selon le rôle */
+    document.querySelectorAll('[data-roles]').forEach(el => {
+      const allowed = el.getAttribute('data-roles').split(',');
+      el.style.display = allowed.includes(role) ? '' : 'none';
+    });
+
+    /* Vue par défaut selon le rôle */
+    const defaultView = { dc: 'dashboard', chef: 'dashboard', superviseur: 'superviseur', agent: 'agent', admin: 'dashboard' };
+    const firstNav = document.querySelector(`.nav-item[data-roles*="${role}"]`);
+    showView(defaultView[role] || 'agent', firstNav);
+
+    if (role === 'dc' || role === 'chef') renderSalesChart();
   }
 
   function doLogout() {
