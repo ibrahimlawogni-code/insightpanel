@@ -529,11 +529,13 @@
     <div class="form-group">
       <label>Rôle</label>
       <select id="role-select">
+        <option value="dg">Directeur Général (DG)</option>
+        <option value="dga">Directeur Général Adjoint (DGA)</option>
+        <option value="dcc">DCC</option>
         <option value="dc">Directeur Commercial (DC)</option>
-        <option value="chef">Chef d'agence</option>
-        <option value="superviseur">Superviseur terrain</option>
-        <option value="agent">Agent terrain</option>
-        <option value="admin">Administration</option>
+        <option value="ra">Responsable Acquisition (RA)</option>
+        <option value="superviseur">Superviseur MPOS</option>
+        <option value="agent">Agent Terrain (DFA)</option>
       </select>
     </div>
     <button class="btn-login" onclick="doLogin()">Se connecter</button>
@@ -557,32 +559,32 @@
 
     <nav class="sidebar-nav">
       <div class="nav-label">Tableau de bord</div>
-      <div class="nav-item active" data-roles="dc,chef,admin" onclick="showView('dashboard', this)">
+      <div class="nav-item active" data-roles="dg,dga,dcc,dc,ra" onclick="showView('dashboard', this)">
         <i class="fa fa-chart-line"></i> Vue d'ensemble
       </div>
-      <div class="nav-item" data-roles="dc,chef,superviseur,admin" onclick="showView('superviseur', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('superviseur', this)">
         <i class="fa fa-users"></i> Vue Superviseur
       </div>
-      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('agent', this)">
-        <i class="fa fa-mobile-screen"></i> Vue Agent terrain
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('agent', this)">
+        <i class="fa fa-mobile-screen"></i> Vue Agent Terrain
       </div>
 
-      <div class="nav-label" style="margin-top:8px" data-roles="dc,chef,superviseur,agent,admin">Opérations</div>
-      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('stocks', this)">
+      <div class="nav-label" style="margin-top:8px" data-roles="dg,dga,dcc,dc,ra,superviseur,agent">Opérations</div>
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('stocks', this)">
         <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
       </div>
-      <div class="nav-item" data-roles="dc,chef,superviseur,agent,admin" onclick="showView('rapports', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('rapports', this)">
         <i class="fa fa-file-lines"></i> Rapports
       </div>
-      <div class="nav-item" data-roles="dc,chef,superviseur,admin" onclick="showView('conformite', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('conformite', this)">
         <i class="fa fa-circle-check"></i> Conformité
       </div>
 
-      <div class="nav-label" style="margin-top:8px" data-roles="dc,admin">Administration</div>
-      <div class="nav-item" data-roles="dc,admin" onclick="showView('equipes', this)">
+      <div class="nav-label" style="margin-top:8px" data-roles="dg,dga">Administration</div>
+      <div class="nav-item" data-roles="dg,dga" onclick="showView('equipes', this)">
         <i class="fa fa-user-gear"></i> Équipes
       </div>
-      <div class="nav-item" data-roles="dc,admin" onclick="showView('parametres', this)">
+      <div class="nav-item" data-roles="dg,dga" onclick="showView('parametres', this)">
         <i class="fa fa-gear"></i> Paramètres
       </div>
     </nav>
@@ -1149,11 +1151,13 @@
 
   /* ---- Login / Logout ---- */
   const roleLabels = {
-    dc: 'Directeur Commercial',
-    chef: "Chef d'agence",
-    superviseur: 'Superviseur terrain',
-    agent: 'Agent terrain',
-    admin: 'Administration'
+    dg:          'Directeur Général',
+    dga:         'Directeur Général Adjoint',
+    dcc:         'DCC',
+    dc:          'Directeur Commercial',
+    ra:          'Responsable Acquisition',
+    superviseur: 'Superviseur MPOS',
+    agent:       'Agent Terrain (DFA)'
   };
 
   function doLogin() {
@@ -1169,11 +1173,16 @@
     });
 
     /* Vue par défaut selon le rôle */
-    const defaultView = { dc: 'dashboard', chef: 'dashboard', superviseur: 'superviseur', agent: 'agent', admin: 'dashboard' };
+    const defaultView = {
+      dg: 'dashboard', dga: 'dashboard', dcc: 'dashboard',
+      dc: 'dashboard', ra: 'dashboard',
+      superviseur: 'superviseur',
+      agent: 'agent'
+    };
     const firstNav = document.querySelector(`.nav-item[data-roles*="${role}"]`);
     showView(defaultView[role] || 'agent', firstNav);
 
-    if (role === 'dc' || role === 'chef') renderSalesChart();
+    if (['dg','dga','dcc','dc','ra'].includes(role)) renderSalesChart();
   }
 
   function doLogout() {
