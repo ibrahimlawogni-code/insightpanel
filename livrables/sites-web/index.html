@@ -1815,6 +1815,9 @@
     showView(defaultView[user.role] || 'agent', firstNav);
 
     if (['dg','dga','dcc','dc','ra'].includes(user.role)) renderSalesChart();
+
+    /* Charger les notifications personnelles indépendamment du flux demandes */
+    loadNotifications();
   }
 
   function toggleLoginPwd() {
@@ -3040,12 +3043,16 @@
       </div>`;
   }
   /* ---- Restauration automatique de session au rechargement ---- */
-  (function() {
+  /* Exécuté sur 'load' pour s'assurer que tout le DOM (modals inclus) est prêt */
+  window.addEventListener('load', function() {
     try {
       const saved = sessionStorage.getItem('ip_session');
       if (saved) startSession(JSON.parse(saved));
-    } catch { sessionStorage.removeItem('ip_session'); }
-  })();
+    } catch(e) {
+      /* Ne pas supprimer la session sur erreur de rendu — juste logguer */
+      console.warn('InsightPanel: restauration session échouée', e);
+    }
+  });
 
 </script>
 <!-- ================================================================
