@@ -317,6 +317,53 @@
     .notif-item-sub  { font-size: 11px; color: var(--gray-text); margin-top: 3px; }
     .notif-empty     { padding: 20px 16px; text-align: center; color: var(--gray-text); font-size: 13px; }
 
+    /* ---- Toast de confirmation globale ---- */
+    #global-toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-90px);
+      z-index: 9999;
+      background: #065f46;
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 14px;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.28);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      min-width: 280px;
+      max-width: 440px;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .38s cubic-bezier(.22,1,.36,1), opacity .28s;
+    }
+    #global-toast.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #global-toast.toast-error { background: #7f1d1d; }
+    #global-toast .toast-icon { font-size: 22px; flex-shrink: 0; }
+    #global-toast .toast-body { flex: 1; line-height: 1.4; }
+    #global-toast .toast-title { font-size: 14px; font-weight: 700; }
+    #global-toast .toast-sub { font-size: 12px; opacity: .82; margin-top: 2px; font-weight: 500; }
+    #global-toast .toast-close {
+      margin-left: 8px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 18px;
+      opacity: .7;
+      padding: 0;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    #global-toast .toast-close:hover { opacity: 1; }
+
     /* ============================================================
        VIEWS
     ============================================================ */
@@ -722,6 +769,16 @@
   </script>
 </head>
 <body>
+
+<!-- Toast de confirmation global -->
+<div id="global-toast" role="status" aria-live="polite">
+  <span class="toast-icon" id="toast-icon">✓</span>
+  <div class="toast-body">
+    <div class="toast-title" id="toast-title"></div>
+    <div class="toast-sub"   id="toast-sub"></div>
+  </div>
+  <button class="toast-close" onclick="hideToast()" aria-label="Fermer">&#x2715;</button>
+</div>
 
 <!-- ================================================================
      PAGE DE CONNEXION
@@ -3385,6 +3442,23 @@
       </tr>`).join('');
   }
 
+  let _toastTimer = null;
+  function showToast(title, sub, isError) {
+    const el = document.getElementById('global-toast');
+    if (!el) return;
+    document.getElementById('toast-icon').textContent  = isError ? '✕' : '✓';
+    document.getElementById('toast-title').textContent = title;
+    document.getElementById('toast-sub').textContent   = sub || '';
+    el.classList.toggle('toast-error', !!isError);
+    el.classList.add('visible');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(hideToast, 5000);
+  }
+  function hideToast() {
+    const el = document.getElementById('global-toast');
+    if (el) el.classList.remove('visible');
+  }
+
   async function submitSaisie() {
     const dfa        = (document.getElementById('saisie-field-dfa').value || '').trim();
     const equipe     = document.getElementById('saisie-field-equipe').value;
@@ -3432,7 +3506,11 @@
       const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
       if (json.success) {
-        showFb(`${grossAdd} activation(s) enregistrée(s) dans Google Sheets.`, true);
+        const momoCount = Number(momo) || grossAdd;
+        showToast(
+          `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
+          `${dfa} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
+        );
         resetSaisie();
       } else {
         showFb('Erreur : ' + (json.error || 'réponse inattendue.'), false);
