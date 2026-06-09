@@ -2048,41 +2048,82 @@
   }
 
   function renderNotifPanel() {
-    const list = document.getElementById('notif-panel-list');
+    const list    = document.getElementById('notif-panel-list');
     const countEl = document.getElementById('notif-panel-count');
     if (!list || !currentUser) return;
 
-    const statusLabels = {
-      en_attente:         'En attente de validation superviseur',
-      valide_superviseur: 'Validé par superviseur — en attente RA',
-    };
+    const sectionHeader = (icon, label, color) =>
+      `<div style="padding:7px 16px;font-size:10px;font-weight:700;color:${color || 'var(--gray-text)'};text-transform:uppercase;letter-spacing:0.6px;background:var(--gray-bg);border-bottom:1px solid var(--gray-border)">${icon} ${label}</div>`;
 
-    let pending = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur');
+    let html  = '';
+    let total = 0;
+
     if (currentUser.role === 'superviseur') {
-      pending = DEMANDES.filter(d =>
+      /* ---- Messages du RA (approuvé / rejeté) ---- */
+      const unread = NOTIFICATIONS.filter(n => String(n.lu) === '0');
+      if (unread.length) {
+        html += sectionHeader('', 'Messages du RA', 'var(--black)');
+        html += unread.map(n => {
+          const ok     = n.type === 'approuve';
+          const icon   = ok ? 'fa-circle-check' : 'fa-circle-xmark';
+          const color  = ok ? 'var(--green)' : 'var(--red)';
+          const label  = ok ? 'Approuvée' : 'Rejetée';
+          const motif  = n.motif ? ` &middot; Motif : <em>${n.motif}</em>` : '';
+          return `<div class="notif-item" onclick="markNotificationRead('${n.id}')">
+            <div class="notif-item-name">
+              <i class="fa ${icon}" style="color:${color};margin-right:6px"></i>
+              Demande de ${n.agentNom} — <strong>${label}</strong>
+            </div>
+            <div class="notif-item-sub">${n.agentZone} &middot; ${n.date}${motif}</div>
+          </div>`;
+        }).join('');
+        total += unread.length;
+      }
+
+      /* ---- Nouvelles demandes à valider ---- */
+      const pendingDem = DEMANDES.filter(d =>
         (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
         d.statut === 'en_attente'
       );
+      if (pendingDem.length) {
+        html += sectionHeader('', 'Demandes à valider', '#7c3aed');
+        html += pendingDem.map(d => `
+          <div class="notif-item" onclick="goToDemande('${d.id}')">
+            <div class="notif-item-name">
+              <i class="fa fa-user-clock" style="color:var(--yellow);margin-right:6px"></i>${d.nom}
+            </div>
+            <div class="notif-item-sub">${d.zone} &middot; En attente de validation &middot; ${d.date || ''}</div>
+          </div>
+        `).join('');
+        total += pendingDem.length;
+      }
+
+    } else {
+      /* ---- RA / Admin : demandes en attente ---- */
+      const pending = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur');
+      const statusLabels = {
+        en_attente:         'En attente superviseur',
+        valide_superviseur: 'Validé superviseur — en attente RA',
+      };
+      if (pending.length) {
+        html += pending.map(d => `
+          <div class="notif-item" onclick="goToDemande('${d.id}')">
+            <div class="notif-item-name">
+              <i class="fa fa-user-clock" style="color:var(--yellow);margin-right:6px"></i>${d.nom}
+            </div>
+            <div class="notif-item-sub">${d.zone} &middot; ${statusLabels[d.statut] || d.statut} &middot; ${d.date || ''}</div>
+          </div>
+        `).join('');
+        total += pending.length;
+      }
     }
 
     if (countEl) {
-      countEl.textContent = pending.length;
-      countEl.style.display = pending.length > 0 ? 'inline-flex' : 'none';
+      countEl.textContent = total;
+      countEl.style.display = total > 0 ? 'inline-flex' : 'none';
     }
 
-    if (!pending.length) {
-      list.innerHTML = '<div class="notif-empty"><i class="fa fa-circle-check" style="color:var(--green);margin-right:6px"></i>Aucune demande en attente</div>';
-      return;
-    }
-
-    list.innerHTML = pending.map(d => `
-      <div class="notif-item" onclick="goToDemande('${d.id}')">
-        <div class="notif-item-name">
-          <i class="fa fa-user-clock" style="color:var(--yellow);margin-right:6px"></i>${d.nom}
-        </div>
-        <div class="notif-item-sub">${d.zone} &middot; ${statusLabels[d.statut] || d.statut} &middot; ${d.date || ''}</div>
-      </div>
-    `).join('');
+    list.innerHTML = html || '<div class="notif-empty"><i class="fa fa-circle-check" style="color:var(--green);margin-right:6px"></i>Aucune notification</div>';
   }
 
   function goToDemande(id) {
@@ -2131,7 +2172,8 @@
      WORKFLOW INSCRIPTION / DEMANDES D'ACCÈS
   ===================================================================== */
 
-  let DEMANDES = [];
+  let DEMANDES       = [];
+  let NOTIFICATIONS  = [];
 
   /* ---- Formulaire de demande (page de connexion) ---- */
 
@@ -2283,20 +2325,55 @@
         DEMANDES = j.demandes || [];
         renderDemandesTable();
         renderDemandesSuperviseur();
-        updateDemandesBadge();
+        loadNotifications();
       }
     } catch { /* garder les données locales */ }
+  }
+
+  /* ---- Notifications personnelles (messages du RA vers superviseur) ---- */
+
+  async function loadNotifications() {
+    if (!currentUser || !APPS_SCRIPT_URL.startsWith('https')) {
+      updateDemandesBadge();
+      return;
+    }
+    try {
+      const r = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'getNotifications', userId: currentUser.id })
+      });
+      const j = await r.json();
+      if (j.status === 'ok') NOTIFICATIONS = j.notifications || [];
+    } catch {}
+    updateDemandesBadge();
+  }
+
+  async function markNotificationRead(id) {
+    const idx = NOTIFICATIONS.findIndex(n => n.id === id);
+    if (idx !== -1) NOTIFICATIONS[idx].lu = '1';
+    updateDemandesBadge();
+    if (APPS_SCRIPT_URL.startsWith('https')) {
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'markNotificationRead', id })
+        });
+      } catch {}
+    }
   }
 
   function updateDemandesBadge() {
     if (!currentUser) return;
 
+    const unreadNotifs = NOTIFICATIONS.filter(n => String(n.lu) === '0').length;
     let count;
+
     if (currentUser.role === 'superviseur') {
-      count = DEMANDES.filter(d =>
+      const pendingDemandes = DEMANDES.filter(d =>
         (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
         d.statut === 'en_attente'
       ).length;
+      count = pendingDemandes + unreadNotifs;
     } else {
       count = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur').length;
     }
