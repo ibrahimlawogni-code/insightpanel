@@ -108,8 +108,9 @@ function handleLogin(data) {
 // ─────────────────────────────────────────────────────────────
 // ENREGISTREMENT D'UNE SAISIE
 // Feuille "Saisies" — créée automatiquement si absente
-// Colonnes : Date | DFA | Zone | Gross Add | New MoMo User |
+// Colonnes : Date | DFA (ID) | Nom DFA | Zone | Gross Add | New MoMo User |
 //            Stock SIM | SIM Disponible | Observation | N° SIMs | N° MTNs | Horodatage
+// Note : "DFA" contient l'identifiant (ex: Jules.Akindes) pour la synchronisation des dashboards
 // Note : "SIM Disponible" est renseigné uniquement à la première saisie du DFA chaque jour
 // ─────────────────────────────────────────────────────────────
 function handleSaisie(data) {
@@ -123,7 +124,8 @@ function handleSaisie(data) {
 
   sheet.appendRow([
     data.date        || new Date().toLocaleDateString('fr-FR'),
-    data.dfa         || '',
+    data.dfa         || '',   // ID (ex: Jules.Akindes)
+    data.dfaNom      || '',   // Nom complet (ex: Jules AKINDES)
     data.equipe      || '',
     Number(data.activation) || 0,
     Number(data.momoUser)   || 0,
@@ -147,7 +149,7 @@ function handleSaisie(data) {
 // ─────────────────────────────────────────────────────────────
 function _initSaisiesSheet(sheet) {
   const headers = [
-    'Date', 'DFA', 'Zone', 'Gross Add', 'New MoMo User',
+    'Date', 'DFA (ID)', 'Nom DFA', 'Zone', 'Gross Add', 'New MoMo User',
     'Stock SIM', 'SIM Disponible', 'Observation', 'N° SIMs', 'N° MTNs', 'Horodatage'
   ];
   sheet.appendRow(headers);
@@ -161,16 +163,17 @@ function _initSaisiesSheet(sheet) {
 
   // Largeurs de colonnes
   sheet.setColumnWidth(1, 90);   // Date
-  sheet.setColumnWidth(2, 160);  // DFA
-  sheet.setColumnWidth(3, 160);  // Zone
-  sheet.setColumnWidth(4, 80);   // Gross Add
-  sheet.setColumnWidth(5, 110);  // New MoMo User
-  sheet.setColumnWidth(6, 80);   // Stock SIM
-  sheet.setColumnWidth(7, 90);   // SIM Disponible
-  sheet.setColumnWidth(8, 200);  // Observation
-  sheet.setColumnWidth(9, 300);  // N° SIMs
-  sheet.setColumnWidth(10, 300); // N° MTNs
-  sheet.setColumnWidth(11, 140); // Horodatage
+  sheet.setColumnWidth(2, 150);  // DFA (ID)
+  sheet.setColumnWidth(3, 160);  // Nom DFA
+  sheet.setColumnWidth(4, 160);  // Zone
+  sheet.setColumnWidth(5, 80);   // Gross Add
+  sheet.setColumnWidth(6, 110);  // New MoMo User
+  sheet.setColumnWidth(7, 80);   // Stock SIM
+  sheet.setColumnWidth(8, 100);  // SIM Disponible
+  sheet.setColumnWidth(9, 200);  // Observation
+  sheet.setColumnWidth(10, 300); // N° SIMs
+  sheet.setColumnWidth(11, 300); // N° MTNs
+  sheet.setColumnWidth(12, 140); // Horodatage
 }
 
 // ─────────────────────────────────────────────────────────────

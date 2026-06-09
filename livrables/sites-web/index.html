@@ -1877,8 +1877,8 @@
                 <input class="input-field" type="date" id="saisie-field-date">
               </div>
               <div>
-                <label class="input-label">DFA (votre nom)</label>
-                <input class="input-field" type="text" id="saisie-field-dfa" placeholder="ex : Kossi ADJOVI">
+                <label class="input-label">DFA <span style="color:var(--green);font-size:10px">(auto)</span></label>
+                <input class="input-field" type="text" id="saisie-field-dfa" readonly style="background:var(--gray-bg);cursor:default">
               </div>
               <div class="span-2">
                 <label class="input-label">Zone</label>
@@ -3680,7 +3680,8 @@
   }
 
   async function submitSaisie() {
-    const dfa        = (document.getElementById('saisie-field-dfa').value || '').trim();
+    const dfaId      = currentUser ? currentUser.id  : '';
+    const dfaNom     = currentUser ? currentUser.nom : '';
     const equipe     = document.getElementById('saisie-field-equipe').value;
     const momo       = document.getElementById('saisie-field-momo').value;
     const stock      = document.getElementById('saisie-field-stock').value;
@@ -3704,8 +3705,8 @@
       if (ok) setTimeout(() => { fb.style.display = 'none'; }, 4000);
     }
 
-    if (!dfa || !equipe) { showFb('Renseignez au moins votre nom et la zone.', false); return; }
-    if (grossAdd === 0)  { showFb('Aucune SIM ajoutée. Ajoutez au moins une plaquette.', false); return; }
+    if (!dfaId || !equipe) { showFb('Session invalide ou zone non sélectionnée.', false); return; }
+    if (grossAdd === 0)   { showFb('Aucune SIM ajoutée. Ajoutez au moins une plaquette.', false); return; }
 
     if (APPS_SCRIPT_URL === 'COLLER_ICI_VOTRE_URL_APPS_SCRIPT') {
       showFb('URL Apps Script non configurée.', false); return;
@@ -3717,7 +3718,8 @@
     const payload = {
       action:      'saisie',
       date:        new Date(date).toLocaleDateString('fr-FR'),
-      dfa,
+      dfa:         dfaId,
+      dfaNom:      dfaNom,
       equipe,
       activation:  grossAdd,
       momoUser:    momoCount,
@@ -3748,7 +3750,7 @@
         if (simRecu !== null) _markSimRecuFait(simRecu);
         showToast(
           `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
-          `${dfa} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
+          `${dfaNom} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
         );
         resetSaisie();
       } else {
