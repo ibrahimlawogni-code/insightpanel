@@ -317,6 +317,37 @@
     .notif-item-sub  { font-size: 11px; color: var(--gray-text); margin-top: 3px; }
     .notif-empty     { padding: 20px 16px; text-align: center; color: var(--gray-text); font-size: 13px; }
 
+    /* ---- Bandeau saisies en attente (offline) ---- */
+    .pending-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #fffbeb;
+      border: 1.5px solid #f6b924;
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin-bottom: 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #78350f;
+      flex-wrap: wrap;
+    }
+    .pending-banner .pb-icon { font-size: 18px; flex-shrink: 0; }
+    .pending-banner .pb-text { flex: 1; }
+    .pending-banner .pb-text span { font-weight: 800; }
+    .pending-banner .pb-sub { font-size: 11px; font-weight: 500; color: #92400e; margin-top: 1px; }
+    .nav-pending-badge {
+      display: none;
+      background: #f6b924;
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 20px;
+      margin-left: auto;
+      line-height: 16px;
+    }
+
     /* ---- Toast de confirmation globale ---- */
     #global-toast {
       position: fixed;
@@ -762,9 +793,14 @@
   </style>
   <script>
     try {
-      if (sessionStorage.getItem('ip_session')) {
-        document.documentElement.classList.add('restoring-session');
+      const _ls = localStorage.getItem('ip_session_v2');
+      const _ss = sessionStorage.getItem('ip_session');
+      let _valid = !!_ss;
+      if (!_valid && _ls) {
+        const _d = JSON.parse(_ls);
+        if (_d && _d.expiresAt && Date.now() < _d.expiresAt) _valid = true;
       }
+      if (_valid) document.documentElement.classList.add('restoring-session');
     } catch(e) {}
   </script>
 </head>
@@ -908,6 +944,7 @@
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('saisie', this)">
         <i class="fa fa-pen-to-square"></i> Saisie du jour
+        <span class="nav-pending-badge" id="nav-pending-badge"></span>
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('agent', this)">
         <i class="fa fa-mobile-screen"></i> Vue Agent Terrain
@@ -1723,6 +1760,18 @@
         <span class="badge badge-yellow" id="saisie-date-badge">—</span>
       </div>
 
+      <!-- Bandeau saisies en attente (visible uniquement si offline queue non vide) -->
+      <div class="pending-banner" id="pending-saisie-banner">
+        <span class="pb-icon">📡</span>
+        <div class="pb-text">
+          <div><span id="pending-saisie-count">0</span> saisie(s) en attente d'envoi</div>
+          <div class="pb-sub">Sauvegardées localement — envoi automatique au retour de connexion</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-sync-pending" onclick="syncPendingSaisies()">
+          <i class="fa fa-rotate"></i> Synchroniser maintenant
+        </button>
+      </div>
+
       <div class="grid-2" style="align-items:start">
         <!-- FORMULAIRE DE SAISIE + SCANNER INTÉGRÉ -->
         <div class="card">
@@ -2122,6 +2171,125 @@
   /* ---- URL Apps Script — À REMPLACER après déploiement ---- */
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyAMznyMCOpqx_m2tgkbbp0fCDewH4nIHiPzqtGNbvcn3Vo04y1x5a8pdPz8nDgE-wE/exec';
 
+  /* ============================================================
+     SESSION PERSISTANTE (localStorage, expiration 24h)
+  ============================================================ */
+  const SESSION_KEY = 'ip_session_v2';
+  const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 heures
+
+  function _saveSession(user) {
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ user, expiresAt: Date.now() + SESSION_TTL }));
+      sessionStorage.setItem('ip_session', JSON.stringify(user));
+    } catch(e) {}
+  }
+
+  function _loadSession() {
+    try {
+      /* Priorité 1 : sessionStorage (onglet ouvert) */
+      const ss = sessionStorage.getItem('ip_session');
+      if (ss) return JSON.parse(ss);
+      /* Priorité 2 : localStorage (navigateur rouvert) */
+      const ls = localStorage.getItem(SESSION_KEY);
+      if (!ls) return null;
+      const data = JSON.parse(ls);
+      if (!data || !data.expiresAt || Date.now() > data.expiresAt) {
+        localStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+      return data.user;
+    } catch(e) { return null; }
+  }
+
+  function _clearSession() {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem('ip_session');
+      sessionStorage.removeItem('ip_view_state');
+    } catch(e) {}
+  }
+
+  /* ============================================================
+     FILE D'ATTENTE OFFLINE (saisies non envoyées)
+  ============================================================ */
+  const PENDING_KEY = 'ip_pending_saisies';
+
+  function _getPendingQueue() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch { return []; }
+  }
+
+  function _savePendingQueue(queue) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(queue)); } catch(e) {}
+  }
+
+  function _addToPendingQueue(payload) {
+    const queue = _getPendingQueue();
+    queue.push({
+      id:        Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      payload,
+      savedAt:   Date.now(),
+      timestamp: new Date().toLocaleString('fr-FR')
+    });
+    _savePendingQueue(queue);
+    _updatePendingBadge();
+  }
+
+  function _updatePendingBadge() {
+    const n      = _getPendingQueue().length;
+    const badge  = document.getElementById('nav-pending-badge');
+    const banner = document.getElementById('pending-saisie-banner');
+    const count  = document.getElementById('pending-saisie-count');
+    if (badge)  { badge.textContent  = n; badge.style.display  = n ? '' : 'none'; }
+    if (banner) banner.style.display = n ? 'flex' : 'none';
+    if (count)  count.textContent    = n;
+  }
+
+  async function syncPendingSaisies() {
+    const queue = _getPendingQueue();
+    if (!queue.length) { showToast('Aucune saisie en attente', 'Tout est déjà synchronisé.'); return; }
+    if (!navigator.onLine) {
+      showToast('Pas de connexion internet', 'Réessaie dès que tu es connecté.', true);
+      return;
+    }
+
+    const btn = document.getElementById('btn-sync-pending');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…'; }
+
+    let sent = 0;
+    const remaining = [];
+
+    for (const item of queue) {
+      try {
+        const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(item.payload) });
+        const json = await res.json();
+        if (json.success) { sent++; }
+        else { remaining.push(item); }
+      } catch { remaining.push(item); }
+    }
+
+    _savePendingQueue(remaining);
+    _updatePendingBadge();
+
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-rotate"></i> Synchroniser maintenant'; }
+
+    const failed = remaining.length;
+    if (sent > 0) {
+      showToast(
+        `${sent} saisie${sent > 1 ? 's' : ''} synchronisée${sent > 1 ? 's' : ''} !`,
+        failed ? `${failed} saisie${failed > 1 ? 's' : ''} en attente (erreur réseau)` : 'Toutes les données sont dans Google Sheets'
+      );
+    } else {
+      showToast('Synchronisation échouée', 'Vérifie ta connexion et réessaie.', true);
+    }
+  }
+
+  /* Sync automatique au retour de connexion */
+  window.addEventListener('online', () => {
+    if (_getPendingQueue().length > 0) {
+      setTimeout(syncPendingSaisies, 1500); // petite pause pour laisser la connexion se stabiliser
+    }
+  });
+
   /* ---- Comptes utilisateurs ---- */
   /* Comptes locaux de secours (actifs si Google Sheets inaccessible) */
   const USERS_SEED = [
@@ -2247,7 +2415,7 @@
     user = { ...user, nom, initiales };
 
     currentUser = user;
-    sessionStorage.setItem('ip_session', JSON.stringify(user));
+    _saveSession(user);
 
     document.getElementById('user-name').textContent   = user.nom;
     document.getElementById('user-role').textContent   = roleLabels[user.role] || user.role;
@@ -2280,6 +2448,9 @@
 
     /* Charger les notifications personnelles indépendamment du flux demandes */
     loadNotifications();
+
+    /* Initialiser le badge saisies en attente */
+    _updatePendingBadge();
   }
 
   function toggleLoginPwd() {
@@ -2309,10 +2480,9 @@
   }
 
   function doLogout() {
-    sessionStorage.removeItem('ip_session');
-    sessionStorage.removeItem('ip_view_state');
+    _clearSession();
     currentUser = null;
-    document.getElementById('app').style.display   = 'none';
+    document.getElementById('app').style.display        = 'none';
     document.getElementById('login-page').style.display = 'flex';
   }
 
@@ -3489,24 +3659,36 @@
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…'; }
 
+    const momoCount = Number(momo) || grossAdd;
     const payload = {
       action:      'saisie',
       date:        new Date(date).toLocaleDateString('fr-FR'),
       dfa,
       equipe,
       activation:  grossAdd,
-      momoUser:    Number(momo) || 0,
+      momoUser:    momoCount,
       stockSIM:    Number(stock) || 0,
       observation: obs,
       simList:     saisieSIMs.map(s => s.sim).join(','),
       mtnList:     saisieSIMs.map(s => s.mtn).join(',')
     };
 
+    /* Pas de connexion : sauvegarde locale immédiate */
+    if (!navigator.onLine) {
+      _addToPendingQueue(payload);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
+      showToast(
+        `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
+        'Pas de connexion — envoi automatique au retour internet'
+      );
+      resetSaisie();
+      return;
+    }
+
     try {
       const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
       if (json.success) {
-        const momoCount = Number(momo) || grossAdd;
         showToast(
           `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
           `${dfa} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
@@ -3516,7 +3698,13 @@
         showFb('Erreur : ' + (json.error || 'réponse inattendue.'), false);
       }
     } catch (err) {
-      showFb('Impossible de joindre le serveur. Vérifiez votre connexion.', false);
+      /* Erreur réseau en cours de route : mise en file d'attente */
+      _addToPendingQueue(payload);
+      showToast(
+        `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
+        'Connexion perdue — envoi automatique au retour internet'
+      );
+      resetSaisie();
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
     }
@@ -3532,6 +3720,7 @@
     }
     const dateEl = document.getElementById('saisie-field-date');
     if (dateEl && !dateEl.value) dateEl.value = todayISO;
+    _updatePendingBadge();
   }
 
   function resetSaisie() {
@@ -4187,13 +4376,13 @@
   /* ---- Restauration automatique de session au rechargement ---- */
   function _tryRestoreSession() {
     document.documentElement.classList.remove('restoring-session');
-    const saved = sessionStorage.getItem('ip_session');
-    if (!saved) return;
+    const user = _loadSession();
+    if (!user) return;
     /* Lire l'état de vue AVANT startSession, car startSession appelle showView
        qui écrase ip_view_state avec la vue par défaut du rôle */
     const vsRaw = sessionStorage.getItem('ip_view_state');
     try {
-      startSession(JSON.parse(saved));
+      startSession(user);
       /* Restaurer la dernière vue active */
       if (vsRaw) {
         const vs = JSON.parse(vsRaw);
