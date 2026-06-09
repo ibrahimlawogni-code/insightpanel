@@ -2760,7 +2760,7 @@
         body: JSON.stringify({ action: 'getUsers' })
       });
       const json = await res.json();
-      if (json.success) USERS = json.users;
+      if (json.success && Array.isArray(json.users)) USERS = json.users;
     } catch (e) { /* utilise USERS_SEED si Sheets inaccessible */ }
     renderUsersTable();
     renderTeamStats();
