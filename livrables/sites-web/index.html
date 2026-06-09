@@ -679,7 +679,16 @@
       .view { padding: 12px; }
       .page-title { font-size: 17px; }
     }
+    /* Cache la page de connexion immédiatement si une session est en cours */
+    .restoring-session #login-page { display: none !important; }
   </style>
+  <script>
+    try {
+      if (sessionStorage.getItem('ip_session')) {
+        document.documentElement.classList.add('restoring-session');
+      }
+    } catch(e) {}
+  </script>
 </head>
 <body>
 
@@ -3047,6 +3056,7 @@
   }
   /* ---- Restauration automatique de session au rechargement ---- */
   function _tryRestoreSession() {
+    document.documentElement.classList.remove('restoring-session');
     const saved = sessionStorage.getItem('ip_session');
     if (!saved) return;
     try {
