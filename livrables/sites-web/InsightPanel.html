@@ -1889,13 +1889,19 @@
 
   function doLogout() {
     sessionStorage.removeItem('ip_session');
+    sessionStorage.removeItem('ip_view_state');
     currentUser = null;
     document.getElementById('app').style.display   = 'none';
     document.getElementById('login-page').style.display = 'flex';
   }
 
+  function saveViewState(name, extra) {
+    try { sessionStorage.setItem('ip_view_state', JSON.stringify({ name, extra: extra || null })); } catch(e) {}
+  }
+
   /* ---- Navigation ---- */
   function showView(name, el) {
+    saveViewState(name, null);
     closeSidebarMobile();
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2476,6 +2482,7 @@
 
   function showEquipeZone(zone, el) {
     CURRENT_EQUIPE_ZONE = zone;
+    saveViewState('equipes', { type: 'zone', zone });
     _activateEquipesView();
     document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
@@ -2487,6 +2494,7 @@
 
   function showEquipeDemandes(el) {
     CURRENT_EQUIPE_ZONE = null;
+    saveViewState('equipes', { type: 'demandes' });
     _activateEquipesView();
     document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
@@ -3196,6 +3204,24 @@
     if (!saved) return;
     try {
       startSession(JSON.parse(saved));
+      /* Restaurer la dernière vue active */
+      const vsRaw = sessionStorage.getItem('ip_view_state');
+      if (vsRaw) {
+        const vs = JSON.parse(vsRaw);
+        if (vs.name === 'equipes' && vs.extra) {
+          if (vs.extra.type === 'zone') {
+            const el = document.querySelector(`.nav-sub-item[data-zone="${vs.extra.zone}"]`);
+            showEquipeZone(vs.extra.zone, el);
+          } else if (vs.extra.type === 'demandes') {
+            showEquipeDemandes(document.getElementById('nav-sub-demandes-item'));
+          }
+        } else if (vs.name) {
+          const el = [...document.querySelectorAll('.nav-item')].find(
+            n => (n.getAttribute('onclick') || '').includes(`'${vs.name}'`)
+          );
+          showView(vs.name, el || null);
+        }
+      }
     } catch(e) {
       console.error('[InsightPanel] Restauration session échouée :', e);
     }
