@@ -653,10 +653,10 @@
       <label>Mot de passe</label>
       <div style="position:relative">
         <input type="password" id="login-pwd" placeholder="votre mot de passe" autocomplete="current-password" style="padding-right:42px">
-        <button type="button" onclick="togglePwd()" id="pwd-toggle"
+        <button type="button" onclick="toggleLoginPwd()" id="pwd-toggle"
           style="position:absolute;right:0;top:0;height:100%;width:42px;background:none;border:none;cursor:pointer;color:var(--gray-text);font-size:15px;display:flex;align-items:center;justify-content:center"
           aria-label="Afficher / masquer le mot de passe">
-          <i class="fa fa-eye" id="pwd-eye"></i>
+          <i class="fa fa-eye" id="login-pwd-eye"></i>
         </button>
       </div>
     </div>
@@ -1629,9 +1629,9 @@
     if (['dg','dga','dcc','dc','ra'].includes(user.role)) renderSalesChart();
   }
 
-  function togglePwd() {
+  function toggleLoginPwd() {
     const input = document.getElementById('login-pwd');
-    const icon  = document.getElementById('pwd-eye');
+    const icon  = document.getElementById('login-pwd-eye');
     if (input.type === 'password') {
       input.type = 'text';
       icon.className = 'fa fa-eye-slash';
