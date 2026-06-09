@@ -1838,81 +1838,61 @@
           <div class="page-title">Best Seller — DFA</div>
           <div class="page-subtitle">Classement des meilleurs agents terrain</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="tabs">
-            <button class="tab active" onclick="setBestsellerPeriod('semaine',this)">Semaine</button>
-            <button class="tab" onclick="setBestsellerPeriod('mois',this)">Mois</button>
-          </div>
+        <div class="tabs">
+          <button class="tab active" onclick="setBestsellerPeriod('semaine',this)">Semaine</button>
+          <button class="tab" onclick="setBestsellerPeriod('mois',this)">Mois</button>
         </div>
       </div>
 
-      <!-- PODIUM TOP 3 -->
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-          <div class="card-title">Podium</div>
-          <span class="badge badge-black">Semaine 23</span>
-        </div>
-        <div class="card-body">
-          <div style="display:flex;justify-content:center;align-items:flex-end;gap:20px;padding:10px 0 20px">
-            <div style="text-align:center">
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#2</div>
-              <div style="width:80px;height:90px;background:var(--gray-bg);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #C0C0C0">
-                <i class="fa fa-medal medal-2" style="font-size:22px"></i>
-                <div style="font-size:11px;font-weight:700;margin-top:6px">Aïssatou G.</div>
-                <div style="font-size:13px;font-weight:900;color:var(--yellow)">128</div>
-              </div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#1</div>
-              <div style="width:90px;height:120px;background:var(--yellow-light);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--yellow)">
-                <i class="fa fa-medal medal-1" style="font-size:26px"></i>
-                <div style="font-size:12px;font-weight:700;margin-top:6px">Kossi A.</div>
-                <div style="font-size:15px;font-weight:900;color:var(--yellow)">143</div>
-              </div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#3</div>
-              <div style="width:80px;height:75px;background:var(--gray-bg);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #CD7F32">
-                <i class="fa fa-medal medal-3" style="font-size:20px"></i>
-                <div style="font-size:11px;font-weight:700;margin-top:6px">Mouftaou S.</div>
-                <div style="font-size:13px;font-weight:900;color:var(--yellow)">117</div>
-              </div>
-            </div>
+      <div class="grid-2" style="align-items:start">
+        <!-- CLASSEMENT MON ÉQUIPE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title" id="bs-equipe-title">Mon équipe</div>
+            <span class="badge badge-yellow" id="bs-equipe-badge">—</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="min-width:320px">
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th>Agent DFA</th>
+                  <th style="text-align:center">Gross Add</th>
+                  <th style="text-align:center">Moy./Jour</th>
+                  <th style="text-align:center">Éval.</th>
+                </tr>
+              </thead>
+              <tbody id="bs-equipe-tbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
 
-      <!-- CLASSEMENT COMPLET -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Classement complet</div>
-          <span class="badge badge-black" id="bestseller-count-badge">24 agents</span>
+        <!-- CLASSEMENT GLOBAL -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Classement global</div>
+            <span class="badge badge-black" id="bs-global-badge">—</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="min-width:380px">
+              <thead>
+                <tr>
+                  <th style="width:36px">#</th>
+                  <th>Agent DFA</th>
+                  <th>Zone</th>
+                  <th style="text-align:center">Gross Add</th>
+                  <th style="text-align:center">Moy./Jour</th>
+                  <th style="text-align:center">Éval.</th>
+                </tr>
+              </thead>
+              <tbody id="bs-global-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Agent DFA</th>
-              <th>Zone</th>
-              <th>Gross Add</th>
-              <th>New MoMo User</th>
-              <th>Moy. / Jour</th>
-              <th>Évaluation</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td><i class="fa fa-medal medal-1"></i></td><td><strong>Kossi ADJOVI</strong></td><td>Avrankou</td><td>143</td><td>87</td><td>20.4</td><td><span class="badge badge-green">Excellent</span></td></tr>
-            <tr><td><i class="fa fa-medal medal-2"></i></td><td><strong>Aïssatou GNONA</strong></td><td>Akpro - Missérété</td><td>128</td><td>79</td><td>18.3</td><td><span class="badge badge-green">Excellent</span></td></tr>
-            <tr><td><i class="fa fa-medal medal-3"></i></td><td><strong>Mouftaou SABI</strong></td><td>Avrankou</td><td>117</td><td>65</td><td>16.7</td><td><span class="badge badge-green">Très bien</span></td></tr>
-            <tr><td style="color:#bbb">4</td><td>Clarisse YOVO</td><td>Bonou - Adjohoun</td><td>104</td><td>58</td><td>14.9</td><td><span class="badge badge-orange">Bien</span></td></tr>
-            <tr><td style="color:#bbb">5</td><td>Romuald AGBO</td><td>Aguégués - Dangbo</td><td>98</td><td>51</td><td>14.0</td><td><span class="badge badge-orange">Bien</span></td></tr>
-            <tr><td style="color:#bbb">6</td><td>Félicité DOSSOU</td><td>Avrankou</td><td>87</td><td>44</td><td>12.4</td><td><span class="badge badge-orange">Moyen</span></td></tr>
-            <tr style="background:var(--yellow-light)"><td><strong>#7</strong></td><td><strong>Kofi MENSAH</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span></td><td>Avrankou</td><td>74</td><td>42</td><td>10.6</td><td><span class="badge badge-green">Bien</span></td></tr>
-            <tr><td style="color:#bbb">8</td><td>Brice HOUINATO</td><td>Akpro - Missérété</td><td>76</td><td>39</td><td>10.9</td><td><span class="badge badge-red">À améliorer</span></td></tr>
-            <tr><td style="color:#bbb">9</td><td>Sènan AKAKPO</td><td>Bonou - Adjohoun</td><td>68</td><td>33</td><td>9.7</td><td><span class="badge badge-red">À améliorer</span></td></tr>
-            <tr><td style="color:#bbb">10</td><td>Mariam OUOROU</td><td>Aguégués - Dangbo</td><td>61</td><td>28</td><td>8.7</td><td><span class="badge badge-red">À améliorer</span></td></tr>
-          </tbody>
-        </table>
       </div>
     </div>
 
@@ -2234,6 +2214,7 @@
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
     if (name === 'agent')       updatePerfDisplay();
+    if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
     if (name === 'equipes')   { loadUsers(); loadDemandes(); }
     if (name === 'superviseur') { loadDemandes(); }
     if (name === 'dashboard') {
@@ -3202,6 +3183,34 @@
     },
   };
 
+  /* Données Best Seller — tous les agents toutes zones { id, nom, zone, semaine, mois, moyJour } */
+  const BESTSELLER_MOCK = [
+    { id: 'Agent.Test',     nom: 'Kofi MENSAH',       zone: 'Avrankou',          semaine: 112, mois: 380, moyJour: 14.6 },
+    { id: 'Jules.Akindes',  nom: 'Jules AKINDES',     zone: 'Avrankou',          semaine:  96, mois: 340, moyJour: 13.1 },
+    { id: 'Sylvie.Houngbo', nom: 'Sylvie HOUNGBO',    zone: 'Avrankou',          semaine:  18, mois:  62, moyJour:  2.4 },
+    { id: 'ext_Kossi',      nom: 'Kossi ADJOVI',      zone: 'Avrankou',          semaine: 143, mois: 412, moyJour: 20.4 },
+    { id: 'ext_Mouftaou',   nom: 'Mouftaou SABI',     zone: 'Avrankou',          semaine: 117, mois: 334, moyJour: 16.7 },
+    { id: 'ext_Felicite',   nom: 'Félicité DOSSOU',   zone: 'Avrankou',          semaine:  87, mois: 249, moyJour: 12.4 },
+    { id: 'Kofi.Agbodji',   nom: 'Kofi AGBODJI',      zone: 'Bonou - Adjohoun',  semaine:  87, mois: 310, moyJour: 12.4 },
+    { id: 'Marie.Hounsou',  nom: 'Marie HOUNSOU',     zone: 'Bonou - Adjohoun',  semaine: 101, mois: 362, moyJour: 13.9 },
+    { id: 'Pascal.Dossou',  nom: 'Pascal DOSSOU',     zone: 'Bonou - Adjohoun',  semaine:  28, mois:  95, moyJour:  3.7 },
+    { id: 'ext_Clarisse',   nom: 'Clarisse YOVO',     zone: 'Bonou - Adjohoun',  semaine: 104, mois: 318, moyJour: 14.9 },
+    { id: 'ext_Senan',      nom: 'Sènan AKAKPO',      zone: 'Bonou - Adjohoun',  semaine:  68, mois: 194, moyJour:  9.7 },
+    { id: 'Raoul.Adanle',   nom: 'Raoul ADANLE',      zone: 'Aguégués - Dangbo', semaine:  68, mois: 241, moyJour:  9.3 },
+    { id: 'Chantal.Gbedji', nom: 'Chantal GBEDJI',    zone: 'Aguégués - Dangbo', semaine:  75, mois: 275, moyJour: 10.6 },
+    { id: 'ext_Romuald',    nom: 'Romuald AGBO',      zone: 'Aguégués - Dangbo', semaine:  98, mois: 284, moyJour: 14.0 },
+    { id: 'ext_Mariam',     nom: 'Mariam OUOROU',     zone: 'Aguégués - Dangbo', semaine:  61, mois: 175, moyJour:  8.7 },
+    { id: 'Basile.Ganfon',  nom: 'Basile GANFON',     zone: 'Akpro - Missérété', semaine: 132, mois: 470, moyJour: 18.1 },
+    { id: 'Nadia.Zannou',   nom: 'Nadia ZANNOU',      zone: 'Akpro - Missérété', semaine: 148, mois: 520, moyJour: 20.0 },
+    { id: 'Cedric.Dansou',  nom: 'Cédric DANSOU',     zone: 'Akpro - Missérété', semaine: 120, mois: 432, moyJour: 16.6 },
+    { id: 'ext_Aissatou',   nom: 'Aïssatou GNONA',    zone: 'Akpro - Missérété', semaine: 128, mois: 368, moyJour: 18.3 },
+    { id: 'ext_BriceH',     nom: 'Brice HOUINATO',    zone: 'Akpro - Missérété', semaine:  76, mois: 218, moyJour: 10.9 },
+    { id: 'Brice.Akpede',   nom: 'Brice AKPEDE',      zone: 'Adjarra',           semaine:  59, mois: 208, moyJour:  8.0 },
+    { id: 'Fatima.Adeko',   nom: 'Fatima ADEKO',      zone: 'Adjarra',           semaine:  71, mois: 252, moyJour:  9.7 },
+    { id: 'ext_Dieudo',     nom: 'Dieudonné KPOTA',   zone: 'Adjarra',           semaine:  88, mois: 264, moyJour: 12.6 },
+    { id: 'ext_Prisca',     nom: 'Prisca TOHOUN',     zone: 'Adjarra',           semaine:  52, mois: 187, moyJour:  7.4 },
+  ];
+
   /* Mock performance individuelle par agent — { jour, hier, semaine, mois, moyJour, moySemaine } */
   const AGENT_PERF_DATA = {
     'Agent.Test':     { jour: 24, hier: 18, semaine: 112, mois: 380, moyJour: 14.6, moySemaine: 22.4 },
@@ -3637,11 +3646,82 @@
     updatePerfDisplay();
   }
 
+  let bestsellerPeriod = 'semaine';
+
   function setBestsellerPeriod(p, el) {
+    bestsellerPeriod = p;
     document.querySelectorAll('#view-bestseller .tabs .tab').forEach(t => t.classList.remove('active'));
     if (el) el.classList.add('active');
-    const badge = document.getElementById('bestseller-count-badge');
-    if (badge) badge.textContent = '24 agents';
+    renderBestseller(p);
+  }
+
+  function renderBestseller(period) {
+    if (!currentUser) return;
+
+    const key = (period === 'mois') ? 'mois' : 'semaine';
+    const periodLabel = (period === 'mois') ? 'Juin 2026' : 'Semaine 23';
+    const userZone = currentUser.zone;
+
+    /* Tri décroissant par Gross Add de la période */
+    const sorted = [...BESTSELLER_MOCK].sort((a, b) => b[key] - a[key]);
+
+    /* Filtrage par zone de l'utilisateur connecté */
+    const teamSorted = sorted.filter(a => a.zone === userZone);
+
+    /* Seuils d'évaluation selon la période */
+    const thresholds = (key === 'mois')
+      ? [[400,'Excellent','badge-green'],[280,'Très bien','badge-green'],[160,'Bien','badge-orange'],[80,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
+      : [[130,'Excellent','badge-green'],[90,'Très bien','badge-green'],[55,'Bien','badge-orange'],[25,'Moyen','badge-orange'],[0,'À améliorer','badge-red']];
+
+    function evalInfo(val) {
+      return thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
+    }
+
+    function rankCell(i) {
+      if (i === 0) return '<td><i class="fa fa-medal medal-1"></i></td>';
+      if (i === 1) return '<td><i class="fa fa-medal medal-2"></i></td>';
+      if (i === 2) return '<td><i class="fa fa-medal medal-3"></i></td>';
+      return `<td style="color:#bbb;font-weight:600">${i + 1}</td>`;
+    }
+
+    function buildRows(list, showZone) {
+      return list.slice(0, 10).map((agent, i) => {
+        const isMe = (agent.id === currentUser.id);
+        const [, evalLbl, evalCls] = evalInfo(agent[key]);
+        const namePart = isMe
+          ? `<strong>${agent.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
+          : agent.nom;
+        const zoneCell = showZone ? `<td style="font-size:12px;color:var(--gray-text)">${agent.zone}</td>` : '';
+        const rowStyle = isMe ? ' style="background:var(--yellow-light)"' : '';
+        return `<tr${rowStyle}>
+          ${rankCell(i)}
+          <td>${namePart}</td>
+          ${zoneCell}
+          <td style="text-align:center;font-weight:700">${agent[key]}</td>
+          <td style="text-align:center">${agent.moyJour.toFixed(1)}</td>
+          <td style="text-align:center"><span class="badge ${evalCls}">${evalLbl}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    const equipeTbody  = document.getElementById('bs-equipe-tbody');
+    const globalTbody  = document.getElementById('bs-global-tbody');
+    const equipeTitle  = document.getElementById('bs-equipe-title');
+    const equipeBadge  = document.getElementById('bs-equipe-badge');
+    const globalBadge  = document.getElementById('bs-global-badge');
+
+    if (equipeTitle) equipeTitle.textContent = `Mon équipe — ${userZone}`;
+    if (equipeBadge) equipeBadge.textContent = `${Math.min(teamSorted.length, 10)} agents · ${periodLabel}`;
+    if (globalBadge) globalBadge.textContent = `${Math.min(sorted.length, 10)} agents · ${periodLabel}`;
+
+    if (equipeTbody) {
+      equipeTbody.innerHTML = teamSorted.length
+        ? buildRows(teamSorted, false)
+        : '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucun agent dans cette zone</td></tr>';
+    }
+    if (globalTbody) {
+      globalTbody.innerHTML = buildRows(sorted, true);
+    }
   }
 
   function updatePerfDisplay() {
