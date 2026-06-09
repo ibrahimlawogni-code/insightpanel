@@ -438,6 +438,20 @@
     .equipes-tab.active { color:var(--black); border-bottom-color:var(--yellow); }
     .equipes-tab:hover:not(.active) { background:var(--gray-bg); }
 
+    /* ---- Sous-onglets comptes ---- */
+    .compte-tabs { display:flex; gap:6px; margin-bottom:16px; }
+    .compte-tab  { padding:6px 14px; font-size:12px; font-weight:600; border:1.5px solid var(--gray-border); border-radius:20px; cursor:pointer; background:none; color:var(--gray-text); transition:all .15s; }
+    .compte-tab.active  { background:var(--black); color:var(--yellow); border-color:var(--black); }
+    .compte-tab:hover:not(.active) { background:var(--gray-bg); }
+
+    /* ---- Carte superviseur (vue par superviseur) ---- */
+    .sup-card { background:var(--white); border:1px solid var(--gray-border); border-radius:12px; margin-bottom:16px; overflow:hidden; }
+    .sup-card-header { background:var(--black); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; }
+    .sup-avatar { width:40px; height:40px; border-radius:50%; background:var(--yellow); color:var(--black); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0; }
+    .sup-card-body  { padding:0; }
+    .sup-agent-row  { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:8px; }
+    .sup-agent-row:last-child { border-bottom:none; }
+
     /* ---- Modal Demande d'accès ---- */
     #demande-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.60); z-index:800; align-items:center; justify-content:center; }
     #demande-overlay.open { display:flex; }
@@ -1632,6 +1646,8 @@
 
       <!-- SECTION COMPTES -->
       <div id="equipes-section-comptes">
+
+        <!-- Compteurs -->
         <div class="mini-stats" style="margin-bottom:20px">
           <div class="mini-stat">
             <div class="val" id="stat-total-users">—</div>
@@ -1646,25 +1662,46 @@
             <div class="lbl">Agents DFA</div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">Comptes enregistrés</div>
-            <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Identifiant</th>
-                <th>Rôle</th>
-                <th>Zone</th>
-                <th>Statut</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="users-tbody"></tbody>
-          </table>
+
+        <!-- Sous-onglets -->
+        <div class="compte-tabs">
+          <button class="compte-tab active" onclick="switchCompteView('tous', this)"><i class="fa fa-list"></i> Tous</button>
+          <button class="compte-tab" onclick="switchCompteView('superviseur', this)"><i class="fa fa-user-tie"></i> Par superviseur</button>
+          <button class="compte-tab" onclick="switchCompteView('zone', this)"><i class="fa fa-map-location-dot"></i> Par zone</button>
         </div>
+
+        <!-- Vue : Tous -->
+        <div id="comptes-view-tous">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Comptes enregistrés</div>
+              <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Zone</th><th>Statut</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Vue : Par superviseur -->
+        <div id="comptes-view-superviseur" style="display:none">
+          <div id="comptes-by-sup-content">
+            <div class="card"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Chargement…</p></div></div>
+          </div>
+        </div>
+
+        <!-- Vue : Par zone -->
+        <div id="comptes-view-zone" style="display:none">
+          <div id="comptes-by-zone-content">
+            <div class="card"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Chargement…</p></div></div>
+          </div>
+        </div>
+
       </div>
 
       <!-- SECTION DEMANDES -->
@@ -2582,6 +2619,134 @@
   }
 
   function filterUsers(val) { renderUsersTable(val); }
+
+  /* ---- Sous-vues Comptes (Tous / Par superviseur / Par zone) ---- */
+
+  function switchCompteView(view, el) {
+    document.querySelectorAll('.compte-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    ['tous','superviseur','zone'].forEach(v => {
+      document.getElementById('comptes-view-' + v).style.display = v === view ? '' : 'none';
+    });
+    if (view === 'superviseur') renderComptesBySuperviseur();
+    if (view === 'zone')        renderComptesByZone();
+  }
+
+  function renderComptesBySuperviseur() {
+    const container = document.getElementById('comptes-by-sup-content');
+    if (!container) return;
+
+    const superviseurs = USERS.filter(u => u.role === 'superviseur').sort((a,b) => a.zone.localeCompare(b.zone));
+    if (!superviseurs.length) {
+      container.innerHTML = '<div class="card"><div class="empty-state"><i class="fa fa-users"></i><p>Aucun superviseur enregistré</p></div></div>';
+      return;
+    }
+
+    const agents = USERS.filter(u => u.role === 'agent');
+    const roleLabel = { ra:'RA', dg:'DG', dga:'DGA', dcc:'DCC', dc:'DC', superviseur:'Superviseur', agent:'Agent DFA' };
+
+    container.innerHTML = superviseurs.map(sup => {
+      const myAgents = agents.filter(a => a.zone && sup.zone && (
+        a.zone === sup.zone ||
+        sup.zone.includes(a.zone) ||
+        a.zone.includes(sup.zone.split(' - ')[0].split('-')[0].trim())
+      ));
+
+      const agentRows = myAgents.length
+        ? myAgents.map(a => `
+            <div class="sup-agent-row">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:30px;height:30px;border-radius:50%;background:var(--gray-bg);color:var(--gray-text);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${a.initiales}</div>
+                <div>
+                  <div style="font-weight:600;font-size:13px">${a.nom}</div>
+                  <div style="font-size:11px;color:var(--gray-text)">${a.zone}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="badge ${a.statut === 'actif' ? 'badge-green' : 'badge-red'}">${a.statut}</span>
+                <button class="btn btn-secondary btn-sm" onclick="openUserModal('${a.id}')"><i class="fa fa-pen"></i></button>
+              </div>
+            </div>`).join('')
+        : `<div style="padding:16px 20px;color:var(--gray-text);font-size:13px"><i class="fa fa-info-circle"></i> Aucun agent rattaché à cette zone</div>`;
+
+      return `
+        <div class="sup-card">
+          <div class="sup-card-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="sup-avatar">${sup.initiales}</div>
+              <div>
+                <div style="color:var(--white);font-weight:700;font-size:14px">${sup.nom}</div>
+                <div style="color:#aaa;font-size:12px;margin-top:2px"><i class="fa fa-map-pin" style="margin-right:4px"></i>${sup.zone} &middot; ${myAgents.length} agent${myAgents.length !== 1 ? 's' : ''}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge ${sup.statut === 'actif' ? 'badge-green' : 'badge-red'}">${sup.statut}</span>
+              <button class="btn btn-secondary btn-sm" style="border-color:#444;color:#ccc" onclick="openUserModal('${sup.id}')"><i class="fa fa-pen"></i></button>
+            </div>
+          </div>
+          <div class="sup-card-body">${agentRows}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderComptesByZone() {
+    const container = document.getElementById('comptes-by-zone-content');
+    if (!container) return;
+
+    const zones = [...new Set(USERS.map(u => u.zone).filter(Boolean))].sort();
+    if (!zones.length) {
+      container.innerHTML = '<div class="card"><div class="empty-state"><i class="fa fa-map"></i><p>Aucune zone enregistrée</p></div></div>';
+      return;
+    }
+
+    const roleLabel = { ra:'RA', dg:'DG', dga:'DGA', dcc:'DCC', dc:'DC', superviseur:'Superviseur MPOS', agent:'Agent DFA' };
+    const roleBadge = { superviseur:'badge-black', agent:'badge-gray', ra:'badge-yellow', dg:'badge-yellow', dga:'badge-yellow' };
+
+    container.innerHTML = zones.map(zone => {
+      const members = USERS.filter(u => u.zone === zone).sort((a,b) => {
+        const order = { superviseur:0, ra:1, dg:1, agent:2 };
+        return (order[a.role] ?? 3) - (order[b.role] ?? 3);
+      });
+      const sups   = members.filter(u => u.role === 'superviseur');
+      const agents = members.filter(u => u.role === 'agent');
+      const actifs = members.filter(u => u.statut === 'actif').length;
+
+      return `
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <div>
+              <div class="card-title"><i class="fa fa-map-pin" style="color:var(--yellow);margin-right:6px"></i>${zone}</div>
+              <div style="font-size:12px;color:var(--gray-text);margin-top:3px">
+                ${sups.length} superviseur${sups.length !== 1 ? 's' : ''} &middot;
+                ${agents.length} agent${agents.length !== 1 ? 's' : ''} &middot;
+                <span style="color:var(--green)">${actifs} actif${actifs !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            <span class="badge badge-black">${members.length} membre${members.length !== 1 ? 's' : ''}</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Statut</th><th></th></tr>
+            </thead>
+            <tbody>
+              ${members.map(m => `
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <div style="width:28px;height:28px;border-radius:50%;background:${m.role === 'superviseur' ? 'var(--yellow)' : 'var(--gray-bg)'};color:${m.role === 'superviseur' ? 'var(--black)' : 'var(--gray-text)'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px">${m.initiales}</div>
+                      <strong>${m.nom}</strong>
+                    </div>
+                  </td>
+                  <td style="font-family:monospace;font-size:12px">${m.id}</td>
+                  <td><span class="badge ${roleBadge[m.role] || 'badge-gray'}">${roleLabel[m.role] || m.role}</span></td>
+                  <td><span class="badge ${m.statut === 'actif' ? 'badge-green' : 'badge-red'}">${m.statut}</span></td>
+                  <td><button class="btn btn-secondary btn-sm" onclick="openUserModal('${m.id}')"><i class="fa fa-pen"></i></button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }).join('');
+  }
 
   /* ---- Compteurs d'équipe ---- */
   function renderTeamStats() {
