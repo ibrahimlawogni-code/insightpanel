@@ -2508,16 +2508,81 @@
 
   function renderEquipeZone(zone) {
     const allUsers = USERS.length ? USERS : USERS_SEED;
+    const normalZ  = z => z ? z.toLowerCase().replace(/[\s\-]/g, '') : '';
+    const zNorm    = normalZ(zone);
 
-    const normalZ = z => z ? z.toLowerCase().replace(/[\s\-]/g, '') : '';
-    const zNorm   = normalZ(zone);
-
-    const sup = allUsers.find(u => u.role === 'superviseur' && normalZ(u.zone) === zNorm);
-    const agents = allUsers.filter(u => u.role === 'agent' && normalZ(u.zone) === zNorm);
+    const sup      = allUsers.find(u => u.role === 'superviseur' && normalZ(u.zone) === zNorm);
+    const agents   = allUsers.filter(u => u.role === 'agent' && normalZ(u.zone) === zNorm);
+    const dfaTotal = agents.length;
+    const dfaActifsStatut = agents.filter(a => a.statut === 'actif').length;
 
     document.getElementById('equipes-page-title').textContent    = zone;
     document.getElementById('equipes-page-subtitle').textContent = sup ? 'Superviseur MPOS : ' + sup.nom : 'Équipe';
 
+    /* KPI data pour la période sélectionnée */
+    const d = ((ZONE_PERF_DATA[zone] || {})[CURRENT_ZONE_PERIOD])
+              || { grossAdd: 0, dfaActifs: 0, target: 1, evolution: 0 };
+
+    const pct        = Math.min(100, Math.round(d.grossAdd / d.target * 100));
+    const perfColor  = pct >= 80 ? 'var(--green)' : pct >= 60 ? 'var(--orange)' : 'var(--red)';
+    const perfBadge  = pct >= 80 ? 'badge-green'  : pct >= 60 ? 'badge-orange'  : 'badge-red';
+    const evolSign   = d.evolution >= 0 ? '+' : '';
+    const evolColor  = d.evolution > 0 ? 'var(--green)' : d.evolution < 0 ? 'var(--red)' : 'var(--gray-text)';
+    const evolIcon   = d.evolution > 0 ? 'fa-arrow-trend-up' : d.evolution < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+    const dfaActifPct = dfaTotal > 0 ? Math.round(d.dfaActifs / dfaTotal * 100) : 0;
+    const fmt         = n => n.toLocaleString('fr-FR');
+
+    /* Onglets de période */
+    const tabsHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+        <div class="tabs">
+          ${[['jour','Jour'],['semaine','Semaine'],['mois','Mois'],['annee','Année']].map(([p,l]) =>
+            `<button class="tab${p === CURRENT_ZONE_PERIOD ? ' active' : ''}" onclick="setZonePeriod('${p}',this)">${l}</button>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    /* Grille KPI */
+    const kpiHtml = `
+      <div class="kpi-grid" style="margin-bottom:24px">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Activations</div>
+          <div class="kpi-value">${fmt(d.grossAdd)}</div>
+          <div class="kpi-delta ${d.evolution >= 0 ? 'up' : 'down'}">
+            <i class="fa ${evolIcon}"></i> ${evolSign}${d.evolution}% vs période préc.
+          </div>
+          <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total DFA équipe</div>
+          <div class="kpi-value">${dfaTotal}</div>
+          <div class="kpi-delta neutral">
+            <i class="fa fa-users"></i> ${dfaActifsStatut} actif${dfaActifsStatut !== 1 ? 's' : ''} (statut)
+          </div>
+          <div class="kpi-bg-icon"><i class="fa fa-users"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">DFA Actifs ≥ 1 activation</div>
+          <div class="kpi-value" style="color:var(--green)">${d.dfaActifs}</div>
+          <div class="kpi-delta ${dfaActifPct >= 70 ? 'up' : 'down'}">
+            <i class="fa fa-circle-check"></i> ${dfaActifPct}% de l'équipe mobilisée
+          </div>
+          <div class="kpi-bg-icon"><i class="fa fa-person-running"></i></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Performance équipe</div>
+          <div class="kpi-value" style="color:${perfColor}">${pct}%</div>
+          <div style="height:6px;background:#e9e9e9;border-radius:3px;margin:8px 0 6px">
+            <div style="width:${pct}%;height:100%;background:${perfColor};border-radius:3px;transition:width .4s"></div>
+          </div>
+          <div class="kpi-delta neutral">
+            <i class="fa fa-bullseye"></i> ${fmt(d.grossAdd)} / ${fmt(d.target)} activations
+          </div>
+          <div class="kpi-bg-icon"><i class="fa fa-chart-pie"></i></div>
+        </div>
+      </div>`;
+
+    /* Carte superviseur + agents */
     const agentRows = agents.length
       ? agents.map(a => `
           <div class="zone-team-agent-row">
@@ -2538,7 +2603,7 @@
          </div>`;
 
     const supCard = sup ? `
-      <div style="margin-bottom:20px">
+      <div>
         <div class="zone-team-header">
           <div class="zone-team-avatar">${sup.initiales}</div>
           <div class="zone-team-info">
@@ -2555,8 +2620,8 @@
         </div>
         <div class="zone-team-body">
           <div style="padding:10px 20px 4px;font-size:12px;font-weight:600;color:var(--gray-text);letter-spacing:.5px;text-transform:uppercase">
-            Agents DFA — ${agents.length} agent${agents.length !== 1 ? 's' : ''}
-            (<span style="color:var(--green)">${agents.filter(a => a.statut === 'actif').length} actif${agents.filter(a => a.statut === 'actif').length !== 1 ? 's' : ''}</span>)
+            Agents DFA — ${dfaTotal} agent${dfaTotal !== 1 ? 's' : ''}
+            (<span style="color:var(--green)">${dfaActifsStatut} actif${dfaActifsStatut !== 1 ? 's' : ''}</span>)
           </div>
           ${agentRows}
         </div>
@@ -2569,7 +2634,7 @@
         </div>
       </div>`;
 
-    document.getElementById('equipes-zone-content').innerHTML = supCard;
+    document.getElementById('equipes-zone-content').innerHTML = tabsHtml + kpiHtml + supCard;
   }
 
   function renderDemandesTable() {
@@ -2746,7 +2811,47 @@
     },
   };
 
-  let currentSupPeriod = 'semaine';
+  let currentSupPeriod  = 'semaine';
+  let CURRENT_ZONE_PERIOD = 'jour';
+
+  /* Mock performance par zone (à remplacer par vraies données Sheets) */
+  const ZONE_PERF_DATA = {
+    'Bonou - Adjohoun': {
+      jour:    { grossAdd: 118,   dfaActifs: 9,  target: 144,   evolution: 6  },
+      semaine: { grossAdd: 754,   dfaActifs: 10, target: 933,   evolution: 3  },
+      mois:    { grossAdd: 2940,  dfaActifs: 11, target: 3732,  evolution: -2 },
+      annee:   { grossAdd: 19800, dfaActifs: 11, target: 44784, evolution: 4  },
+    },
+    'Aguégués - Dangbo': {
+      jour:    { grossAdd: 92,    dfaActifs: 7,  target: 129,   evolution: -4 },
+      semaine: { grossAdd: 611,   dfaActifs: 8,  target: 840,   evolution: 2  },
+      mois:    { grossAdd: 2410,  dfaActifs: 9,  target: 3359,  evolution: 5  },
+      annee:   { grossAdd: 16200, dfaActifs: 9,  target: 40308, evolution: -1 },
+    },
+    'Akpro - Missérété': {
+      jour:    { grossAdd: 165,   dfaActifs: 13, target: 180,   evolution: 12 },
+      semaine: { grossAdd: 1050,  dfaActifs: 14, target: 1166,  evolution: 8  },
+      mois:    { grossAdd: 4120,  dfaActifs: 14, target: 4665,  evolution: 3  },
+      annee:   { grossAdd: 27500, dfaActifs: 14, target: 55980, evolution: 7  },
+    },
+    'Adjarra': {
+      jour:    { grossAdd: 78,    dfaActifs: 6,  target: 108,   evolution: -8 },
+      semaine: { grossAdd: 498,   dfaActifs: 7,  target: 700,   evolution: -3 },
+      mois:    { grossAdd: 1920,  dfaActifs: 7,  target: 2799,  evolution: 2  },
+      annee:   { grossAdd: 12900, dfaActifs: 7,  target: 33588, evolution: -1 },
+    },
+    'Avrankou': {
+      jour:    { grossAdd: 143,   dfaActifs: 10, target: 158,   evolution: 5  },
+      semaine: { grossAdd: 918,   dfaActifs: 11, target: 1026,  evolution: 4  },
+      mois:    { grossAdd: 3590,  dfaActifs: 12, target: 4105,  evolution: -1 },
+      annee:   { grossAdd: 24100, dfaActifs: 12, target: 49260, evolution: 3  },
+    },
+  };
+
+  function setZonePeriod(period, btn) {
+    CURRENT_ZONE_PERIOD = period;
+    renderEquipeZone(CURRENT_EQUIPE_ZONE);
+  }
 
   function setSuperviseurPeriod(period, btn) {
     currentSupPeriod = period;
