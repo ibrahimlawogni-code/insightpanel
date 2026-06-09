@@ -432,17 +432,6 @@
     .badge-purple { background: #ede9fe; color: #6d28d9; }
     .badge-teal   { background: #ccfbf1; color: #0f766e; }
 
-    /* ---- Onglets vue Équipes ---- */
-    .equipes-tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--gray-border); }
-    .equipes-tab  { padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:none; color:var(--gray-text); border-bottom:3px solid transparent; margin-bottom:-2px; border-radius:4px 4px 0 0; transition:color .15s,border-color .15s; display:inline-flex; align-items:center; gap:8px; }
-    .equipes-tab.active { color:var(--black); border-bottom-color:var(--yellow); }
-    .equipes-tab:hover:not(.active) { background:var(--gray-bg); }
-
-    /* ---- Sous-onglets comptes ---- */
-    .compte-tabs { display:flex; gap:6px; margin-bottom:16px; }
-    .compte-tab  { padding:6px 14px; font-size:12px; font-weight:600; border:1.5px solid var(--gray-border); border-radius:20px; cursor:pointer; background:none; color:var(--gray-text); transition:all .15s; }
-    .compte-tab.active  { background:var(--black); color:var(--yellow); border-color:var(--black); }
-    .compte-tab:hover:not(.active) { background:var(--gray-bg); }
 
     /* ---- Carte superviseur (vue par superviseur) ---- */
     .sup-card { background:var(--white); border:1px solid var(--gray-border); border-radius:12px; margin-bottom:16px; overflow:hidden; }
@@ -451,6 +440,33 @@
     .sup-card-body  { padding:0; }
     .sup-agent-row  { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:8px; }
     .sup-agent-row:last-child { border-bottom:none; }
+
+    /* ---- Navigation arborescente Équipes ---- */
+    .nav-group-toggle { display:flex; align-items:center; justify-content:space-between; }
+    .nav-group-toggle .nav-chevron { font-size:10px; transition:transform .2s; margin-left:auto; opacity:.6; }
+    .nav-group-toggle .nav-chevron.open { transform:rotate(90deg); }
+    .nav-sub-items { overflow:hidden; }
+    .nav-sub-item {
+      display:flex; align-items:center; gap:8px;
+      padding:7px 14px 7px 34px; font-size:12px; color:var(--gray-text);
+      cursor:pointer; border-radius:6px; margin:1px 8px;
+      transition:background .15s,color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .nav-sub-item:hover { background:rgba(255,255,255,.07); color:var(--white); }
+    .nav-sub-item.active { background:var(--yellow); color:var(--black); font-weight:700; }
+    .nav-sub-item.active i { color:var(--black); }
+    .nav-sub-badge { margin-left:auto; background:var(--yellow); color:var(--black); border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700; }
+    .nav-sub-item.active .nav-sub-badge { background:var(--black); color:var(--yellow); }
+
+    /* ---- Carte équipe / zone ---- */
+    .zone-team-header { display:flex; align-items:center; gap:16px; background:var(--black); border-radius:12px 12px 0 0; padding:18px 24px; }
+    .zone-team-avatar { width:52px; height:52px; border-radius:50%; background:var(--yellow); color:var(--black); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; flex-shrink:0; }
+    .zone-team-info { flex:1; }
+    .zone-team-name { color:var(--white); font-weight:700; font-size:15px; }
+    .zone-team-role { color:#aaa; font-size:12px; margin-top:3px; }
+    .zone-team-body { background:var(--white); border:1px solid var(--gray-border); border-top:none; border-radius:0 0 12px 12px; }
+    .zone-team-agent-row { display:flex; align-items:center; justify-content:space-between; padding:10px 20px; border-bottom:1px solid var(--gray-border); flex-wrap:wrap; gap:8px; }
+    .zone-team-agent-row:last-child { border-bottom:none; }
 
     /* ---- Modal Demande d'accès ---- */
     #demande-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.60); z-index:800; align-items:center; justify-content:center; }
@@ -848,8 +864,32 @@
       </div>
 
       <div class="nav-label" style="margin-top:8px" data-roles="dg,dga">Administration</div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra" onclick="showView('equipes', this)">
-        <i class="fa fa-user-gear"></i> Équipes
+      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra">
+        <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('equipes', this)">
+          <i class="fa fa-user-gear"></i> Équipes
+          <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-equipes"></i>
+        </div>
+        <div class="nav-sub-items" id="nav-sub-equipes" style="display:none">
+          <div class="nav-sub-item" data-zone="Bonou - Adjohoun" onclick="showEquipeZone('Bonou - Adjohoun', this)">
+            <i class="fa fa-circle-dot"></i> Bonou - Adjohoun
+          </div>
+          <div class="nav-sub-item" data-zone="Aguégués - Dangbo" onclick="showEquipeZone('Aguégués - Dangbo', this)">
+            <i class="fa fa-circle-dot"></i> Aguégués - Dangbo
+          </div>
+          <div class="nav-sub-item" data-zone="Apro - Missérété" onclick="showEquipeZone('Apro - Missérété', this)">
+            <i class="fa fa-circle-dot"></i> Apro - Missérété
+          </div>
+          <div class="nav-sub-item" data-zone="Adjarra" onclick="showEquipeZone('Adjarra', this)">
+            <i class="fa fa-circle-dot"></i> Adjarra
+          </div>
+          <div class="nav-sub-item" data-zone="Avrankou" onclick="showEquipeZone('Avrankou', this)">
+            <i class="fa fa-circle-dot"></i> Avrankou
+          </div>
+          <div class="nav-sub-item" id="nav-sub-demandes-item" onclick="showEquipeDemandes(this)">
+            <i class="fa fa-user-clock"></i> Demandes
+            <span class="nav-sub-badge" id="nav-demandes-badge" style="display:none">0</span>
+          </div>
+        </div>
       </div>
       <div class="nav-item" data-roles="dg,dga" onclick="showView('parametres', this)">
         <i class="fa fa-gear"></i> Paramètres
@@ -1625,91 +1665,30 @@
     <div class="view" id="view-equipes">
       <div class="page-header">
         <div>
-          <div class="page-title">Équipes</div>
-          <div class="page-subtitle">Gestion des comptes et des droits d'accès</div>
+          <div class="page-title" id="equipes-page-title">Équipes</div>
+          <div class="page-subtitle" id="equipes-page-subtitle">Sélectionnez une zone dans le menu</div>
         </div>
-        <button class="btn btn-primary" onclick="openUserModal()">
-          <i class="fa fa-user-plus"></i> Nouveau compte
-        </button>
+        <div id="equipes-header-actions" style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="openUserModal()" id="equipes-btn-nouveau-compte" style="display:none">
+            <i class="fa fa-user-plus"></i> Nouveau compte
+          </button>
+        </div>
       </div>
 
-      <!-- ONGLETS -->
-      <div class="equipes-tabs">
-        <button class="equipes-tab active" onclick="switchEquipesTab('comptes',this)">
-          <i class="fa fa-users"></i> Comptes
-        </button>
-        <button class="equipes-tab" onclick="switchEquipesTab('demandes',this)">
-          <i class="fa fa-user-clock"></i> Demandes en attente
-          <span class="badge badge-purple" id="demandes-badge" style="display:none">0</span>
-        </button>
+      <!-- Vue Zone (contenu dynamique) -->
+      <div id="equipes-section-zone" style="display:none">
+        <div id="equipes-zone-content"></div>
       </div>
 
-      <!-- SECTION COMPTES -->
-      <div id="equipes-section-comptes">
-
-        <!-- Compteurs -->
-        <div class="mini-stats" style="margin-bottom:20px">
-          <div class="mini-stat">
-            <div class="val" id="stat-total-users">—</div>
-            <div class="lbl">Comptes total</div>
-          </div>
-          <div class="mini-stat">
-            <div class="val" style="color:var(--green)" id="stat-actif-users">—</div>
-            <div class="lbl">Comptes actifs</div>
-          </div>
-          <div class="mini-stat">
-            <div class="val" style="color:var(--yellow)" id="stat-agent-users">—</div>
-            <div class="lbl">Agents DFA</div>
-          </div>
-        </div>
-
-        <!-- Sous-onglets -->
-        <div class="compte-tabs">
-          <button class="compte-tab active" onclick="switchCompteView('tous', this)"><i class="fa fa-list"></i> Tous</button>
-          <button class="compte-tab" onclick="switchCompteView('superviseur', this)"><i class="fa fa-user-tie"></i> Par superviseur</button>
-          <button class="compte-tab" onclick="switchCompteView('zone', this)"><i class="fa fa-map-location-dot"></i> Par zone</button>
-        </div>
-
-        <!-- Vue : Tous -->
-        <div id="comptes-view-tous">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">Comptes enregistrés</div>
-              <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Zone</th><th>Statut</th><th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Vue : Par superviseur -->
-        <div id="comptes-view-superviseur" style="display:none">
-          <div id="comptes-by-sup-content">
-            <div class="card"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Chargement…</p></div></div>
-          </div>
-        </div>
-
-        <!-- Vue : Par zone -->
-        <div id="comptes-view-zone" style="display:none">
-          <div id="comptes-by-zone-content">
-            <div class="card"><div class="empty-state"><i class="fa fa-spinner fa-spin"></i><p>Chargement…</p></div></div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- SECTION DEMANDES -->
+      <!-- Vue Demandes en attente -->
       <div id="equipes-section-demandes" style="display:none">
         <div class="card">
           <div class="card-header">
             <div class="card-title"><i class="fa fa-user-clock"></i> Demandes d'accès</div>
-            <button class="btn btn-secondary btn-sm" onclick="loadDemandes()"><i class="fa fa-rotate"></i> Actualiser</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="openUserModal()"><i class="fa fa-user-plus"></i> Nouveau compte</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadDemandes()"><i class="fa fa-rotate"></i> Actualiser</button>
+            </div>
           </div>
           <table>
             <thead>
@@ -1727,6 +1706,21 @@
             <tbody id="demandes-tbody">
               <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:24px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
             </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section masquée — maintenue pour compatibilité loadUsers() -->
+      <div id="equipes-section-comptes" style="display:none">
+        <div class="mini-stats" style="margin-bottom:20px">
+          <div class="mini-stat"><div class="val" id="stat-total-users">—</div><div class="lbl">Comptes total</div></div>
+          <div class="mini-stat"><div class="val" style="color:var(--green)" id="stat-actif-users">—</div><div class="lbl">Comptes actifs</div></div>
+          <div class="mini-stat"><div class="val" style="color:var(--yellow)" id="stat-agent-users">—</div><div class="lbl">Agents DFA</div></div>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Zone</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
           </table>
         </div>
       </div>
@@ -1751,14 +1745,15 @@
     { id: 'Dg.Zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général',    role: 'dg',          zone: 'Toutes zones',        initiales: 'DG', statut: 'actif' },
     { id: 'Akphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Akphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
     { id: 'Missimahou.Honkou',   pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
-    { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'DBAH',                 role: 'superviseur', zone: 'Missérété',            initiales: 'DB', statut: 'actif' },
+    { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'DBAH',                 role: 'superviseur', zone: 'Apro - Missérété',     initiales: 'DB', statut: 'actif' },
     { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',              initiales: 'LY', statut: 'actif' },
     { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',             initiales: 'FD', statut: 'actif' },
     { id: 'Agent.Test',          pwd: 'Zephir@2026', nom: 'Kofi MENSAH',          role: 'agent',       zone: 'Avrankou',             initiales: 'KM', statut: 'actif' },
   ];
-  let USERS         = [...USERS_SEED];
-  let currentUser   = null;
-  let editingUserId = null;
+  let USERS              = [...USERS_SEED];
+  let currentUser        = null;
+  let editingUserId      = null;
+  let CURRENT_EQUIPE_ZONE = null;
 
   /* ---- Init ---- */
   const today = new Date();
@@ -2192,12 +2187,8 @@
     if (!currentUser) return;
 
     if (['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
-      const el = [...document.querySelectorAll('.nav-item')].find(n => (n.getAttribute('onclick') || '').includes("'equipes'"));
-      showView('equipes', el);
-      setTimeout(() => {
-        const tabs = document.querySelectorAll('.equipes-tab');
-        if (tabs[1]) switchEquipesTab('demandes', tabs[1]);
-      }, 150);
+      const demandesItem = document.getElementById('nav-sub-demandes-item');
+      showEquipeDemandes(demandesItem);
     } else if (currentUser.role === 'superviseur') {
       const el = [...document.querySelectorAll('.nav-item')].find(n => (n.getAttribute('onclick') || '').includes("'superviseur'"));
       showView('superviseur', el);
@@ -2227,6 +2218,7 @@
     renderObjectifs();
     renderSuperviseurZones();
     renderSuperviseurPerf();
+    if (CURRENT_EQUIPE_ZONE) renderEquipeZone(CURRENT_EQUIPE_ZONE);
   }
 
   /* ====================================================================
@@ -2439,11 +2431,11 @@
       count = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur').length;
     }
 
-    /* Badge onglet Demandes (vue Équipes) */
-    const tabBadge = document.getElementById('demandes-badge');
-    if (tabBadge) {
-      tabBadge.textContent = count;
-      tabBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+    /* Badge sous-item Demandes (nav arborescente) */
+    const navBadge = document.getElementById('nav-demandes-badge');
+    if (navBadge) {
+      navBadge.textContent = count;
+      navBadge.style.display = count > 0 ? 'inline-flex' : 'none';
     }
 
     /* Badge cloche topbar */
@@ -2458,12 +2450,118 @@
     if (panel?.classList.contains('open')) renderNotifPanel();
   }
 
-  function switchEquipesTab(tab, el) {
-    document.querySelectorAll('.equipes-tab').forEach(t => t.classList.remove('active'));
+  /* ---- Navigation arborescente Équipes ---- */
+
+  function toggleNavGroup(group, el) {
+    const sub     = document.getElementById('nav-sub-' + group);
+    const chevron = document.getElementById('nav-chevron-' + group);
+    if (!sub) return;
+    const isOpen = sub.style.display !== 'none';
+    sub.style.display = isOpen ? 'none' : 'block';
+    if (chevron) chevron.classList.toggle('open', !isOpen);
+  }
+
+  function _activateEquipesView() {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-equipes').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const toggle = document.querySelector('.nav-group-toggle');
+    if (toggle) toggle.classList.add('active');
+    const sub = document.getElementById('nav-sub-equipes');
+    const chevron = document.getElementById('nav-chevron-equipes');
+    if (sub) sub.style.display = 'block';
+    if (chevron) chevron.classList.add('open');
+    loadUsers();
+  }
+
+  function showEquipeZone(zone, el) {
+    CURRENT_EQUIPE_ZONE = zone;
+    _activateEquipesView();
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
-    document.getElementById('equipes-section-comptes').style.display  = tab === 'comptes'  ? '' : 'none';
-    document.getElementById('equipes-section-demandes').style.display = tab === 'demandes' ? '' : 'none';
-    if (tab === 'demandes') loadDemandes();
+    document.getElementById('equipes-section-zone').style.display     = '';
+    document.getElementById('equipes-section-demandes').style.display = 'none';
+    document.getElementById('topbar-title').textContent = 'Équipes — ' + zone;
+    renderEquipeZone(zone);
+  }
+
+  function showEquipeDemandes(el) {
+    CURRENT_EQUIPE_ZONE = null;
+    _activateEquipesView();
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('equipes-section-zone').style.display     = 'none';
+    document.getElementById('equipes-section-demandes').style.display = '';
+    document.getElementById('equipes-page-title').textContent    = 'Demandes d\'accès';
+    document.getElementById('equipes-page-subtitle').textContent = 'Validation des demandes d\'inscription';
+    document.getElementById('topbar-title').textContent = 'Demandes d\'accès';
+    loadDemandes();
+  }
+
+  function renderEquipeZone(zone) {
+    const allUsers = USERS.length ? USERS : USERS_SEED;
+
+    const normalZ = z => z ? z.toLowerCase().replace(/[\s\-]/g, '') : '';
+    const zNorm   = normalZ(zone);
+
+    const sup = allUsers.find(u => u.role === 'superviseur' && normalZ(u.zone) === zNorm);
+    const agents = allUsers.filter(u => u.role === 'agent' && normalZ(u.zone) === zNorm);
+
+    document.getElementById('equipes-page-title').textContent    = zone;
+    document.getElementById('equipes-page-subtitle').textContent = sup ? 'Superviseur MPOS : ' + sup.nom : 'Équipe';
+
+    const agentRows = agents.length
+      ? agents.map(a => `
+          <div class="zone-team-agent-row">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:var(--gray-bg);color:var(--gray-text);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${a.initiales}</div>
+              <div>
+                <div style="font-weight:600;font-size:13px">${a.nom}</div>
+                <div style="font-size:11px;color:var(--gray-text)">${a.id}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge ${a.statut === 'actif' ? 'badge-green' : 'badge-red'}">${a.statut}</span>
+              <button class="btn btn-secondary btn-sm" onclick="openUserModal('${a.id}')"><i class="fa fa-pen"></i></button>
+            </div>
+          </div>`).join('')
+      : `<div style="padding:20px 24px;color:var(--gray-text);font-size:13px;text-align:center">
+           <i class="fa fa-circle-info" style="margin-right:6px"></i>Aucun agent enregistré pour cette zone
+         </div>`;
+
+    const supCard = sup ? `
+      <div style="margin-bottom:20px">
+        <div class="zone-team-header">
+          <div class="zone-team-avatar">${sup.initiales}</div>
+          <div class="zone-team-info">
+            <div class="zone-team-name">${sup.nom}</div>
+            <div class="zone-team-role">
+              <i class="fa fa-map-pin" style="margin-right:5px;color:var(--yellow)"></i>${sup.zone}
+              &nbsp;&middot;&nbsp; Superviseur MPOS
+              &nbsp;&middot;&nbsp; <span class="badge ${sup.statut === 'actif' ? 'badge-green' : 'badge-red'}">${sup.statut}</span>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="border-color:#444;color:#ccc" onclick="openUserModal('${sup.id}')">
+            <i class="fa fa-pen"></i>
+          </button>
+        </div>
+        <div class="zone-team-body">
+          <div style="padding:10px 20px 4px;font-size:12px;font-weight:600;color:var(--gray-text);letter-spacing:.5px;text-transform:uppercase">
+            Agents DFA — ${agents.length} agent${agents.length !== 1 ? 's' : ''}
+            (<span style="color:var(--green)">${agents.filter(a => a.statut === 'actif').length} actif${agents.filter(a => a.statut === 'actif').length !== 1 ? 's' : ''}</span>)
+          </div>
+          ${agentRows}
+        </div>
+      </div>` : `
+      <div class="card">
+        <div class="empty-state">
+          <i class="fa fa-user-slash"></i>
+          <p>Aucun superviseur assigné à cette zone</p>
+          <button class="btn btn-primary" onclick="openUserModal()"><i class="fa fa-user-plus"></i> Créer un compte</button>
+        </div>
+      </div>`;
+
+    document.getElementById('equipes-zone-content').innerHTML = supCard;
   }
 
   function renderDemandesTable() {
@@ -2619,134 +2717,6 @@
   }
 
   function filterUsers(val) { renderUsersTable(val); }
-
-  /* ---- Sous-vues Comptes (Tous / Par superviseur / Par zone) ---- */
-
-  function switchCompteView(view, el) {
-    document.querySelectorAll('.compte-tab').forEach(t => t.classList.remove('active'));
-    if (el) el.classList.add('active');
-    ['tous','superviseur','zone'].forEach(v => {
-      document.getElementById('comptes-view-' + v).style.display = v === view ? '' : 'none';
-    });
-    if (view === 'superviseur') renderComptesBySuperviseur();
-    if (view === 'zone')        renderComptesByZone();
-  }
-
-  function renderComptesBySuperviseur() {
-    const container = document.getElementById('comptes-by-sup-content');
-    if (!container) return;
-
-    const superviseurs = USERS.filter(u => u.role === 'superviseur').sort((a,b) => a.zone.localeCompare(b.zone));
-    if (!superviseurs.length) {
-      container.innerHTML = '<div class="card"><div class="empty-state"><i class="fa fa-users"></i><p>Aucun superviseur enregistré</p></div></div>';
-      return;
-    }
-
-    const agents = USERS.filter(u => u.role === 'agent');
-    const roleLabel = { ra:'RA', dg:'DG', dga:'DGA', dcc:'DCC', dc:'DC', superviseur:'Superviseur', agent:'Agent DFA' };
-
-    container.innerHTML = superviseurs.map(sup => {
-      const myAgents = agents.filter(a => a.zone && sup.zone && (
-        a.zone === sup.zone ||
-        sup.zone.includes(a.zone) ||
-        a.zone.includes(sup.zone.split(' - ')[0].split('-')[0].trim())
-      ));
-
-      const agentRows = myAgents.length
-        ? myAgents.map(a => `
-            <div class="sup-agent-row">
-              <div style="display:flex;align-items:center;gap:10px">
-                <div style="width:30px;height:30px;border-radius:50%;background:var(--gray-bg);color:var(--gray-text);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${a.initiales}</div>
-                <div>
-                  <div style="font-weight:600;font-size:13px">${a.nom}</div>
-                  <div style="font-size:11px;color:var(--gray-text)">${a.zone}</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span class="badge ${a.statut === 'actif' ? 'badge-green' : 'badge-red'}">${a.statut}</span>
-                <button class="btn btn-secondary btn-sm" onclick="openUserModal('${a.id}')"><i class="fa fa-pen"></i></button>
-              </div>
-            </div>`).join('')
-        : `<div style="padding:16px 20px;color:var(--gray-text);font-size:13px"><i class="fa fa-info-circle"></i> Aucun agent rattaché à cette zone</div>`;
-
-      return `
-        <div class="sup-card">
-          <div class="sup-card-header">
-            <div style="display:flex;align-items:center;gap:12px">
-              <div class="sup-avatar">${sup.initiales}</div>
-              <div>
-                <div style="color:var(--white);font-weight:700;font-size:14px">${sup.nom}</div>
-                <div style="color:#aaa;font-size:12px;margin-top:2px"><i class="fa fa-map-pin" style="margin-right:4px"></i>${sup.zone} &middot; ${myAgents.length} agent${myAgents.length !== 1 ? 's' : ''}</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge ${sup.statut === 'actif' ? 'badge-green' : 'badge-red'}">${sup.statut}</span>
-              <button class="btn btn-secondary btn-sm" style="border-color:#444;color:#ccc" onclick="openUserModal('${sup.id}')"><i class="fa fa-pen"></i></button>
-            </div>
-          </div>
-          <div class="sup-card-body">${agentRows}</div>
-        </div>`;
-    }).join('');
-  }
-
-  function renderComptesByZone() {
-    const container = document.getElementById('comptes-by-zone-content');
-    if (!container) return;
-
-    const zones = [...new Set(USERS.map(u => u.zone).filter(Boolean))].sort();
-    if (!zones.length) {
-      container.innerHTML = '<div class="card"><div class="empty-state"><i class="fa fa-map"></i><p>Aucune zone enregistrée</p></div></div>';
-      return;
-    }
-
-    const roleLabel = { ra:'RA', dg:'DG', dga:'DGA', dcc:'DCC', dc:'DC', superviseur:'Superviseur MPOS', agent:'Agent DFA' };
-    const roleBadge = { superviseur:'badge-black', agent:'badge-gray', ra:'badge-yellow', dg:'badge-yellow', dga:'badge-yellow' };
-
-    container.innerHTML = zones.map(zone => {
-      const members = USERS.filter(u => u.zone === zone).sort((a,b) => {
-        const order = { superviseur:0, ra:1, dg:1, agent:2 };
-        return (order[a.role] ?? 3) - (order[b.role] ?? 3);
-      });
-      const sups   = members.filter(u => u.role === 'superviseur');
-      const agents = members.filter(u => u.role === 'agent');
-      const actifs = members.filter(u => u.statut === 'actif').length;
-
-      return `
-        <div class="card" style="margin-bottom:16px">
-          <div class="card-header">
-            <div>
-              <div class="card-title"><i class="fa fa-map-pin" style="color:var(--yellow);margin-right:6px"></i>${zone}</div>
-              <div style="font-size:12px;color:var(--gray-text);margin-top:3px">
-                ${sups.length} superviseur${sups.length !== 1 ? 's' : ''} &middot;
-                ${agents.length} agent${agents.length !== 1 ? 's' : ''} &middot;
-                <span style="color:var(--green)">${actifs} actif${actifs !== 1 ? 's' : ''}</span>
-              </div>
-            </div>
-            <span class="badge badge-black">${members.length} membre${members.length !== 1 ? 's' : ''}</span>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Statut</th><th></th></tr>
-            </thead>
-            <tbody>
-              ${members.map(m => `
-                <tr>
-                  <td>
-                    <div style="display:flex;align-items:center;gap:8px">
-                      <div style="width:28px;height:28px;border-radius:50%;background:${m.role === 'superviseur' ? 'var(--yellow)' : 'var(--gray-bg)'};color:${m.role === 'superviseur' ? 'var(--black)' : 'var(--gray-text)'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px">${m.initiales}</div>
-                      <strong>${m.nom}</strong>
-                    </div>
-                  </td>
-                  <td style="font-family:monospace;font-size:12px">${m.id}</td>
-                  <td><span class="badge ${roleBadge[m.role] || 'badge-gray'}">${roleLabel[m.role] || m.role}</span></td>
-                  <td><span class="badge ${m.statut === 'actif' ? 'badge-green' : 'badge-red'}">${m.statut}</span></td>
-                  <td><button class="btn btn-secondary btn-sm" onclick="openUserModal('${m.id}')"><i class="fa fa-pen"></i></button></td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`;
-    }).join('');
-  }
 
   /* ---- Compteurs d'équipe ---- */
   function renderTeamStats() {
