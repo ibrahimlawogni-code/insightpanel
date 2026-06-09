@@ -3202,10 +3202,12 @@
     document.documentElement.classList.remove('restoring-session');
     const saved = sessionStorage.getItem('ip_session');
     if (!saved) return;
+    /* Lire l'état de vue AVANT startSession, car startSession appelle showView
+       qui écrase ip_view_state avec la vue par défaut du rôle */
+    const vsRaw = sessionStorage.getItem('ip_view_state');
     try {
       startSession(JSON.parse(saved));
       /* Restaurer la dernière vue active */
-      const vsRaw = sessionStorage.getItem('ip_view_state');
       if (vsRaw) {
         const vs = JSON.parse(vsRaw);
         if (vs.name === 'equipes' && vs.extra) {
