@@ -1776,16 +1776,12 @@
                 <input class="input-field" type="number" id="saisie-field-activation" placeholder="0" min="0" readonly style="background:var(--gray-bg);cursor:default">
               </div>
               <div>
-                <label class="input-label">New MoMo User</label>
-                <input class="input-field" type="number" id="saisie-field-momo" placeholder="0" min="0">
+                <label class="input-label">New MoMo User <span style="color:var(--green);font-size:10px">(auto = Gross Add)</span></label>
+                <input class="input-field" type="number" id="saisie-field-momo" placeholder="0" min="0" title="Égal au Gross Add par défaut. Réduire si un compte MoMo n'a pas pu être ouvert.">
               </div>
               <div>
                 <label class="input-label">Stock SIM restant</label>
                 <input class="input-field" type="number" id="saisie-field-stock" placeholder="0" min="0">
-              </div>
-              <div>
-                <label class="input-label">Stock MoMo restant</label>
-                <input class="input-field" type="number" id="saisie-field-stock-momo" placeholder="0" min="0">
               </div>
               <div class="span-2">
                 <label class="input-label">Observation terrain</label>
@@ -3335,9 +3331,11 @@
 
     saisieSIMs.push({ sim: simVal, mtn: mtnVal });
 
-    /* Mettre à jour le Gross Add automatiquement */
+    /* Mettre à jour Gross Add et New MoMo User automatiquement */
     const gaField = document.getElementById('saisie-field-activation');
     if (gaField) gaField.value = saisieSIMs.length;
+    const momoField = document.getElementById('saisie-field-momo');
+    if (momoField) momoField.value = saisieSIMs.length;
 
     /* Vider les champs SIM/MTN et le scan */
     document.getElementById('saisie-field-sim').value = '';
@@ -3353,8 +3351,11 @@
 
   function removeSIM(idx) {
     saisieSIMs.splice(idx, 1);
+    const n = saisieSIMs.length;
     const gaField = document.getElementById('saisie-field-activation');
-    if (gaField) gaField.value = saisieSIMs.length || '';
+    if (gaField) gaField.value = n || '';
+    const momoField = document.getElementById('saisie-field-momo');
+    if (momoField) momoField.value = n || '';
     _renderSIMList();
   }
 
@@ -3389,7 +3390,6 @@
     const equipe     = document.getElementById('saisie-field-equipe').value;
     const momo       = document.getElementById('saisie-field-momo').value;
     const stock      = document.getElementById('saisie-field-stock').value;
-    const stockMomo  = document.getElementById('saisie-field-stock-momo').value;
     const obs        = (document.getElementById('saisie-field-observation').value || '').trim();
     const date       = document.getElementById('saisie-field-date').value;
     const grossAdd   = saisieSIMs.length;
@@ -3423,7 +3423,6 @@
       activation:  grossAdd,
       momoUser:    Number(momo) || 0,
       stockSIM:    Number(stock) || 0,
-      stockMoMo:   Number(stockMomo) || 0,
       observation: obs,
       simList:     saisieSIMs.map(s => s.sim).join(','),
       mtnList:     saisieSIMs.map(s => s.mtn).join(',')
@@ -3461,7 +3460,7 @@
     saisieSIMs = [];
     _renderSIMList();
     ['saisie-field-sim','saisie-field-mtn','saisie-field-dfa',
-     'saisie-field-momo','saisie-field-stock','saisie-field-stock-momo',
+     'saisie-field-momo','saisie-field-stock',
      'saisie-field-observation'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
