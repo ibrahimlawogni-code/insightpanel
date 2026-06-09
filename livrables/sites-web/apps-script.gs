@@ -109,8 +109,8 @@ function handleLogin(data) {
 // ENREGISTREMENT D'UNE SAISIE
 // Feuille "Saisies" — créée automatiquement si absente
 // Colonnes : Date | DFA | Zone | Gross Add | New MoMo User |
-//            Stock SIM | SIM Reçues | Observation | N° SIMs | N° MTNs | Horodatage
-// Note : "SIM Reçues" est renseigné uniquement à la première saisie du DFA chaque jour
+//            Stock SIM | SIM Disponible | Observation | N° SIMs | N° MTNs | Horodatage
+// Note : "SIM Disponible" est renseigné uniquement à la première saisie du DFA chaque jour
 // ─────────────────────────────────────────────────────────────
 function handleSaisie(data) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -148,7 +148,7 @@ function handleSaisie(data) {
 function _initSaisiesSheet(sheet) {
   const headers = [
     'Date', 'DFA', 'Zone', 'Gross Add', 'New MoMo User',
-    'Stock SIM', 'SIM Reçues', 'Observation', 'N° SIMs', 'N° MTNs', 'Horodatage'
+    'Stock SIM', 'SIM Disponible', 'Observation', 'N° SIMs', 'N° MTNs', 'Horodatage'
   ];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
@@ -166,7 +166,7 @@ function _initSaisiesSheet(sheet) {
   sheet.setColumnWidth(4, 80);   // Gross Add
   sheet.setColumnWidth(5, 110);  // New MoMo User
   sheet.setColumnWidth(6, 80);   // Stock SIM
-  sheet.setColumnWidth(7, 90);   // SIM Reçues
+  sheet.setColumnWidth(7, 90);   // SIM Disponible
   sheet.setColumnWidth(8, 200);  // Observation
   sheet.setColumnWidth(9, 300);  // N° SIMs
   sheet.setColumnWidth(10, 300); // N° MTNs
