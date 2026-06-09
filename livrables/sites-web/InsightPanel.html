@@ -1857,6 +1857,20 @@
             <div style="font-size:11px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
               <i class="fa fa-clipboard-list" style="color:var(--yellow)"></i> Informations de la journée
             </div>
+
+            <!-- Champ SIM reçues — affiché une seule fois par jour -->
+            <div id="sim-recu-section" style="background:var(--yellow-light);border:1.5px solid var(--yellow);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:800;color:#78350f;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+                <i class="fa fa-boxes-stacked" style="color:var(--yellow)"></i> Réception du jour
+                <span style="font-size:10px;font-weight:500;text-transform:none;margin-left:8px;color:#92400e">(à renseigner une seule fois aujourd'hui)</span>
+              </div>
+              <div>
+                <label class="input-label">Nombre total de SIM reçues ce jour</label>
+                <input class="input-field" type="number" id="saisie-field-sim-recu" placeholder="Ex : 50" min="0" inputmode="numeric"
+                  style="max-width:200px">
+              </div>
+            </div>
+
             <div class="form-grid">
               <div>
                 <label class="input-label">Date</label>
@@ -3629,6 +3643,15 @@
     if (el) el.classList.remove('visible');
   }
 
+  function _markSimRecuFait() {
+    if (!currentUser) return;
+    try {
+      localStorage.setItem(`ip_sim_recu_${currentUser.id}`, JSON.stringify({ date: todayISO }));
+    } catch(e) {}
+    const section = document.getElementById('sim-recu-section');
+    if (section) section.style.display = 'none';
+  }
+
   async function submitSaisie() {
     const dfa        = (document.getElementById('saisie-field-dfa').value || '').trim();
     const equipe     = document.getElementById('saisie-field-equipe').value;
@@ -3637,6 +3660,10 @@
     const obs        = (document.getElementById('saisie-field-observation').value || '').trim();
     const date       = document.getElementById('saisie-field-date').value;
     const grossAdd   = saisieSIMs.length;
+    const simRecuEl  = document.getElementById('saisie-field-sim-recu');
+    const simRecu    = simRecuEl && simRecuEl.closest('#sim-recu-section')?.style.display !== 'none'
+                       ? (Number(simRecuEl.value) || 0)
+                       : null; // null = champ déjà renseigné ce jour, ne pas réécrire
 
     const fb  = document.getElementById('saisie-form-feedback');
     const btn = document.getElementById('btn-saisie-submit');
@@ -3668,6 +3695,7 @@
       activation:  grossAdd,
       momoUser:    momoCount,
       stockSIM:    Number(stock) || 0,
+      simRecu:     simRecu !== null ? simRecu : '',
       observation: obs,
       simList:     saisieSIMs.map(s => s.sim).join(','),
       mtnList:     saisieSIMs.map(s => s.mtn).join(',')
@@ -3676,6 +3704,7 @@
     /* Pas de connexion : sauvegarde locale immédiate */
     if (!navigator.onLine) {
       _addToPendingQueue(payload);
+      if (simRecu !== null) _markSimRecuFait();
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
       showToast(
         `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
@@ -3689,6 +3718,7 @@
       const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
       if (json.success) {
+        if (simRecu !== null) _markSimRecuFait();
         showToast(
           `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
           `${dfa} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
@@ -3700,6 +3730,7 @@
     } catch (err) {
       /* Erreur réseau en cours de route : mise en file d'attente */
       _addToPendingQueue(payload);
+      if (simRecu !== null) _markSimRecuFait();
       showToast(
         `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
         'Connexion perdue — envoi automatique au retour internet'
@@ -3720,6 +3751,18 @@
     }
     const dateEl = document.getElementById('saisie-field-date');
     if (dateEl && !dateEl.value) dateEl.value = todayISO;
+
+    /* Champ "SIM reçues" : visible seulement si pas encore renseigné aujourd'hui */
+    const simRecuSection = document.getElementById('sim-recu-section');
+    if (simRecuSection) {
+      const key = `ip_sim_recu_${currentUser.id}`;
+      try {
+        const stored = JSON.parse(localStorage.getItem(key) || 'null');
+        const dejaFait = stored && stored.date === todayISO;
+        simRecuSection.style.display = dejaFait ? 'none' : 'block';
+      } catch { simRecuSection.style.display = 'block'; }
+    }
+
     _updatePendingBadge();
   }
 
