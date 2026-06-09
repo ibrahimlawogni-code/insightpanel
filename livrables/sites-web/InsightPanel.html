@@ -323,6 +323,18 @@
     .view { display: none; padding: 24px 28px; }
     .view.active { display: block; }
 
+    /* ---- Fond image vue Agent DFA ---- */
+    #view-agent {
+      background-image: url('./noir.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: local;
+      min-height: calc(100vh - 64px);
+    }
+    #view-agent .page-title    { color: var(--white); text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+    #view-agent .page-subtitle { color: rgba(255,255,255,.8); }
+    #view-agent .badge-green[style*="circle"] { background: rgba(40,167,69,.2); color: #4ade80; border: 1px solid rgba(40,167,69,.4); }
+
     .page-header {
       display: flex;
       align-items: flex-start;
