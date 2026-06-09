@@ -392,7 +392,20 @@
     .badge-red { background: #f8d7da; color: #721c24; }
     .badge-yellow { background: var(--yellow-light); color: #5c4300; }
     .badge-gray { background: var(--gray-bg); color: #555; }
-    .badge-black { background: var(--black); color: var(--yellow); }
+    .badge-black  { background: var(--black); color: var(--yellow); }
+    .badge-purple { background: #ede9fe; color: #6d28d9; }
+    .badge-teal   { background: #ccfbf1; color: #0f766e; }
+
+    /* ---- Onglets vue Équipes ---- */
+    .equipes-tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--gray-border); }
+    .equipes-tab  { padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:none; color:var(--gray-text); border-bottom:3px solid transparent; margin-bottom:-2px; border-radius:4px 4px 0 0; transition:color .15s,border-color .15s; display:inline-flex; align-items:center; gap:8px; }
+    .equipes-tab.active { color:var(--black); border-bottom-color:var(--yellow); }
+    .equipes-tab:hover:not(.active) { background:var(--gray-bg); }
+
+    /* ---- Modal Demande d'accès ---- */
+    #demande-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.60); z-index:800; align-items:center; justify-content:center; }
+    #demande-overlay.open { display:flex; }
+    .demande-card { background:var(--white); border-radius:16px; padding:32px; width:540px; max-width:94vw; max-height:90vh; overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.4); }
 
     /* --- Buttons --- */
     .btn {
@@ -664,6 +677,73 @@
       <i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.
     </div>
     <button class="btn-login" onclick="doLogin()">Se connecter</button>
+    <div style="text-align:center;margin-top:16px">
+      <button type="button" onclick="openDemandeForm()" style="background:none;border:none;color:var(--yellow);font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px">
+        <i class="fa fa-user-plus"></i> Demander un accès
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL : DEMANDE D'ACCÈS
+================================================================ -->
+<div id="demande-overlay">
+  <div class="demande-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <div style="font-size:17px;font-weight:800">Demander un accès</div>
+        <div style="font-size:12px;color:var(--gray-text);margin-top:4px">Validée par ton superviseur puis par le RA</div>
+      </div>
+      <button onclick="closeDemandeForm()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-text);line-height:1"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div class="form-grid">
+      <div class="span-2">
+        <label class="input-label">Nom complet <span style="color:var(--red)">*</span></label>
+        <input class="input-field" type="text" id="demande-nom" placeholder="ex : Kossi ADJOVI" oninput="autoFillDemandeId()">
+      </div>
+      <div>
+        <label class="input-label">Zone <span style="color:var(--red)">*</span></label>
+        <select class="input-field" id="demande-zone" onchange="filterSuperviseursZone()">
+          <option value="">-- Choisir une zone --</option>
+          <option value="Avrankou">Avrankou</option>
+          <option value="Missérété">Missérété</option>
+          <option value="Avrankou-Missérété">Avrankou-Missérété</option>
+          <option value="Dangbo">Dangbo</option>
+          <option value="Adjohoun">Adjohoun</option>
+          <option value="Bonou">Bonou</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Superviseur <span style="color:var(--red)">*</span></label>
+        <select class="input-field" id="demande-superviseur">
+          <option value="">-- Choisir un superviseur --</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">Téléphone <span style="color:var(--red)">*</span></label>
+        <input class="input-field" type="tel" id="demande-telephone" placeholder="ex : 97000000">
+      </div>
+      <div>
+        <label class="input-label">Identifiant souhaité <span style="color:var(--red)">*</span></label>
+        <input class="input-field" type="text" id="demande-id" placeholder="ex : Kossi.Adjovi" oninput="this.dataset.manual='1'">
+      </div>
+      <div>
+        <label class="input-label">Mot de passe <span style="color:var(--red)">*</span></label>
+        <input class="input-field" type="password" id="demande-pwd" placeholder="Minimum 6 caractères">
+      </div>
+      <div class="span-2">
+        <label class="input-label">Message (optionnel)</label>
+        <input class="input-field" type="text" id="demande-message" placeholder="Précisions sur votre situation…">
+      </div>
+    </div>
+    <div id="demande-feedback"></div>
+    <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeDemandeForm()">Annuler</button>
+      <button class="btn btn-primary" id="demande-submit-btn" onclick="submitDemandeForm()">
+        <i class="fa fa-paper-plane"></i> Envoyer la demande
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1098,6 +1178,19 @@
           </tbody>
         </table>
       </div>
+
+      <!-- DEMANDES D'ACCÈS — MA ZONE -->
+      <div class="card" id="superviseur-demandes-card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-user-clock"></i> Demandes d'accès — Ma zone</div>
+          <span class="badge badge-purple" id="sv-demandes-count" style="display:none">0</span>
+        </div>
+        <div id="sv-demandes-content">
+          <div style="text-align:center;color:var(--gray-text);padding:24px">
+            <i class="fa fa-spinner fa-spin"></i> Chargement…
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================
@@ -1472,39 +1565,79 @@
         </button>
       </div>
 
-      <div class="mini-stats" style="margin-bottom:20px">
-        <div class="mini-stat">
-          <div class="val" id="stat-total-users">—</div>
-          <div class="lbl">Comptes total</div>
+      <!-- ONGLETS -->
+      <div class="equipes-tabs">
+        <button class="equipes-tab active" onclick="switchEquipesTab('comptes',this)">
+          <i class="fa fa-users"></i> Comptes
+        </button>
+        <button class="equipes-tab" onclick="switchEquipesTab('demandes',this)">
+          <i class="fa fa-user-clock"></i> Demandes en attente
+          <span class="badge badge-purple" id="demandes-badge" style="display:none">0</span>
+        </button>
+      </div>
+
+      <!-- SECTION COMPTES -->
+      <div id="equipes-section-comptes">
+        <div class="mini-stats" style="margin-bottom:20px">
+          <div class="mini-stat">
+            <div class="val" id="stat-total-users">—</div>
+            <div class="lbl">Comptes total</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" style="color:var(--green)" id="stat-actif-users">—</div>
+            <div class="lbl">Comptes actifs</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" style="color:var(--yellow)" id="stat-agent-users">—</div>
+            <div class="lbl">Agents DFA</div>
+          </div>
         </div>
-        <div class="mini-stat">
-          <div class="val" style="color:var(--green)" id="stat-actif-users">—</div>
-          <div class="lbl">Comptes actifs</div>
-        </div>
-        <div class="mini-stat">
-          <div class="val" style="color:var(--yellow)" id="stat-agent-users">—</div>
-          <div class="lbl">Agents DFA</div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Comptes enregistrés</div>
+            <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Identifiant</th>
+                <th>Rôle</th>
+                <th>Zone</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Comptes enregistrés</div>
-          <input class="input-field" type="text" placeholder="Rechercher un compte..." style="width:220px;padding:6px 12px;font-size:12px" oninput="filterUsers(this.value)">
+      <!-- SECTION DEMANDES -->
+      <div id="equipes-section-demandes" style="display:none">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fa fa-user-clock"></i> Demandes d'accès</div>
+            <button class="btn btn-secondary btn-sm" onclick="loadDemandes()"><i class="fa fa-rotate"></i> Actualiser</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Nom</th>
+                <th>Zone</th>
+                <th>Superviseur</th>
+                <th>Téléphone</th>
+                <th>Identifiant</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="demandes-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:24px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
+            </tbody>
+          </table>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Identifiant</th>
-              <th>Rôle</th>
-              <th>Zone</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="users-tbody"></tbody>
-        </table>
       </div>
     </div>
 
@@ -1681,8 +1814,9 @@
       parametres:  'Paramètres'
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
-    if (name === 'agent')     updatePerfDisplay();
-    if (name === 'equipes')   loadUsers();
+    if (name === 'agent')       updatePerfDisplay();
+    if (name === 'equipes')   { loadUsers(); loadDemandes(); }
+    if (name === 'superviseur') { loadDemandes(); }
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
@@ -1875,6 +2009,304 @@
     renderObjectifs();
     renderSuperviseurZones();
     renderSuperviseurPerf();
+  }
+
+  /* ====================================================================
+     WORKFLOW INSCRIPTION / DEMANDES D'ACCÈS
+  ===================================================================== */
+
+  let DEMANDES = [];
+
+  /* ---- Formulaire de demande (page de connexion) ---- */
+
+  async function openDemandeForm() {
+    document.getElementById('demande-overlay').classList.add('open');
+    document.getElementById('demande-feedback').innerHTML = '';
+
+    const supSelect = document.getElementById('demande-superviseur');
+    supSelect.innerHTML = '<option value="">Chargement des superviseurs…</option>';
+
+    let superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+
+    if (!superviseurs.length && APPS_SCRIPT_URL.startsWith('https')) {
+      try {
+        const r = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'getUsers' })
+        });
+        const j = await r.json();
+        if (j.success) {
+          USERS = j.users;
+          superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+        }
+      } catch { /* utilise USERS_SEED */ }
+    }
+
+    supSelect.innerHTML = '<option value="">-- Choisir un superviseur --</option>' +
+      superviseurs.map(u => `<option value="${u.id}">${u.nom} (${u.zone})</option>`).join('');
+  }
+
+  function closeDemandeForm() {
+    document.getElementById('demande-overlay').classList.remove('open');
+    ['demande-nom','demande-telephone','demande-id','demande-pwd','demande-message'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; if (el.dataset) el.dataset.manual = ''; }
+    });
+    document.getElementById('demande-zone').value = '';
+    document.getElementById('demande-feedback').innerHTML = '';
+  }
+
+  function autoFillDemandeId() {
+    const idEl = document.getElementById('demande-id');
+    if (idEl.dataset.manual === '1') return;
+    const parts = document.getElementById('demande-nom').value.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const p = s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      idEl.value = `${p(parts[0])}.${p(parts[parts.length - 1])}`;
+    }
+  }
+
+  function filterSuperviseursZone() {
+    const zone = document.getElementById('demande-zone').value;
+    const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+    const filtered = zone
+      ? superviseurs.filter(u => u.zone && (u.zone.includes(zone) || zone.includes(u.zone.split('-')[0])))
+      : superviseurs;
+    const list = filtered.length ? filtered : superviseurs;
+    const supSelect = document.getElementById('demande-superviseur');
+    supSelect.innerHTML = '<option value="">-- Choisir un superviseur --</option>' +
+      list.map(u => `<option value="${u.id}">${u.nom} (${u.zone})</option>`).join('');
+  }
+
+  async function submitDemandeForm() {
+    const nom     = document.getElementById('demande-nom').value.trim();
+    const zone    = document.getElementById('demande-zone').value;
+    const supId   = document.getElementById('demande-superviseur').value;
+    const tel     = document.getElementById('demande-telephone').value.trim();
+    const id      = normalizeId(document.getElementById('demande-id').value.trim());
+    const pwd     = document.getElementById('demande-pwd').value;
+    const message = document.getElementById('demande-message').value.trim();
+    const fb      = document.getElementById('demande-feedback');
+    const btn     = document.getElementById('demande-submit-btn');
+
+    const showFb = (txt, ok) => {
+      fb.style.cssText = `display:block;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;margin-top:12px;background:${ok ? '#d1fae5' : '#f8d7da'};color:${ok ? '#065f46' : '#721c24'}`;
+      fb.textContent = txt;
+    };
+
+    fb.innerHTML = '';
+    if (!nom || !zone || !supId || !tel || !id || !pwd) {
+      showFb('Veuillez remplir tous les champs obligatoires.', false);
+      return;
+    }
+    if (pwd.length < 6) {
+      showFb('Le mot de passe doit faire au moins 6 caractères.', false);
+      return;
+    }
+    if (!id.includes('.')) {
+      showFb('L\'identifiant doit être au format Prenom.Nom', false);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…';
+
+    const supUser = USERS.find(u => u.id === supId);
+    const payload = {
+      action: 'submitDemande',
+      nom, zone,
+      superviseurId: supId,
+      superviseurNom: supUser ? supUser.nom : supId,
+      telephone: tel,
+      identifiant: id,
+      pwd, message,
+      date: new Date().toLocaleDateString('fr-FR')
+    };
+
+    try {
+      let ok = false;
+      if (APPS_SCRIPT_URL.startsWith('https')) {
+        const r = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+        const j = await r.json();
+        ok = j.status === 'ok';
+      } else {
+        /* Mode local de test : ajoute à la liste locale */
+        DEMANDES.push({ ...payload, id: Date.now().toString(), statut: 'en_attente' });
+        ok = true;
+      }
+      if (ok) {
+        showFb('Demande envoyée. Elle sera traitée par ton superviseur et le RA.', true);
+        setTimeout(() => closeDemandeForm(), 3000);
+      } else {
+        showFb('Erreur lors de l\'envoi. Réessaie ou contacte le RA directement.', false);
+      }
+    } catch {
+      showFb('Connexion impossible. Vérifie ta connexion et réessaie.', false);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa fa-paper-plane"></i> Envoyer la demande';
+    }
+  }
+
+  /* ---- Chargement et affichage des demandes ---- */
+
+  async function loadDemandes() {
+    try {
+      if (!APPS_SCRIPT_URL.startsWith('https')) {
+        renderDemandesTable();
+        renderDemandesSuperviseur();
+        updateDemandesBadge();
+        return;
+      }
+      const r = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'getDemandes' })
+      });
+      const j = await r.json();
+      if (j.status === 'ok') {
+        DEMANDES = j.demandes || [];
+        renderDemandesTable();
+        renderDemandesSuperviseur();
+        updateDemandesBadge();
+      }
+    } catch { /* garder les données locales */ }
+  }
+
+  function updateDemandesBadge() {
+    const count = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur').length;
+    const badge = document.getElementById('demandes-badge');
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  function switchEquipesTab(tab, el) {
+    document.querySelectorAll('.equipes-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('equipes-section-comptes').style.display  = tab === 'comptes'  ? '' : 'none';
+    document.getElementById('equipes-section-demandes').style.display = tab === 'demandes' ? '' : 'none';
+    if (tab === 'demandes') loadDemandes();
+  }
+
+  function renderDemandesTable() {
+    const tbody = document.getElementById('demandes-tbody');
+    if (!tbody) return;
+
+    const canAdmin = currentUser && ['dg','dga','dcc','dc','ra'].includes(currentUser.role);
+    const canSup   = currentUser && currentUser.role === 'superviseur';
+    const statusMap = {
+      en_attente:         ['badge-purple', 'En attente'],
+      valide_superviseur: ['badge-teal',   'Validé superviseur'],
+      approuve:           ['badge-green',  'Approuvé'],
+      rejete:             ['badge-red',    'Rejeté'],
+    };
+
+    let list = DEMANDES;
+    if (canSup && !canAdmin) {
+      list = DEMANDES.filter(d => d.superviseurId === currentUser.id || d.zone === currentUser.zone);
+    }
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:24px"><i class="fa fa-check-circle" style="color:var(--green)"></i> Aucune demande en attente</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(d => {
+      const [cls, lbl] = statusMap[d.statut] || ['badge-gray', d.statut];
+      let actions = '';
+      if (d.statut === 'en_attente' && (canSup || canAdmin)) {
+        actions += `<button class="btn btn-secondary btn-sm" onclick="superviseurValidateDemande('${d.id}')"><i class="fa fa-check"></i> Valider</button> `;
+      }
+      if ((d.statut === 'en_attente' || d.statut === 'valide_superviseur') && canAdmin) {
+        actions += `<button class="btn btn-primary btn-sm" onclick="approveDemande('${d.id}')"><i class="fa fa-user-plus"></i> Approuver</button> `;
+        actions += `<button class="btn btn-danger btn-sm" onclick="rejectDemande('${d.id}')" title="Rejeter"><i class="fa fa-ban"></i></button>`;
+      }
+      return `<tr>
+        <td style="white-space:nowrap">${d.date || '—'}</td>
+        <td><strong>${d.nom}</strong></td>
+        <td>${d.zone}</td>
+        <td>${d.superviseurNom || d.superviseurId || '—'}</td>
+        <td>${d.telephone}</td>
+        <td style="font-family:monospace;font-size:12px">${d.identifiant}</td>
+        <td><span class="badge ${cls}">${lbl}</span></td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap">${actions || '<span style="color:var(--gray-text);font-size:12px">—</span>'}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderDemandesSuperviseur() {
+    const container = document.getElementById('sv-demandes-content');
+    if (!container || !currentUser) return;
+
+    const myDemandes = DEMANDES.filter(d =>
+      (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
+      d.statut === 'en_attente'
+    );
+
+    const countEl = document.getElementById('sv-demandes-count');
+    if (countEl) {
+      countEl.textContent = myDemandes.length;
+      countEl.style.display = myDemandes.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    if (!myDemandes.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px"><i class="fa fa-circle-check" style="font-size:22px;display:block;margin-bottom:8px;color:var(--green)"></i>Aucune demande en attente pour ta zone</div>';
+      return;
+    }
+
+    container.innerHTML = myDemandes.map(d => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-border);flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700">${d.nom}</div>
+          <div style="font-size:12px;color:var(--gray-text)">${d.telephone} &middot; Zone : ${d.zone} &middot; Identifiant : <code>${d.identifiant}</code> &middot; ${d.date || ''}</div>
+          ${d.message ? `<div style="font-size:12px;color:var(--gray-text);margin-top:2px"><i class="fa fa-comment"></i> ${d.message}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-primary btn-sm" onclick="superviseurValidateDemande('${d.id}')"><i class="fa fa-check"></i> Valider</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectDemande('${d.id}')"><i class="fa fa-ban"></i> Rejeter</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* ---- Actions sur les demandes ---- */
+
+  async function superviseurValidateDemande(id) {
+    if (!confirm('Valider cette demande ? Elle sera ensuite soumise au RA pour approbation finale.')) return;
+    await _updateDemande(id, 'valide_superviseur');
+  }
+
+  async function approveDemande(id) {
+    if (!confirm('Approuver définitivement cette demande et créer le compte ?')) return;
+    await _updateDemande(id, 'approuve');
+    loadUsers();
+  }
+
+  async function rejectDemande(id) {
+    const motif = prompt('Motif du rejet (optionnel) :');
+    if (motif === null) return;
+    await _updateDemande(id, 'rejete', motif);
+  }
+
+  async function _updateDemande(id, newStatut, commentaire = '') {
+    const idx = DEMANDES.findIndex(d => d.id === id);
+    if (idx !== -1) {
+      DEMANDES[idx].statut = newStatut;
+      if (commentaire) DEMANDES[idx].commentaire = commentaire;
+    }
+    renderDemandesTable();
+    renderDemandesSuperviseur();
+    updateDemandesBadge();
+
+    if (APPS_SCRIPT_URL.startsWith('https')) {
+      try {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'updateDemande', id, statut: newStatut, commentaire })
+        });
+      } catch { /* non bloquant */ }
+    }
   }
 
   function renderUsersTable(filter = '') {
