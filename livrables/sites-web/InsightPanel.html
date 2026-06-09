@@ -2102,7 +2102,11 @@
         body: JSON.stringify({ action: 'login', id: identifiant, pwd: password })
       });
       const json = await res.json();
-      if (json.success) user = json.user;
+      if (json.success && json.user) {
+        /* Enrichir les données Sheets avec nom/initiales du seed local */
+        const seed = USERS_SEED.find(u => u.id === json.user.id);
+        user = seed ? { ...json.user, nom: seed.nom, initiales: seed.initiales } : json.user;
+      }
     } catch (e) {
       /* Fallback local si Sheets inaccessible */
       user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password && u.statut === 'actif') || null;
@@ -2122,6 +2126,14 @@
   }
 
   function startSession(user) {
+    /* Garantir nom/initiales même si Sheets renvoie des valeurs génériques ou si le sessionStorage est ancien */
+    const seed = USERS_SEED.find(u => u.id === user.id);
+    const nomBrut = (user.nom || '').toLowerCase().trim();
+    const nomGenerique = ['dfa','agent','superviseur','ra','dg','dga','dc','dcc',''].includes(nomBrut);
+    const nom = nomGenerique ? (seed?.nom || user.id.replace('.', ' ')) : user.nom;
+    const initiales = user.initiales || seed?.initiales || '?';
+    user = { ...user, nom, initiales };
+
     currentUser = user;
     sessionStorage.setItem('ip_session', JSON.stringify(user));
 
