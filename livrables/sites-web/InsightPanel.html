@@ -744,10 +744,10 @@
           <option value="">-- Choisir une zone --</option>
           <option value="Avrankou">Avrankou</option>
           <option value="Missérété">Missérété</option>
+          <option value="Adjarra">Adjarra</option>
+          <option value="Aguégués - Dangbo">Aguégués - Dangbo</option>
+          <option value="Bonou - Adjohoun">Bonou - Adjohoun</option>
           <option value="Avrankou-Missérété">Avrankou-Missérété</option>
-          <option value="Dangbo">Dangbo</option>
-          <option value="Adjohoun">Adjohoun</option>
-          <option value="Bonou">Bonou</option>
         </select>
       </div>
       <div>
@@ -1701,10 +1701,14 @@
   /* ---- Comptes utilisateurs ---- */
   /* Comptes locaux de secours (actifs si Google Sheets inaccessible) */
   const USERS_SEED = [
-    { id: 'Ibrahim.Lawogni', pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',   role: 'ra',          zone: 'Avrankou-Missérété', initiales: 'IL', statut: 'actif' },
-    { id: 'Dg.Zephir',       pwd: 'Admin@2026',  nom: 'Directeur Général', role: 'dg',          zone: 'Toutes zones',       initiales: 'DG', statut: 'actif' },
-    { id: 'Superviseur1',    pwd: 'Zephir@2026', nom: 'Superviseur Test',  role: 'superviseur', zone: 'Avrankou-Missérété', initiales: 'ST', statut: 'actif' },
-    { id: 'Agent.Test',      pwd: 'Zephir@2026', nom: 'Kofi MENSAH',       role: 'agent',       zone: 'Avrankou',           initiales: 'KM', statut: 'actif' },
+    { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',      role: 'ra',          zone: 'Avrankou-Missérété', initiales: 'IL', statut: 'actif' },
+    { id: 'Dg.Zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général',    role: 'dg',          zone: 'Toutes zones',        initiales: 'DG', statut: 'actif' },
+    { id: 'Akphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Akphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
+    { id: 'Missimahou.Honkou',   pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
+    { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'DBAH',                 role: 'superviseur', zone: 'Missérété',            initiales: 'DB', statut: 'actif' },
+    { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',              initiales: 'LY', statut: 'actif' },
+    { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',             initiales: 'FD', statut: 'actif' },
+    { id: 'Agent.Test',          pwd: 'Zephir@2026', nom: 'Kofi MENSAH',          role: 'agent',       zone: 'Avrankou',             initiales: 'KM', statut: 'actif' },
   ];
   let USERS         = [...USERS_SEED];
   let currentUser   = null;
@@ -3070,11 +3074,11 @@
         <select class="input-field" id="modal-zone">
           <option value="Toutes zones">Toutes zones</option>
           <option value="Avrankou-Missérété">Avrankou-Missérété</option>
-          <option value="Dangbo">Dangbo</option>
-          <option value="Adjohoun">Adjohoun</option>
-          <option value="Bonou">Bonou</option>
           <option value="Avrankou">Avrankou</option>
           <option value="Missérété">Missérété</option>
+          <option value="Adjarra">Adjarra</option>
+          <option value="Aguégués - Dangbo">Aguégués - Dangbo</option>
+          <option value="Bonou - Adjohoun">Bonou - Adjohoun</option>
         </select>
       </div>
       <div class="span-2">
