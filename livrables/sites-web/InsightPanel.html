@@ -281,6 +281,42 @@
       font-weight: 700;
     }
 
+    /* ---- Panel de notifications ---- */
+    .notif-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 320px;
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      z-index: 300;
+      overflow: hidden;
+    }
+    .notif-panel.open { display: block; }
+    .notif-panel-header {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--gray-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notif-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gray-border);
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--gray-bg); }
+    .notif-item-name { font-size: 13px; font-weight: 700; }
+    .notif-item-sub  { font-size: 11px; color: var(--gray-text); margin-top: 3px; }
+    .notif-empty     { padding: 20px 16px; text-align: center; color: var(--gray-text); font-size: 13px; }
+
     /* ============================================================
        VIEWS
     ============================================================ */
@@ -817,9 +853,18 @@
       <div class="topbar-title" id="topbar-title">Vue d'ensemble — Tableau de bord</div>
       <div class="topbar-right">
         <span class="topbar-date" id="topbar-date"></span>
-        <div class="notif-btn">
+        <div class="notif-btn" id="notif-btn" onclick="toggleNotifPanel(event)" title="Notifications">
           <i class="fa fa-bell"></i>
-          <span class="notif-badge">3</span>
+          <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+          <div class="notif-panel" id="notif-panel">
+            <div class="notif-panel-header">
+              <span><i class="fa fa-bell" style="color:var(--yellow);margin-right:6px"></i>Demandes en attente</span>
+              <span class="badge badge-purple" id="notif-panel-count" style="display:none">0</span>
+            </div>
+            <div id="notif-panel-list">
+              <div class="notif-empty">Aucune notification</div>
+            </div>
+          </div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="doLogout()">
           <i class="fa fa-right-from-bracket"></i> Déconnexion
@@ -1982,13 +2027,84 @@
     document.getElementById('form-feedback').style.display = 'none';
   }
 
-  /* ---- Tab click behavior (cosmetic) ---- */
+  /* ---- Fermer le panel notif au clic extérieur + comportement tabs ---- */
   document.addEventListener('click', e => {
+    if (!e.target.closest('#notif-btn')) {
+      document.getElementById('notif-panel')?.classList.remove('open');
+    }
     const tab = e.target.closest('.tab');
     if (!tab) return;
     tab.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
   });
+
+  /* ---- Notifications ---- */
+
+  function toggleNotifPanel(e) {
+    e.stopPropagation();
+    const panel = document.getElementById('notif-panel');
+    const isOpen = panel.classList.toggle('open');
+    if (isOpen) renderNotifPanel();
+  }
+
+  function renderNotifPanel() {
+    const list = document.getElementById('notif-panel-list');
+    const countEl = document.getElementById('notif-panel-count');
+    if (!list || !currentUser) return;
+
+    const statusLabels = {
+      en_attente:         'En attente de validation superviseur',
+      valide_superviseur: 'Validé par superviseur — en attente RA',
+    };
+
+    let pending = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur');
+    if (currentUser.role === 'superviseur') {
+      pending = DEMANDES.filter(d =>
+        (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
+        d.statut === 'en_attente'
+      );
+    }
+
+    if (countEl) {
+      countEl.textContent = pending.length;
+      countEl.style.display = pending.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    if (!pending.length) {
+      list.innerHTML = '<div class="notif-empty"><i class="fa fa-circle-check" style="color:var(--green);margin-right:6px"></i>Aucune demande en attente</div>';
+      return;
+    }
+
+    list.innerHTML = pending.map(d => `
+      <div class="notif-item" onclick="goToDemande('${d.id}')">
+        <div class="notif-item-name">
+          <i class="fa fa-user-clock" style="color:var(--yellow);margin-right:6px"></i>${d.nom}
+        </div>
+        <div class="notif-item-sub">${d.zone} &middot; ${statusLabels[d.statut] || d.statut} &middot; ${d.date || ''}</div>
+      </div>
+    `).join('');
+  }
+
+  function goToDemande(id) {
+    document.getElementById('notif-panel')?.classList.remove('open');
+    if (!currentUser) return;
+
+    if (['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+      const el = [...document.querySelectorAll('.nav-item')].find(n => (n.getAttribute('onclick') || '').includes("'equipes'"));
+      showView('equipes', el);
+      setTimeout(() => {
+        const tabs = document.querySelectorAll('.equipes-tab');
+        if (tabs[1]) switchEquipesTab('demandes', tabs[1]);
+      }, 150);
+    } else if (currentUser.role === 'superviseur') {
+      const el = [...document.querySelectorAll('.nav-item')].find(n => (n.getAttribute('onclick') || '').includes("'superviseur'"));
+      showView('superviseur', el);
+      setTimeout(() => {
+        const card = document.getElementById('superviseur-demandes-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  }
 
   /* ---- Gestion des comptes (Équipes) ---- */
 
@@ -2173,12 +2289,35 @@
   }
 
   function updateDemandesBadge() {
-    const count = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur').length;
-    const badge = document.getElementById('demandes-badge');
-    if (badge) {
-      badge.textContent = count;
-      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    if (!currentUser) return;
+
+    let count;
+    if (currentUser.role === 'superviseur') {
+      count = DEMANDES.filter(d =>
+        (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
+        d.statut === 'en_attente'
+      ).length;
+    } else {
+      count = DEMANDES.filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur').length;
     }
+
+    /* Badge onglet Demandes (vue Équipes) */
+    const tabBadge = document.getElementById('demandes-badge');
+    if (tabBadge) {
+      tabBadge.textContent = count;
+      tabBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+
+    /* Badge cloche topbar */
+    const bellBadge = document.getElementById('notif-badge');
+    if (bellBadge) {
+      bellBadge.textContent = count;
+      bellBadge.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    /* Rafraîchir le panel si déjà ouvert */
+    const panel = document.getElementById('notif-panel');
+    if (panel?.classList.contains('open')) renderNotifPanel();
   }
 
   function switchEquipesTab(tab, el) {
