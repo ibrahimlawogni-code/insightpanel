@@ -1867,7 +1867,7 @@
               <div>
                 <label class="input-label">Nombre total de SIM disponible ce jour</label>
                 <input class="input-field" type="number" id="saisie-field-sim-recu" placeholder="Ex : 50" min="0" inputmode="numeric"
-                  style="max-width:200px">
+                  style="max-width:200px" oninput="_autoCalcStock()">
               </div>
             </div>
 
@@ -1900,8 +1900,8 @@
                 <input class="input-field" type="number" id="saisie-field-momo" placeholder="0" min="0" title="Égal au Gross Add par défaut. Réduire si un compte MoMo n'a pas pu être ouvert.">
               </div>
               <div>
-                <label class="input-label">Stock SIM restant</label>
-                <input class="input-field" type="number" id="saisie-field-stock" placeholder="0" min="0">
+                <label class="input-label">Stock SIM restant <span style="color:var(--green);font-size:10px">(auto)</span></label>
+                <input class="input-field" type="number" id="saisie-field-stock" placeholder="—" readonly style="background:var(--gray-bg);cursor:default">
               </div>
               <div class="span-2">
                 <label class="input-label">Observation terrain</label>
@@ -3572,11 +3572,12 @@
 
     saisieSIMs.push({ sim: simVal, mtn: mtnVal });
 
-    /* Mettre à jour Gross Add et New MoMo User automatiquement */
+    /* Mettre à jour Gross Add, New MoMo User et Stock SIM automatiquement */
     const gaField = document.getElementById('saisie-field-activation');
     if (gaField) gaField.value = saisieSIMs.length;
     const momoField = document.getElementById('saisie-field-momo');
     if (momoField) momoField.value = saisieSIMs.length;
+    _autoCalcStock();
 
     /* Vider les champs SIM/MTN et le scan */
     document.getElementById('saisie-field-sim').value = '';
@@ -3597,6 +3598,7 @@
     if (gaField) gaField.value = n || '';
     const momoField = document.getElementById('saisie-field-momo');
     if (momoField) momoField.value = n || '';
+    _autoCalcStock();
     _renderSIMList();
   }
 
@@ -3643,13 +3645,38 @@
     if (el) el.classList.remove('visible');
   }
 
-  function _markSimRecuFait() {
+  function _markSimRecuFait(valeur) {
     if (!currentUser) return;
     try {
-      localStorage.setItem(`ip_sim_recu_${currentUser.id}`, JSON.stringify({ date: todayISO }));
+      localStorage.setItem(`ip_sim_recu_${currentUser.id}`, JSON.stringify({ date: todayISO, valeur: Number(valeur) || 0 }));
     } catch(e) {}
     const section = document.getElementById('sim-recu-section');
     if (section) section.style.display = 'none';
+  }
+
+  function _getSimRecuAujourdhui() {
+    if (!currentUser) return null;
+    try {
+      /* Vérifier d'abord le champ visible (première saisie) */
+      const section  = document.getElementById('sim-recu-section');
+      const fieldEl  = document.getElementById('saisie-field-sim-recu');
+      if (section && section.style.display !== 'none' && fieldEl && fieldEl.value !== '') {
+        return Number(fieldEl.value) || null;
+      }
+      /* Sinon lire la valeur stockée ce jour */
+      const stored = JSON.parse(localStorage.getItem(`ip_sim_recu_${currentUser.id}`) || 'null');
+      if (stored && stored.date === todayISO && stored.valeur > 0) return stored.valeur;
+    } catch {}
+    return null;
+  }
+
+  function _autoCalcStock() {
+    const simRecu  = _getSimRecuAujourdhui();
+    const stockEl  = document.getElementById('saisie-field-stock');
+    if (!stockEl) return;
+    if (simRecu === null) { stockEl.value = ''; return; }
+    const reste = simRecu - saisieSIMs.length;
+    stockEl.value = reste >= 0 ? reste : 0;
   }
 
   async function submitSaisie() {
@@ -3704,7 +3731,7 @@
     /* Pas de connexion : sauvegarde locale immédiate */
     if (!navigator.onLine) {
       _addToPendingQueue(payload);
-      if (simRecu !== null) _markSimRecuFait();
+      if (simRecu !== null) _markSimRecuFait(simRecu);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
       showToast(
         `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
@@ -3718,7 +3745,7 @@
       const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
       if (json.success) {
-        if (simRecu !== null) _markSimRecuFait();
+        if (simRecu !== null) _markSimRecuFait(simRecu);
         showToast(
           `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
           `${dfa} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
@@ -3730,7 +3757,7 @@
     } catch (err) {
       /* Erreur réseau en cours de route : mise en file d'attente */
       _addToPendingQueue(payload);
-      if (simRecu !== null) _markSimRecuFait();
+      if (simRecu !== null) _markSimRecuFait(simRecu);
       showToast(
         `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
         'Connexion perdue — envoi automatique au retour internet'
@@ -3752,7 +3779,9 @@
     const dateEl = document.getElementById('saisie-field-date');
     if (dateEl && !dateEl.value) dateEl.value = todayISO;
 
-    /* Champ "SIM reçues" : visible seulement si pas encore renseigné aujourd'hui */
+    _autoCalcStock();
+
+    /* Champ "SIM disponible" : visible seulement si pas encore renseigné aujourd'hui */
     const simRecuSection = document.getElementById('sim-recu-section');
     if (simRecuSection) {
       const key = `ip_sim_recu_${currentUser.id}`;
