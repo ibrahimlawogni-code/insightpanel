@@ -1786,7 +1786,13 @@
       return;
     }
 
+    startSession(user);
+  }
+
+  function startSession(user) {
     currentUser = user;
+    sessionStorage.setItem('ip_session', JSON.stringify(user));
+
     document.getElementById('user-name').textContent   = user.nom;
     document.getElementById('user-role').textContent   = roleLabels[user.role] || user.role;
     document.getElementById('user-avatar').textContent = user.initiales;
@@ -1838,7 +1844,9 @@
   }
 
   function doLogout() {
-    document.getElementById('app').style.display = 'none';
+    sessionStorage.removeItem('ip_session');
+    currentUser = null;
+    document.getElementById('app').style.display   = 'none';
     document.getElementById('login-page').style.display = 'flex';
   }
 
@@ -3031,6 +3039,14 @@
         </div>
       </div>`;
   }
+  /* ---- Restauration automatique de session au rechargement ---- */
+  (function() {
+    try {
+      const saved = sessionStorage.getItem('ip_session');
+      if (saved) startSession(JSON.parse(saved));
+    } catch { sessionStorage.removeItem('ip_session'); }
+  })();
+
 </script>
 <!-- ================================================================
      MODAL : GESTION COMPTE
