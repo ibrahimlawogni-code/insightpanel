@@ -1318,7 +1318,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Mon espace — Agent DFA</div>
-          <div class="page-subtitle">Kofi MENSAH &nbsp;·&nbsp; Agent terrain &nbsp;·&nbsp; Zone Avrankou</div>
+          <div class="page-subtitle" id="agent-page-subtitle">—</div>
         </div>
         <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
       </div>
@@ -1661,7 +1661,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Saisie du jour</div>
-          <div class="page-subtitle">Enregistrement des activations journalières</div>
+          <div class="page-subtitle" id="saisie-page-subtitle">—</div>
         </div>
         <span class="badge badge-yellow" id="saisie-date-badge">—</span>
       </div>
@@ -1755,7 +1755,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Mon évaluation de performance</div>
-          <div class="page-subtitle">Suivi personnel de ma progression</div>
+          <div class="page-subtitle" id="evaluation-page-subtitle">—</div>
         </div>
         <span class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">B+ &nbsp; Bon</span>
       </div>
@@ -2128,6 +2128,12 @@
     document.getElementById('user-name').textContent   = user.nom;
     document.getElementById('user-role').textContent   = roleLabels[user.role] || user.role;
     document.getElementById('user-avatar').textContent = user.initiales;
+
+    const dfaSubtitle = `${user.nom}  ·  ${roleLabels[user.role] || user.role}  ·  Zone ${user.zone}`;
+    ['agent-page-subtitle', 'saisie-page-subtitle', 'evaluation-page-subtitle'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = dfaSubtitle;
+    });
 
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display        = 'block';
