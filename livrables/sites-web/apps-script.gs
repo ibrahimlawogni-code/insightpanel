@@ -64,7 +64,7 @@ function handleLogin(data) {
 
   const COL = {
     id:      headers.indexOf('id'),
-    pwd:     headers.indexOf('mot de passe'),
+    pwd:     headers.indexOf('pwd'),
     nom:     headers.indexOf('nom'),
     role:    headers.indexOf('role'),
     zone:    headers.indexOf('zone'),
