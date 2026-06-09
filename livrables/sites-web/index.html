@@ -3043,16 +3043,22 @@
       </div>`;
   }
   /* ---- Restauration automatique de session au rechargement ---- */
-  /* Exécuté sur 'load' pour s'assurer que tout le DOM (modals inclus) est prêt */
-  window.addEventListener('load', function() {
+  function _tryRestoreSession() {
+    const saved = sessionStorage.getItem('ip_session');
+    if (!saved) return;
     try {
-      const saved = sessionStorage.getItem('ip_session');
-      if (saved) startSession(JSON.parse(saved));
+      startSession(JSON.parse(saved));
     } catch(e) {
-      /* Ne pas supprimer la session sur erreur de rendu — juste logguer */
-      console.warn('InsightPanel: restauration session échouée', e);
+      console.error('[InsightPanel] Restauration session échouée :', e);
     }
-  });
+  }
+
+  /* Gère le cas où load est déjà passé (page en cache) */
+  if (document.readyState === 'complete') {
+    _tryRestoreSession();
+  } else {
+    window.addEventListener('load', _tryRestoreSession);
+  }
 
 </script>
 <!-- ================================================================
