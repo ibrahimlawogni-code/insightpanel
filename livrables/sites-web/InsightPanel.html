@@ -1929,14 +1929,8 @@
             <thead>
               <tr><th>Date</th><th>Gross Add</th><th>New MoMo</th><th>Stock</th><th>Statut</th></tr>
             </thead>
-            <tbody>
-              <tr><td>09/06</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-yellow">En attente</span></td></tr>
-              <tr><td>08/06</td><td>16</td><td>9</td><td>24</td><td><span class="badge badge-green">Validé</span></td></tr>
-              <tr><td>07/06</td><td>21</td><td>13</td><td>18</td><td><span class="badge badge-green">Validé</span></td></tr>
-              <tr><td>06/06</td><td>14</td><td>8</td><td>31</td><td><span class="badge badge-green">Validé</span></td></tr>
-              <tr><td>05/06</td><td>23</td><td>12</td><td>27</td><td><span class="badge badge-green">Validé</span></td></tr>
-              <tr><td>04/06</td><td>19</td><td>10</td><td>22</td><td><span class="badge badge-green">Validé</span></td></tr>
-              <tr><td>03/06</td><td>17</td><td>11</td><td>35</td><td><span class="badge badge-green">Validé</span></td></tr>
+            <tbody id="dernieres-saisies-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1955,72 +1949,8 @@
         <span class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">B+ &nbsp; Bon</span>
       </div>
 
-      <!-- INDICATEURS GLOBAUX -->
-      <div class="kpi-grid" style="margin-bottom:20px">
-        <div class="kpi-card">
-          <div class="kpi-label">Atteinte objectifs</div>
-          <div class="kpi-value" style="color:var(--orange)">80 %</div>
-          <div class="kpi-sub">Mois en cours</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Jours actifs</div>
-          <div class="kpi-value" style="color:var(--green)">7 / 7</div>
-          <div class="kpi-sub">Cette semaine</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Conformité</div>
-          <div class="kpi-value" style="color:var(--green)">83 %</div>
-          <div class="kpi-sub">Bases agents</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Classement</div>
-          <div class="kpi-value" style="color:var(--yellow)">#7</div>
-          <div class="kpi-sub"><i class="fa fa-arrow-up" style="color:var(--orange)"></i> +2 places</div>
-        </div>
-      </div>
-
-      <!-- DÉTAIL PAR INDICATEUR -->
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-          <div class="card-title">Détail par indicateur</div>
-        </div>
-        <div class="card-body">
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Objectif Gross Add hebdomadaire</span>
-              <span class="badge badge-green">93 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>Objectif New MoMo User hebdomadaire</span>
-              <span class="badge badge-green">84 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-calendar-check" style="color:var(--yellow);margin-right:8px"></i>Régularité terrain</span>
-              <span class="badge badge-green">Excellent</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-shield-halved" style="color:var(--yellow);margin-right:8px"></i>Conformité des bases</span>
-              <span class="badge badge-orange">83 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-chart-line" style="color:var(--yellow);margin-right:8px"></i>Tendance générale</span>
-              <span class="badge badge-green">En progression</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- APPRÉCIATION -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Appréciation</div>
-        </div>
-        <div class="card-body">
-          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
-            <strong>Bilan :</strong> Bonne performance globale avec une régularité exemplaire (7/7 jours actifs). L'objectif Gross Add hebdomadaire est quasi atteint (93 %). New MoMo User en bon rythme (84 %).<br>
-            <strong>Point de vigilance :</strong> Objectif journalier New MoMo User pas encore atteint systématiquement. Viser 12 New MoMo User/jour minimum pour tenir l'objectif mensuel de 180. Conformité à renforcer (objectif : 90 %+).
-          </div>
-        </div>
+      <div id="evaluation-body">
+        <div style="text-align:center;color:var(--gray-text);padding:40px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
       </div>
     </div>
 
@@ -2465,6 +2395,9 @@
 
     /* Initialiser le badge saisies en attente */
     _updatePendingBadge();
+
+    /* Charger les vraies données depuis Sheets (non-bloquant) */
+    setTimeout(loadSaisiesData, 0);
   }
 
   function toggleLoginPwd() {
@@ -3938,7 +3871,17 @@
     }
 
     const rows = superviseurs.map(sup => {
-      const d     = (SUP_PERF_DATA[sup.id] || {})[currentSupPeriod] || { grossAdd: 0, newMomo: 0, target: 70, moyJour: 0, evolutif: 0 };
+      let d;
+      if (SAISIES_DATA.length) {
+        const zSaisies = _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), currentSupPeriod, today);
+        const ga  = _sumField(zSaisies, 'grossAdd');
+        const mm  = _sumField(zSaisies, 'momoUser');
+        const mj  = _moyJour(zSaisies, 'grossAdd');
+        const tgt = _zoneTarget(sup.zone, currentSupPeriod) || 70;
+        d = { grossAdd: ga, newMomo: mm, target: tgt, moyJour: mj, evolutif: 0 };
+      } else {
+        d = (SUP_PERF_DATA[sup.id] || {})[currentSupPeriod] || { grossAdd: 0, newMomo: 0, target: 70, moyJour: 0, evolutif: 0 };
+      }
       const pct   = d.target > 0 ? Math.min(100, Math.round(d.grossAdd / d.target * 100)) : 0;
       const color = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
       const bdg   = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
@@ -4034,10 +3977,11 @@
     const tSemaine   = Math.round(tMois * 7 / daysInMonth);
     const tSemMomo   = Math.round(tMoisMomo * 7 / daysInMonth);
 
-    /* Réalisés */
-    const rJour    = REALISE_DATA[keyJour] || { gsm: 0, momo: 0 };
-    const rSemaine = REALISE_DATA[keyWeek] || { gsm: 0, momo: 0 };
-    const rMois    = REALISE_DATA[keyMois] || { gsm: 0, momo: 0 };
+    /* Réalisés — vraies données Sheets si disponibles, sinon mock */
+    function _agg(list) { return { gsm: _sumField(list,'grossAdd'), momo: _sumField(list,'momoUser') }; }
+    const rJour    = SAISIES_DATA.length ? _agg(_filterPeriod(SAISIES_DATA,'jour',date))    : (REALISE_DATA[keyJour]  || { gsm:0, momo:0 });
+    const rSemaine = SAISIES_DATA.length ? _agg(_filterPeriod(SAISIES_DATA,'semaine',date)) : (REALISE_DATA[keyWeek]  || { gsm:0, momo:0 });
+    const rMois    = SAISIES_DATA.length ? _agg(_filterPeriod(SAISIES_DATA,'mois',date))    : (REALISE_DATA[keyMois]  || { gsm:0, momo:0 });
 
     /* Labels */
     const lblJour = date.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
@@ -4121,7 +4065,23 @@
     }
 
     container.innerHTML = superviseurs.map(sup => {
-      const perf  = ZONE_PERF[sup.zone] || { gsm: 0, momo: 0 };
+      let perf;
+      if (SAISIES_DATA.length) {
+        const daysIn  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+        const daysPassed = Math.max(1, today.getDate());
+        const tMonth  = _zoneTarget(sup.zone, 'mois');
+        const tPro    = tMonth > 0 ? Math.round(tMonth * daysPassed / daysIn) : 0;
+        const tMomo   = Math.round(tPro * 0.90);
+        const zSaisies = _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), 'mois', today);
+        const rGSM    = _sumField(zSaisies, 'grossAdd');
+        const rMomo   = _sumField(zSaisies, 'momoUser');
+        perf = {
+          gsm:  tPro  > 0 ? Math.min(100, Math.round(rGSM  / tPro  * 100)) : 0,
+          momo: tMomo > 0 ? Math.min(100, Math.round(rMomo / tMomo * 100)) : 0
+        };
+      } else {
+        perf = ZONE_PERF[sup.zone] || { gsm: 0, momo: 0 };
+      }
       const avg   = Math.round((perf.gsm + perf.momo) / 2);
       const color = avg >= 80 ? 'var(--green)' : avg >= 65 ? 'var(--orange)' : 'var(--red)';
       const bdg   = avg >= 80 ? 'badge-green'  : avg >= 65 ? 'badge-orange'  : 'badge-red';
@@ -4346,14 +4306,18 @@
     if (!currentUser) return;
 
     const key = (period === 'mois') ? 'mois' : 'semaine';
-    const periodLabel = (period === 'mois') ? 'Juin 2026' : 'Semaine 23';
+    const ref = period === 'mois'
+      ? today.toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
+      : 'Semaine ' + getWeekNumber(today);
+    const periodLabel = ref;
     const userZone = currentUser.zone;
 
-    /* Tri décroissant par Gross Add de la période */
-    const sorted = [...BESTSELLER_MOCK].sort((a, b) => b[key] - a[key]);
+    /* Données : vraies saisies si disponibles, sinon mock */
+    const source = SAISIES_DATA.length ? _computeBestsellerData(period) : [...BESTSELLER_MOCK];
+    const sorted = source.sort((a, b) => b[key] - a[key]);
 
     /* Filtrage par zone de l'utilisateur connecté */
-    const teamSorted = sorted.filter(a => a.zone === userZone);
+    const teamSorted = sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
 
     /* Seuils d'évaluation selon la période */
     const thresholds = (key === 'mois')
@@ -4417,7 +4381,9 @@
     if (!labelEl || !gridEl) return;
     labelEl.textContent = formatPerfLabel();
     const key = getPerfKey();
-    const d   = (agentPerfData[perfPeriod] || {})[key];
+    const d   = (SAISIES_DATA.length && currentUser)
+      ? _computeAgentPerf(currentUser.id, perfPeriod, perfDate)
+      : ((agentPerfData[perfPeriod] || {})[key]);
     if (!d) {
       gridEl.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px">Aucune donnée disponible pour cette période.</div>';
       return;
@@ -4447,6 +4413,257 @@
         </div>
       </div>`;
   }
+  /* ============================================================
+     DONNÉES RÉELLES — SYNCHRONISATION DEPUIS GOOGLE SHEETS
+  ============================================================ */
+  let SAISIES_DATA = [];
+
+  /* --- Utilitaires dates --- */
+  function _parseFrDate(str) {
+    if (!str) return null;
+    const p = str.toString().trim().split('/');
+    if (p.length === 3) {
+      const d = parseInt(p[0],10), m = parseInt(p[1],10)-1, y = parseInt(p[2],10);
+      if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
+    }
+    return null;
+  }
+  function _sameDay(d, ref)   { return d.getFullYear()===ref.getFullYear() && d.getMonth()===ref.getMonth() && d.getDate()===ref.getDate(); }
+  function _sameWeek(d, ref)  { return getWeekNumber(d)===getWeekNumber(ref) && d.getFullYear()===ref.getFullYear(); }
+  function _sameMonth(d, ref) { return d.getMonth()===ref.getMonth() && d.getFullYear()===ref.getFullYear(); }
+
+  function _filterPeriod(saisies, period, refDate) {
+    const ref = (refDate instanceof Date) ? refDate : today;
+    return saisies.filter(s => {
+      const d = _parseFrDate(s.date);
+      if (!d) return false;
+      if (period === 'jour')    return _sameDay(d, ref);
+      if (period === 'semaine') return _sameWeek(d, ref);
+      if (period === 'mois')    return _sameMonth(d, ref);
+      return true;
+    });
+  }
+
+  function _sumField(saisies, field)  { return saisies.reduce((a, s) => a + (Number(s[field]) || 0), 0); }
+  function _uniqueDays(saisies)       { return new Set(saisies.map(s => s.date).filter(Boolean)).size; }
+  function _moyJour(saisies, field)   { const d = _uniqueDays(saisies); return d ? parseFloat((_sumField(saisies, field)/d).toFixed(1)) : 0; }
+
+  function _normZ(z) {
+    return (z||'').toLowerCase().replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim()
+      .replace(/[éèê]/g,'e').replace(/[àâ]/g,'a').replace(/[ôo]/g,'o').replace(/ü/g,'u');
+  }
+  function _filterZone(saisies, zone) {
+    const nz = _normZ(zone);
+    return saisies.filter(s => _normZ(s.zone) === nz);
+  }
+
+  /* --- Cible zone pour une période --- */
+  function _zoneTarget(zone, period) {
+    const mk = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+    const mc = MONTHLY_TARGETS[mk];
+    if (!mc) return 0;
+    const nbAll  = Math.max(1, USERS.filter(u => u.role==='agent' && u.statut==='actif').length);
+    const nbZone = Math.max(1, USERS.filter(u => u.role==='agent' && u.statut==='actif' && _normZ(u.zone)===_normZ(zone)).length);
+    const daysIn = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const monthly = Math.round(mc.gsm * nbZone / nbAll);
+    if (period==='jour')    return Math.round(monthly / daysIn);
+    if (period==='semaine') return Math.round(monthly * 7 / daysIn);
+    return monthly;
+  }
+
+  /* --- Calcul perf agent depuis données réelles --- */
+  function _computeAgentPerf(dfaId, period, refDate) {
+    const ref  = (refDate instanceof Date) ? refDate : today;
+    const mine = SAISIES_DATA.filter(s => s.dfaId === dfaId);
+    const fil  = _filterPeriod(mine, period, ref);
+    const gsm  = _sumField(fil, 'grossAdd');
+    const momo = _sumField(fil, 'momoUser');
+    const days = _uniqueDays(fil);
+    const moyJour = days ? parseFloat((gsm/days).toFixed(1)) : 0;
+    const target = _zoneTarget(currentUser ? currentUser.zone : '', period) ||
+                   (period==='jour' ? 16 : period==='semaine' ? 80 : 320);
+    const tauxGSM  = target > 0 ? Math.min(100, Math.round(gsm  / target * 100)) : 0;
+    const tauxMomo = gsm    > 0 ? Math.min(100, Math.round(momo / gsm    * 100)) : 0;
+    const weekFil  = period==='mois' ? _filterPeriod(mine, 'semaine', ref) : null;
+    const moyHebdo = weekFil ? _sumField(weekFil,'grossAdd') : (period==='semaine' ? gsm : '—');
+    return { gsm, momo, tauxGSM, tauxMomo, moyJour, moyHebdo };
+  }
+
+  /* --- Données Best Seller depuis saisies réelles --- */
+  function _computeBestsellerData(period) {
+    const fil = _filterPeriod(SAISIES_DATA, period==='mois' ? 'mois' : 'semaine', today);
+    const byDFA = {};
+    fil.forEach(s => {
+      if (!s.dfaId) return;
+      if (!byDFA[s.dfaId]) byDFA[s.dfaId] = { id:s.dfaId, nom:s.dfaNom||s.dfaId, zone:s.zone, val:0, days:new Set() };
+      byDFA[s.dfaId].val += s.grossAdd;
+      byDFA[s.dfaId].days.add(s.date);
+    });
+    return Object.values(byDFA).map(a => ({
+      id: a.id, nom: a.nom, zone: a.zone,
+      semaine: period!=='mois' ? a.val : 0,
+      mois:    period==='mois' ? a.val : 0,
+      moyJour: a.days.size ? parseFloat((a.val/a.days.size).toFixed(1)) : 0
+    }));
+  }
+
+  /* --- Chargement principal --- */
+  async function loadSaisiesData() {
+    if (!navigator.onLine) return;
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method:'POST', body:JSON.stringify({ action:'getSaisies' }) });
+      const json = await res.json();
+      if (json.success) {
+        SAISIES_DATA = json.saisies || [];
+        _onSaisiesLoaded();
+      }
+    } catch(e) { console.warn('[InsightPanel] Chargement saisies échoué :', e); }
+  }
+
+  function _onSaisiesLoaded() {
+    renderObjectifs();
+    renderSuperviseurZones();
+    renderSuperviseurPerf();
+    renderBestseller(bestsellerPeriod);
+    updatePerfDisplay();
+    _renderDernieresSaisies();
+    _renderEvaluationView();
+  }
+
+  /* --- Dernières saisies (table droite vue Saisie) --- */
+  function _renderDernieresSaisies() {
+    const tbody = document.getElementById('dernieres-saisies-tbody');
+    if (!tbody || !currentUser) return;
+    const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+    const dates = [...new Set(mine.map(s => s.date).filter(Boolean))].sort((a, b) => {
+      const da = _parseFrDate(a), db = _parseFrDate(b);
+      return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+    }).slice(0, 7);
+    if (!dates.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune saisie enregistrée</td></tr>';
+      return;
+    }
+    const todayStr = today.toLocaleDateString('fr-FR');
+    tbody.innerHTML = dates.map(dateStr => {
+      const ds  = mine.filter(s => s.date === dateStr);
+      const ga  = _sumField(ds, 'grossAdd');
+      const mm  = _sumField(ds, 'momoUser');
+      const stk = ds.length ? (ds[ds.length-1].stockSIM ?? '—') : '—';
+      const d   = _parseFrDate(dateStr);
+      const lbl = d ? d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'}) : dateStr;
+      const isToday = dateStr === todayStr;
+      const bdg = isToday
+        ? '<span class="badge badge-yellow">Aujourd\'hui</span>'
+        : '<span class="badge badge-green">Envoyé</span>';
+      return `<tr><td>${lbl}</td><td style="text-align:center;font-weight:700">${ga}</td><td style="text-align:center;font-weight:700">${mm}</td><td style="text-align:center">${stk}</td><td>${bdg}</td></tr>`;
+    }).join('');
+  }
+
+  /* --- Vue Évaluation DFA --- */
+  function _renderEvaluationView() {
+    const container = document.getElementById('evaluation-body');
+    if (!container || !currentUser) return;
+
+    const mine    = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+    const moisFil = _filterPeriod(mine, 'mois', today);
+    const semFil  = _filterPeriod(mine, 'semaine', today);
+    const jourFil = _filterPeriod(mine, 'jour', today);
+
+    const gsmMois  = _sumField(moisFil, 'grossAdd');
+    const momoMois = _sumField(moisFil, 'momoUser');
+    const gsmSem   = _sumField(semFil,  'grossAdd');
+    const momoSem  = _sumField(semFil,  'momoUser');
+
+    const tMois = _zoneTarget(currentUser.zone, 'mois') || 320;
+    const tSem  = _zoneTarget(currentUser.zone, 'semaine') || 80;
+
+    const atteinteGSM  = tMois > 0 ? Math.min(100, Math.round(gsmMois  / tMois * 100)) : 0;
+    const atteinteGSMs = tSem  > 0 ? Math.min(100, Math.round(gsmSem   / tSem  * 100)) : 0;
+    const atteintemomo = gsmMois > 0 ? Math.min(100, Math.round(momoMois / gsmMois * 100)) : 0;
+    const atteinteMomoS = gsmSem > 0 ? Math.min(100, Math.round(momoSem  / gsmSem  * 100)) : 0;
+
+    const daysActifs   = _uniqueDays(semFil);
+    const joursOuv     = 6;
+    const regularitePct = Math.round(daysActifs / joursOuv * 100);
+
+    /* Classement global cette semaine */
+    const bsData  = _computeBestsellerData('semaine').sort((a,b)=>b.semaine-a.semaine);
+    const rang    = bsData.findIndex(a => a.id === currentUser.id);
+    const rangLbl = rang >= 0 ? '#'+(rang+1) : '—';
+
+    /* Note globale */
+    const avg = Math.round((atteinteGSM + atteintemomo + Math.min(100,regularitePct)) / 3);
+    const [grade, gradeLbl, gradeColor] =
+      avg >= 85 ? ['A', 'Excellent',  'var(--green)'] :
+      avg >= 70 ? ['B+','Bon',        'var(--green)'] :
+      avg >= 55 ? ['B', 'Correct',    'var(--orange)'] :
+                  ['C', 'À améliorer','var(--red)'];
+
+    /* Badge label dans le page-header */
+    const badgeEl = document.querySelector('#view-evaluation .page-header .badge');
+    if (badgeEl) { badgeEl.textContent = `${grade}  ${gradeLbl}`; badgeEl.style.color = gradeColor; }
+
+    const tc = v => v>=80?'var(--green)':v>=65?'var(--orange)':'var(--red)';
+    const evalRow = (icon, label, value, cls) =>
+      `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+        <span><i class="fa ${icon}" style="color:var(--yellow);margin-right:8px"></i>${label}</span>
+        <span class="badge ${cls}">${value}</span>
+      </div>`;
+
+    const gsmSemBdg  = atteinteGSMs  >= 80?'badge-green':atteinteGSMs  >=65?'badge-orange':'badge-red';
+    const momoSemBdg = atteinteMomoS >= 80?'badge-green':atteinteMomoS >=65?'badge-orange':'badge-red';
+    const regBdg     = daysActifs    >= 5 ?'badge-green':daysActifs     >= 3?'badge-orange':'badge-red';
+    const regLbl     = daysActifs    >= 5 ?'Excellent'  :daysActifs     >= 3?'Correct'     :'À améliorer';
+    const tendBdg    = avg           >= 70?'badge-green':avg            >= 55?'badge-orange':'badge-red';
+    const tendLbl    = avg           >= 70?'En progression':avg         >= 55?'Stable'      :'En baisse';
+
+    container.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi-card">
+          <div class="kpi-label">Atteinte objectifs</div>
+          <div class="kpi-value" style="color:${tc(atteinteGSM)}">${atteinteGSM} %</div>
+          <div class="kpi-sub">Gross Add — mois en cours</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Jours actifs</div>
+          <div class="kpi-value" style="color:${daysActifs>=5?'var(--green)':'var(--orange)'}">${daysActifs} / ${joursOuv}</div>
+          <div class="kpi-sub">Cette semaine</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">New MoMo User</div>
+          <div class="kpi-value" style="color:${tc(atteintemomo)}">${atteintemomo} %</div>
+          <div class="kpi-sub">vs Gross Add ce mois</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Classement</div>
+          <div class="kpi-value" style="color:var(--yellow)">${rangLbl}</div>
+          <div class="kpi-sub">Équipe globale cette semaine</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><div class="card-title">Détail par indicateur</div></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${evalRow('fa-bullseye',      'Objectif Gross Add hebdomadaire',     atteinteGSMs+'%',   gsmSemBdg)}
+            ${evalRow('fa-wallet',        'Objectif New MoMo User hebdomadaire', atteinteMomoS+'%', momoSemBdg)}
+            ${evalRow('fa-calendar-check','Régularité terrain',                  regLbl,             regBdg)}
+            ${evalRow('fa-chart-line',    'Tendance générale',                   tendLbl,            tendBdg)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Bilan du mois</div></div>
+        <div class="card-body">
+          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
+            <strong>Gross Add :</strong> ${gsmMois.toLocaleString('fr-FR')} / ${tMois.toLocaleString('fr-FR')} (${atteinteGSM} %)<br>
+            <strong>New MoMo User :</strong> ${momoMois.toLocaleString('fr-FR')} (${atteintemomo} % du Gross Add)<br>
+            <strong>Jours actifs cette semaine :</strong> ${daysActifs}/${joursOuv} — Régularité ${regLbl.toLowerCase()}<br>
+            <strong>Classement équipe :</strong> ${rangLbl}
+          </div>
+        </div>
+      </div>`;
+  }
+
   /* ---- Restauration automatique de session au rechargement ---- */
   function _tryRestoreSession() {
     document.documentElement.classList.remove('restoring-session');

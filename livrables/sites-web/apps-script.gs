@@ -24,8 +24,9 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
 
-    if (data.action === 'login')  return handleLogin(data);
-    if (data.action === 'saisie') return handleSaisie(data);
+    if (data.action === 'login')      return handleLogin(data);
+    if (data.action === 'saisie')     return handleSaisie(data);
+    if (data.action === 'getSaisies') return handleGetSaisies(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -174,6 +175,40 @@ function _initSaisiesSheet(sheet) {
   sheet.setColumnWidth(10, 300); // N° SIMs
   sheet.setColumnWidth(11, 300); // N° MTNs
   sheet.setColumnWidth(12, 140); // Horodatage
+}
+
+// ─────────────────────────────────────────────────────────────
+// LECTURE DES SAISIES — pour alimenter les dashboards
+// Retourne toutes les lignes de la feuille "Saisies" en JSON
+// ─────────────────────────────────────────────────────────────
+function handleGetSaisies(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Saisies');
+  if (!sheet) return jsonResponse({ success: true, saisies: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, saisies: [] });
+
+  const saisies = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0] && !r[1]) continue; // ligne vide
+    saisies.push({
+      date:     r[0]  ? r[0].toString().trim()  : '',
+      dfaId:    r[1]  ? r[1].toString().trim()  : '',
+      dfaNom:   r[2]  ? r[2].toString().trim()  : '',
+      zone:     r[3]  ? r[3].toString().trim()  : '',
+      grossAdd: Number(r[4]) || 0,
+      momoUser: Number(r[5]) || 0,
+      stockSIM: Number(r[6]) || 0,
+      simDispo: (r[7] !== '' && r[7] !== null && r[7] !== undefined) ? Number(r[7]) : null,
+      obs:      r[8]  ? r[8].toString().trim()  : '',
+      simList:  r[9]  ? r[9].toString().trim()  : '',
+      mtnList:  r[10] ? r[10].toString().trim() : '',
+      ts:       r[11] ? r[11].toString().trim() : ''
+    });
+  }
+  return jsonResponse({ success: true, saisies });
 }
 
 // ─────────────────────────────────────────────────────────────
