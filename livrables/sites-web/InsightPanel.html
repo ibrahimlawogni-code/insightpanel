@@ -1666,53 +1666,91 @@
         <span class="badge badge-yellow" id="saisie-date-badge">—</span>
       </div>
 
-      <!-- SCANNER PLAQUETTE SIM -->
-      <div class="card" style="margin-bottom:20px;border:2px dashed var(--yellow)">
-        <div class="card-header">
-          <div class="card-title"><i class="fa fa-camera" style="color:var(--yellow);margin-right:6px"></i> Scanner une plaquette SIM</div>
-          <span class="badge badge-yellow">OCR automatique</span>
-        </div>
-        <div class="card-body">
-          <!-- Input caméra caché -->
-          <input type="file" id="sim-camera-input" accept="image/*" capture="environment" style="display:none" onchange="processSIMPhoto(this)">
-
-          <!-- Bouton + statut -->
-          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:16px">
-            <button class="btn btn-primary" onclick="openSIMScanner()" id="btn-scan-sim" style="gap:8px;padding:10px 22px">
-              <i class="fa fa-camera"></i> Prendre la photo
-            </button>
-            <div id="scan-status" style="display:none;align-items:center;gap:8px;font-size:13px;font-weight:600"></div>
-          </div>
-
-          <!-- Aperçu photo + champs résultats -->
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start">
-            <div id="scan-preview-wrap" style="display:none">
-              <img id="scan-preview" style="width:110px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--gray-border)">
-            </div>
-            <div class="form-grid">
-              <div>
-                <label class="input-label">N° SIM <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
-                <input class="input-field" type="text" id="saisie-field-sim" placeholder="ex : 22546368589" maxlength="11" inputmode="numeric">
-              </div>
-              <div>
-                <label class="input-label">N° MTN <span style="color:var(--gray-text);font-weight:400">(10 chiffres)</span></label>
-                <input class="input-field" type="text" id="saisie-field-mtn" placeholder="ex : 0166161247" maxlength="10" inputmode="numeric">
-              </div>
-            </div>
-          </div>
-          <div style="font-size:11.5px;color:var(--gray-text);margin-top:10px">
-            <i class="fa fa-circle-info"></i> Cadrez bien la petite feuille blanche collée sur la plaquette. Les champs se remplissent automatiquement.
-          </div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <!-- FORMULAIRE DE SAISIE -->
+      <div class="grid-2" style="align-items:start">
+        <!-- FORMULAIRE DE SAISIE + SCANNER INTÉGRÉ -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">Saisie des activations</div>
+            <span class="badge badge-yellow" id="saisie-sim-count" style="display:none">0 SIM</span>
           </div>
           <div class="card-body">
+
+            <!-- === SECTION SCANNER + AJOUT SIM === -->
+            <div style="background:var(--gray-bg);border-radius:10px;padding:14px;margin-bottom:16px">
+              <div style="font-size:11px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+                <i class="fa fa-camera" style="color:var(--yellow)"></i> Scanner une plaquette SIM
+              </div>
+
+              <!-- Input caméra caché -->
+              <input type="file" id="sim-camera-input" accept="image/*" capture="environment" style="display:none" onchange="processSIMPhoto(this)">
+
+              <!-- Bouton scan + statut -->
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px">
+                <button class="btn btn-secondary btn-sm" onclick="openSIMScanner()" id="btn-scan-sim">
+                  <i class="fa fa-camera"></i> Prendre la photo
+                </button>
+                <div id="scan-status" style="display:none;align-items:center;gap:6px;font-size:12.5px;font-weight:600"></div>
+              </div>
+
+              <!-- Aperçu + champs N° SIM / N° MTN -->
+              <div style="display:flex;gap:12px;align-items:start;flex-wrap:wrap">
+                <div id="scan-preview-wrap" style="display:none;flex-shrink:0">
+                  <img id="scan-preview" style="width:90px;height:66px;object-fit:cover;border-radius:8px;border:2px solid var(--yellow)">
+                </div>
+                <div class="form-grid" style="flex:1;min-width:240px">
+                  <div>
+                    <label class="input-label">N° SIM <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+                    <input class="input-field" type="text" id="saisie-field-sim" placeholder="22546368589" maxlength="11" inputmode="numeric">
+                  </div>
+                  <div>
+                    <label class="input-label">N° MTN <span style="color:var(--gray-text);font-weight:400">(10 chiffres)</span></label>
+                    <input class="input-field" type="text" id="saisie-field-mtn" placeholder="0166161247" maxlength="10" inputmode="numeric">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Bouton ajouter + message erreur -->
+              <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+                <button class="btn btn-primary btn-sm" onclick="addSIM()">
+                  <i class="fa fa-plus"></i> Ajouter cette SIM
+                </button>
+                <div id="sim-add-feedback" style="display:none;font-size:12px;font-weight:600"></div>
+              </div>
+              <div style="font-size:11px;color:var(--gray-text);margin-top:8px">
+                <i class="fa fa-circle-info"></i> Scannez ou saisissez chaque plaquette une par une. Le Gross Add se calcule automatiquement.
+              </div>
+            </div>
+
+            <!-- === LISTE DES SIMs AJOUTÉES === -->
+            <div id="sim-list-section" style="display:none;margin-bottom:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:11px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px">
+                  <i class="fa fa-list-check" style="color:var(--green)"></i> SIMs saisies
+                </div>
+                <span class="badge badge-green" id="sim-list-badge">0 SIM</span>
+              </div>
+              <div style="overflow-x:auto;border-radius:8px;border:1px solid var(--gray-border)">
+                <table style="min-width:320px">
+                  <thead>
+                    <tr>
+                      <th style="width:32px">#</th>
+                      <th>N° SIM</th>
+                      <th>N° MTN</th>
+                      <th style="width:36px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sim-list-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- === SÉPARATEUR === -->
+            <div style="border-top:1px solid var(--gray-border);margin-bottom:16px"></div>
+
+            <!-- === INFORMATIONS GÉNÉRALES === -->
+            <div style="font-size:11px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+              <i class="fa fa-clipboard-list" style="color:var(--yellow)"></i> Informations de la journée
+            </div>
             <div class="form-grid">
               <div>
                 <label class="input-label">Date</label>
@@ -1734,8 +1772,8 @@
                 </select>
               </div>
               <div>
-                <label class="input-label">Gross Add (activations)</label>
-                <input class="input-field" type="number" id="saisie-field-activation" placeholder="0" min="0">
+                <label class="input-label">Gross Add <span style="color:var(--green);font-size:10px">(auto)</span></label>
+                <input class="input-field" type="number" id="saisie-field-activation" placeholder="0" min="0" readonly style="background:var(--gray-bg);cursor:default">
               </div>
               <div>
                 <label class="input-label">New MoMo User</label>
@@ -1754,12 +1792,13 @@
                 <textarea class="input-field" id="saisie-field-observation" placeholder="Signaler un problème, une rupture, un incident terrain..."></textarea>
               </div>
             </div>
+
             <div id="saisie-form-feedback" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
             <div style="display:flex;gap:10px;margin-top:16px">
-              <button class="btn btn-primary" onclick="submitToSheets()">
-                <i class="fa fa-floppy-disk"></i> Enregistrer
+              <button class="btn btn-primary" id="btn-saisie-submit" onclick="submitSaisie()">
+                <i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets
               </button>
-              <button class="btn btn-secondary" onclick="resetForm()">Annuler</button>
+              <button class="btn btn-secondary" onclick="resetSaisie()">Réinitialiser</button>
             </div>
           </div>
         </div>
@@ -2254,6 +2293,7 @@
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
     if (name === 'agent')       updatePerfDisplay();
+    if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
     if (name === 'equipes')   { loadUsers(); loadDemandes(); }
     if (name === 'superviseur') { loadDemandes(); }
@@ -3267,6 +3307,188 @@
     'Brice.Akpede':   { jour: 12, hier: 16, semaine: 59,  mois: 208, moyJour: 8.0,  moySemaine: 11.8 },
     'Fatima.Adeko':   { jour: 15, hier: 13, semaine: 71,  mois: 252, moyJour: 9.7,  moySemaine: 14.2 },
   };
+
+  /* ---- Gestion liste cumulative SIMs (Saisie du jour) ---- */
+  let saisieSIMs = [];
+
+  function addSIM() {
+    const simVal = (document.getElementById('saisie-field-sim').value || '').trim();
+    const mtnVal = (document.getElementById('saisie-field-mtn').value || '').trim();
+    const fb     = document.getElementById('sim-add-feedback');
+
+    function showAddFb(msg, ok) {
+      if (!fb) return;
+      fb.style.display = 'block';
+      fb.style.color   = ok ? 'var(--green)' : '#e53e3e';
+      fb.textContent   = msg;
+      if (ok) setTimeout(() => { fb.style.display = 'none'; }, 2500);
+    }
+
+    if (!simVal && !mtnVal) { showAddFb('Renseignez au moins N° SIM ou N° MTN.', false); return; }
+    if (simVal && !/^[1-9]\d{10}$/.test(simVal)) { showAddFb('N° SIM invalide (11 chiffres, ne commence pas par 0).', false); return; }
+    if (mtnVal && !/^0\d{9}$/.test(mtnVal))       { showAddFb('N° MTN invalide (10 chiffres, commence par 0).', false); return; }
+
+    const duplicate = saisieSIMs.some(s =>
+      (simVal && s.sim === simVal) || (mtnVal && s.mtn === mtnVal)
+    );
+    if (duplicate) { showAddFb('Ce numéro a déjà été ajouté.', false); return; }
+
+    saisieSIMs.push({ sim: simVal, mtn: mtnVal });
+
+    /* Mettre à jour le Gross Add automatiquement */
+    const gaField = document.getElementById('saisie-field-activation');
+    if (gaField) gaField.value = saisieSIMs.length;
+
+    /* Vider les champs SIM/MTN et le scan */
+    document.getElementById('saisie-field-sim').value = '';
+    document.getElementById('saisie-field-mtn').value = '';
+    const sp = document.getElementById('scan-preview-wrap');
+    if (sp) sp.style.display = 'none';
+    const ss = document.getElementById('scan-status');
+    if (ss) ss.style.display = 'none';
+
+    showAddFb(`SIM ${saisieSIMs.length} ajoutée.`, true);
+    _renderSIMList();
+  }
+
+  function removeSIM(idx) {
+    saisieSIMs.splice(idx, 1);
+    const gaField = document.getElementById('saisie-field-activation');
+    if (gaField) gaField.value = saisieSIMs.length || '';
+    _renderSIMList();
+  }
+
+  function _renderSIMList() {
+    const section   = document.getElementById('sim-list-section');
+    const tbody     = document.getElementById('sim-list-tbody');
+    const listBadge = document.getElementById('sim-list-badge');
+    const hdrBadge  = document.getElementById('saisie-sim-count');
+    const n = saisieSIMs.length;
+
+    if (hdrBadge) { hdrBadge.style.display = n ? '' : 'none'; hdrBadge.textContent = `${n} SIM${n > 1 ? 's' : ''}`; }
+    if (!section || !tbody) return;
+    section.style.display = n ? 'block' : 'none';
+    if (listBadge) listBadge.textContent = `${n} SIM${n > 1 ? 's' : ''}`;
+
+    tbody.innerHTML = saisieSIMs.map((s, i) => `
+      <tr>
+        <td style="color:var(--gray-text);font-size:12px;padding:6px 10px">${i + 1}</td>
+        <td style="font-family:monospace;font-size:12.5px;padding:6px 10px">${s.sim || '—'}</td>
+        <td style="font-family:monospace;font-size:12.5px;padding:6px 10px">${s.mtn || '—'}</td>
+        <td style="padding:4px 8px;text-align:center">
+          <button onclick="removeSIM(${i})" title="Supprimer"
+            style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:13px;padding:2px 4px">
+            <i class="fa fa-trash"></i>
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function submitSaisie() {
+    const dfa        = (document.getElementById('saisie-field-dfa').value || '').trim();
+    const equipe     = document.getElementById('saisie-field-equipe').value;
+    const momo       = document.getElementById('saisie-field-momo').value;
+    const stock      = document.getElementById('saisie-field-stock').value;
+    const stockMomo  = document.getElementById('saisie-field-stock-momo').value;
+    const obs        = (document.getElementById('saisie-field-observation').value || '').trim();
+    const date       = document.getElementById('saisie-field-date').value;
+    const grossAdd   = saisieSIMs.length;
+
+    const fb  = document.getElementById('saisie-form-feedback');
+    const btn = document.getElementById('btn-saisie-submit');
+
+    function showFb(msg, ok) {
+      if (!fb) return;
+      fb.style.display    = 'block';
+      fb.textContent      = msg;
+      fb.style.background = ok ? '#d4edda' : '#f8d7da';
+      fb.style.color      = ok ? '#155724' : '#721c24';
+      if (ok) setTimeout(() => { fb.style.display = 'none'; }, 4000);
+    }
+
+    if (!dfa || !equipe) { showFb('Renseignez au moins votre nom et la zone.', false); return; }
+    if (grossAdd === 0)  { showFb('Aucune SIM ajoutée. Ajoutez au moins une plaquette.', false); return; }
+
+    if (APPS_SCRIPT_URL === 'COLLER_ICI_VOTRE_URL_APPS_SCRIPT') {
+      showFb('URL Apps Script non configurée.', false); return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…'; }
+
+    const payload = {
+      action:      'saisie',
+      date:        new Date(date).toLocaleDateString('fr-FR'),
+      dfa,
+      equipe,
+      activation:  grossAdd,
+      momoUser:    Number(momo) || 0,
+      stockSIM:    Number(stock) || 0,
+      stockMoMo:   Number(stockMomo) || 0,
+      observation: obs,
+      simList:     saisieSIMs.map(s => s.sim).join(','),
+      mtnList:     saisieSIMs.map(s => s.mtn).join(',')
+    };
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.success) {
+        showFb(`${grossAdd} activation(s) enregistrée(s) dans Google Sheets.`, true);
+        resetSaisie();
+      } else {
+        showFb('Erreur : ' + (json.error || 'réponse inattendue.'), false);
+      }
+    } catch (err) {
+      showFb('Impossible de joindre le serveur. Vérifiez votre connexion.', false);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
+    }
+  }
+
+  function _initSaisieView() {
+    if (!currentUser) return;
+    const dfaEl = document.getElementById('saisie-field-dfa');
+    if (dfaEl && !dfaEl.value) dfaEl.value = currentUser.nom || '';
+    const eqEl = document.getElementById('saisie-field-equipe');
+    if (eqEl && !eqEl.value) {
+      [...eqEl.options].forEach(o => { if (o.value === currentUser.zone) eqEl.value = currentUser.zone; });
+    }
+    const dateEl = document.getElementById('saisie-field-date');
+    if (dateEl && !dateEl.value) dateEl.value = todayISO;
+  }
+
+  function resetSaisie() {
+    saisieSIMs = [];
+    _renderSIMList();
+    ['saisie-field-sim','saisie-field-mtn','saisie-field-dfa',
+     'saisie-field-momo','saisie-field-stock','saisie-field-stock-momo',
+     'saisie-field-observation'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const ga = document.getElementById('saisie-field-activation');
+    if (ga) ga.value = '';
+    const eq = document.getElementById('saisie-field-equipe');
+    if (eq) eq.value = '';
+    const dateEl = document.getElementById('saisie-field-date');
+    if (dateEl) dateEl.value = todayISO;
+    const fb = document.getElementById('saisie-form-feedback');
+    if (fb) fb.style.display = 'none';
+    const sp = document.getElementById('scan-preview-wrap');
+    if (sp) sp.style.display = 'none';
+    const ss = document.getElementById('scan-status');
+    if (ss) ss.style.display = 'none';
+    /* Re-remplir nom/zone depuis currentUser */
+    if (currentUser) {
+      const dfaEl = document.getElementById('saisie-field-dfa');
+      if (dfaEl) dfaEl.value = currentUser.nom || '';
+      const eqEl = document.getElementById('saisie-field-equipe');
+      if (eqEl) {
+        const zone = currentUser.zone || '';
+        [...eqEl.options].forEach(o => { if (o.value === zone) eqEl.value = zone; });
+      }
+    }
+  }
 
   /* ---- Scanner plaquette SIM (OCR via Tesseract.js) ---- */
   let _tesseractReady = false;
