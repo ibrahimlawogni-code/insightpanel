@@ -849,8 +849,17 @@
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('superviseur', this)">
         <i class="fa fa-users"></i> Vue Superviseur
       </div>
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('saisie', this)">
+        <i class="fa fa-pen-to-square"></i> Saisie du jour
+      </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('agent', this)">
         <i class="fa fa-mobile-screen"></i> Vue Agent Terrain
+      </div>
+      <div class="nav-item" data-roles="agent,superviseur" onclick="showView('evaluation', this)">
+        <i class="fa fa-chart-simple"></i> Mon évaluation de performance
+      </div>
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('bestseller', this)">
+        <i class="fa fa-trophy"></i> Best Seller — DFA
       </div>
 
       <div class="nav-label" style="margin-top:8px" data-roles="dg,dga,dcc,dc,ra,superviseur,agent">Opérations</div>
@@ -1646,6 +1655,268 @@
     </div>
 
     <!-- ============================================================
+         VUE : SAISIE DU JOUR
+    ============================================================ -->
+    <div class="view" id="view-saisie">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Saisie du jour</div>
+          <div class="page-subtitle">Enregistrement des activations journalières</div>
+        </div>
+        <span class="badge badge-yellow" id="saisie-date-badge">—</span>
+      </div>
+
+      <div class="grid-2">
+        <!-- FORMULAIRE DE SAISIE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Saisie des activations</div>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div>
+                <label class="input-label">Date</label>
+                <input class="input-field" type="date" id="saisie-field-date">
+              </div>
+              <div>
+                <label class="input-label">DFA (votre nom)</label>
+                <input class="input-field" type="text" id="saisie-field-dfa" placeholder="ex : Kossi ADJOVI">
+              </div>
+              <div class="span-2">
+                <label class="input-label">Zone</label>
+                <select class="input-field" id="saisie-field-equipe">
+                  <option value="">-- Sélectionner une zone --</option>
+                  <option>Avrankou</option>
+                  <option>Akpro - Missérété</option>
+                  <option>Aguégués - Dangbo</option>
+                  <option>Adjarra</option>
+                  <option>Bonou - Adjohoun</option>
+                </select>
+              </div>
+              <div>
+                <label class="input-label">Gross Add (activations)</label>
+                <input class="input-field" type="number" id="saisie-field-activation" placeholder="0" min="0">
+              </div>
+              <div>
+                <label class="input-label">New MoMo User</label>
+                <input class="input-field" type="number" id="saisie-field-momo" placeholder="0" min="0">
+              </div>
+              <div>
+                <label class="input-label">Stock SIM restant</label>
+                <input class="input-field" type="number" id="saisie-field-stock" placeholder="0" min="0">
+              </div>
+              <div>
+                <label class="input-label">Stock MoMo restant</label>
+                <input class="input-field" type="number" id="saisie-field-stock-momo" placeholder="0" min="0">
+              </div>
+              <div class="span-2">
+                <label class="input-label">Observation terrain</label>
+                <textarea class="input-field" id="saisie-field-observation" placeholder="Signaler un problème, une rupture, un incident terrain..."></textarea>
+              </div>
+            </div>
+            <div id="saisie-form-feedback" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn btn-primary" onclick="submitToSheets()">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+              <button class="btn btn-secondary" onclick="resetForm()">Annuler</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- DERNIÈRES SAISIES -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Dernières saisies</div>
+            <span class="badge badge-black">7 derniers jours</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Gross Add</th><th>New MoMo</th><th>Stock</th><th>Statut</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>09/06</td><td>—</td><td>—</td><td>—</td><td><span class="badge badge-yellow">En attente</span></td></tr>
+              <tr><td>08/06</td><td>16</td><td>9</td><td>24</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tr><td>07/06</td><td>21</td><td>13</td><td>18</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tr><td>06/06</td><td>14</td><td>8</td><td>31</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tr><td>05/06</td><td>23</td><td>12</td><td>27</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tr><td>04/06</td><td>19</td><td>10</td><td>22</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tr><td>03/06</td><td>17</td><td>11</td><td>35</td><td><span class="badge badge-green">Validé</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUE : MON ÉVALUATION DE PERFORMANCE
+    ============================================================ -->
+    <div class="view" id="view-evaluation">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mon évaluation de performance</div>
+          <div class="page-subtitle">Suivi personnel de ma progression</div>
+        </div>
+        <span class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">B+ &nbsp; Bon</span>
+      </div>
+
+      <!-- INDICATEURS GLOBAUX -->
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi-card">
+          <div class="kpi-label">Atteinte objectifs</div>
+          <div class="kpi-value" style="color:var(--orange)">80 %</div>
+          <div class="kpi-sub">Mois en cours</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Jours actifs</div>
+          <div class="kpi-value" style="color:var(--green)">7 / 7</div>
+          <div class="kpi-sub">Cette semaine</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conformité</div>
+          <div class="kpi-value" style="color:var(--green)">83 %</div>
+          <div class="kpi-sub">Bases agents</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Classement</div>
+          <div class="kpi-value" style="color:var(--yellow)">#7</div>
+          <div class="kpi-sub"><i class="fa fa-arrow-up" style="color:var(--orange)"></i> +2 places</div>
+        </div>
+      </div>
+
+      <!-- DÉTAIL PAR INDICATEUR -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Détail par indicateur</div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Objectif Gross Add hebdomadaire</span>
+              <span class="badge badge-green">93 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>Objectif New MoMo User hebdomadaire</span>
+              <span class="badge badge-green">84 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-calendar-check" style="color:var(--yellow);margin-right:8px"></i>Régularité terrain</span>
+              <span class="badge badge-green">Excellent</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-shield-halved" style="color:var(--yellow);margin-right:8px"></i>Conformité des bases</span>
+              <span class="badge badge-orange">83 %</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+              <span><i class="fa fa-chart-line" style="color:var(--yellow);margin-right:8px"></i>Tendance générale</span>
+              <span class="badge badge-green">En progression</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- APPRÉCIATION -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Appréciation</div>
+        </div>
+        <div class="card-body">
+          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
+            <strong>Bilan :</strong> Bonne performance globale avec une régularité exemplaire (7/7 jours actifs). L'objectif Gross Add hebdomadaire est quasi atteint (93 %). New MoMo User en bon rythme (84 %).<br>
+            <strong>Point de vigilance :</strong> Objectif journalier New MoMo User pas encore atteint systématiquement. Viser 12 New MoMo User/jour minimum pour tenir l'objectif mensuel de 180. Conformité à renforcer (objectif : 90 %+).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         VUE : BEST SELLER DFA
+    ============================================================ -->
+    <div class="view" id="view-bestseller">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Best Seller — DFA</div>
+          <div class="page-subtitle">Classement des meilleurs agents terrain</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="tabs">
+            <button class="tab active" onclick="setBestsellerPeriod('semaine',this)">Semaine</button>
+            <button class="tab" onclick="setBestsellerPeriod('mois',this)">Mois</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PODIUM TOP 3 -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Podium</div>
+          <span class="badge badge-black">Semaine 23</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;justify-content:center;align-items:flex-end;gap:20px;padding:10px 0 20px">
+            <div style="text-align:center">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#2</div>
+              <div style="width:80px;height:90px;background:var(--gray-bg);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #C0C0C0">
+                <i class="fa fa-medal medal-2" style="font-size:22px"></i>
+                <div style="font-size:11px;font-weight:700;margin-top:6px">Aïssatou G.</div>
+                <div style="font-size:13px;font-weight:900;color:var(--yellow)">128</div>
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#1</div>
+              <div style="width:90px;height:120px;background:var(--yellow-light);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--yellow)">
+                <i class="fa fa-medal medal-1" style="font-size:26px"></i>
+                <div style="font-size:12px;font-weight:700;margin-top:6px">Kossi A.</div>
+                <div style="font-size:15px;font-weight:900;color:var(--yellow)">143</div>
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;margin-bottom:8px">#3</div>
+              <div style="width:80px;height:75px;background:var(--gray-bg);border-radius:12px 12px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #CD7F32">
+                <i class="fa fa-medal medal-3" style="font-size:20px"></i>
+                <div style="font-size:11px;font-weight:700;margin-top:6px">Mouftaou S.</div>
+                <div style="font-size:13px;font-weight:900;color:var(--yellow)">117</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLASSEMENT COMPLET -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Classement complet</div>
+          <span class="badge badge-black" id="bestseller-count-badge">24 agents</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Agent DFA</th>
+              <th>Zone</th>
+              <th>Gross Add</th>
+              <th>New MoMo User</th>
+              <th>Moy. / Jour</th>
+              <th>Évaluation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><i class="fa fa-medal medal-1"></i></td><td><strong>Kossi ADJOVI</strong></td><td>Avrankou</td><td>143</td><td>87</td><td>20.4</td><td><span class="badge badge-green">Excellent</span></td></tr>
+            <tr><td><i class="fa fa-medal medal-2"></i></td><td><strong>Aïssatou GNONA</strong></td><td>Akpro - Missérété</td><td>128</td><td>79</td><td>18.3</td><td><span class="badge badge-green">Excellent</span></td></tr>
+            <tr><td><i class="fa fa-medal medal-3"></i></td><td><strong>Mouftaou SABI</strong></td><td>Avrankou</td><td>117</td><td>65</td><td>16.7</td><td><span class="badge badge-green">Très bien</span></td></tr>
+            <tr><td style="color:#bbb">4</td><td>Clarisse YOVO</td><td>Bonou - Adjohoun</td><td>104</td><td>58</td><td>14.9</td><td><span class="badge badge-orange">Bien</span></td></tr>
+            <tr><td style="color:#bbb">5</td><td>Romuald AGBO</td><td>Aguégués - Dangbo</td><td>98</td><td>51</td><td>14.0</td><td><span class="badge badge-orange">Bien</span></td></tr>
+            <tr><td style="color:#bbb">6</td><td>Félicité DOSSOU</td><td>Avrankou</td><td>87</td><td>44</td><td>12.4</td><td><span class="badge badge-orange">Moyen</span></td></tr>
+            <tr style="background:var(--yellow-light)"><td><strong>#7</strong></td><td><strong>Kofi MENSAH</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span></td><td>Avrankou</td><td>74</td><td>42</td><td>10.6</td><td><span class="badge badge-green">Bien</span></td></tr>
+            <tr><td style="color:#bbb">8</td><td>Brice HOUINATO</td><td>Akpro - Missérété</td><td>76</td><td>39</td><td>10.9</td><td><span class="badge badge-red">À améliorer</span></td></tr>
+            <tr><td style="color:#bbb">9</td><td>Sènan AKAKPO</td><td>Bonou - Adjohoun</td><td>68</td><td>33</td><td>9.7</td><td><span class="badge badge-red">À améliorer</span></td></tr>
+            <tr><td style="color:#bbb">10</td><td>Mariam OUOROU</td><td>Aguégués - Dangbo</td><td>61</td><td>28</td><td>8.7</td><td><span class="badge badge-red">À améliorer</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
          VUES PLACEHOLDER
     ============================================================ -->
     <div class="view" id="view-stocks">
@@ -1774,14 +2045,21 @@
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
 
-  /* Pré-remplir la date du jour dans le formulaire */
+  /* Pré-remplir la date du jour dans les formulaires */
   const todayISO = today.toISOString().split('T')[0];
+  const todayLabel = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
   const dateField = document.getElementById('field-date');
   if (dateField) {
     dateField.value = todayISO;
     const badge = document.getElementById('form-date-badge');
-    if (badge) badge.textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (badge) badge.textContent = todayLabel;
   }
+
+  const saisieDate = document.getElementById('saisie-field-date');
+  if (saisieDate) saisieDate.value = todayISO;
+  const saisieBadge = document.getElementById('saisie-date-badge');
+  if (saisieBadge) saisieBadge.textContent = todayLabel;
 
   /* ---- Login / Logout ---- */
   const roleLabels = {
@@ -1926,7 +2204,10 @@
     const titles = {
       dashboard:   "Vue d'ensemble — Tableau de bord",
       superviseur: 'Vue Superviseur — Mon équipe',
-      agent:       'Vue Agent terrain — Saisie du jour',
+      saisie:      'Saisie du jour',
+      agent:       'Vue Agent terrain',
+      evaluation:  'Mon évaluation de performance',
+      bestseller:  'Best Seller — DFA',
       stocks:      'Stocks & Ressources',
       rapports:    'Rapports',
       conformite:  'Conformité',
@@ -3336,6 +3617,13 @@
     document.querySelectorAll('#perf-tabs .tab').forEach(t => t.classList.remove('active'));
     if (el) el.classList.add('active');
     updatePerfDisplay();
+  }
+
+  function setBestsellerPeriod(p, el) {
+    document.querySelectorAll('#view-bestseller .tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const badge = document.getElementById('bestseller-count-badge');
+    if (badge) badge.textContent = '24 agents';
   }
 
   function updatePerfDisplay() {
