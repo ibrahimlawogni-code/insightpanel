@@ -1748,7 +1748,19 @@
     { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'DBAH',                 role: 'superviseur', zone: 'Akpro - Missérété',     initiales: 'DB', statut: 'actif' },
     { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',              initiales: 'LY', statut: 'actif' },
     { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',             initiales: 'FD', statut: 'actif' },
-    { id: 'Agent.Test',          pwd: 'Zephir@2026', nom: 'Kofi MENSAH',          role: 'agent',       zone: 'Avrankou',             initiales: 'KM', statut: 'actif' },
+    { id: 'Agent.Test',          pwd: 'Zephir@2026', nom: 'Kofi MENSAH',          role: 'agent', zone: 'Avrankou',          initiales: 'KM', statut: 'actif' },
+    { id: 'Jules.Akindes',      pwd: 'Zephir@2026', nom: 'Jules AKINDES',        role: 'agent', zone: 'Avrankou',          initiales: 'JA', statut: 'actif' },
+    { id: 'Sylvie.Houngbo',     pwd: 'Zephir@2026', nom: 'Sylvie HOUNGBO',       role: 'agent', zone: 'Avrankou',          initiales: 'SH', statut: 'inactif' },
+    { id: 'Kofi.Agbodji',       pwd: 'Zephir@2026', nom: 'Kofi AGBODJI',         role: 'agent', zone: 'Bonou - Adjohoun',  initiales: 'KA', statut: 'actif' },
+    { id: 'Marie.Hounsou',      pwd: 'Zephir@2026', nom: 'Marie HOUNSOU',        role: 'agent', zone: 'Bonou - Adjohoun',  initiales: 'MH', statut: 'actif' },
+    { id: 'Pascal.Dossou',      pwd: 'Zephir@2026', nom: 'Pascal DOSSOU',        role: 'agent', zone: 'Bonou - Adjohoun',  initiales: 'PD', statut: 'inactif' },
+    { id: 'Raoul.Adanle',       pwd: 'Zephir@2026', nom: 'Raoul ADANLE',         role: 'agent', zone: 'Aguégués - Dangbo', initiales: 'RA', statut: 'actif' },
+    { id: 'Chantal.Gbedji',     pwd: 'Zephir@2026', nom: 'Chantal GBEDJI',       role: 'agent', zone: 'Aguégués - Dangbo', initiales: 'CG', statut: 'actif' },
+    { id: 'Basile.Ganfon',      pwd: 'Zephir@2026', nom: 'Basile GANFON',        role: 'agent', zone: 'Akpro - Missérété', initiales: 'BG', statut: 'actif' },
+    { id: 'Nadia.Zannou',       pwd: 'Zephir@2026', nom: 'Nadia ZANNOU',         role: 'agent', zone: 'Akpro - Missérété', initiales: 'NZ', statut: 'actif' },
+    { id: 'Cedric.Dansou',      pwd: 'Zephir@2026', nom: 'Cédric DANSOU',        role: 'agent', zone: 'Akpro - Missérété', initiales: 'CD', statut: 'actif' },
+    { id: 'Brice.Akpede',       pwd: 'Zephir@2026', nom: 'Brice AKPEDE',         role: 'agent', zone: 'Adjarra',           initiales: 'BA', statut: 'actif' },
+    { id: 'Fatima.Adeko',       pwd: 'Zephir@2026', nom: 'Fatima ADEKO',         role: 'agent', zone: 'Adjarra',           initiales: 'FA', statut: 'actif' },
   ];
   let USERS              = [...USERS_SEED];
   let currentUser        = null;
@@ -2582,22 +2594,62 @@
         </div>
       </div>`;
 
-    /* Carte superviseur + agents */
-    const agentRows = agents.length
-      ? agents.map(a => `
-          <div class="zone-team-agent-row">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:32px;height:32px;border-radius:50%;background:var(--gray-bg);color:var(--gray-text);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${a.initiales}</div>
-              <div>
-                <div style="font-weight:600;font-size:13px">${a.nom}</div>
-                <div style="font-size:11px;color:var(--gray-text)">${a.id}</div>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge ${a.statut === 'actif' ? 'badge-green' : 'badge-red'}">${a.statut}</span>
-              <button class="btn btn-secondary btn-sm" onclick="openUserModal('${a.id}')"><i class="fa fa-pen"></i></button>
-            </div>
-          </div>`).join('')
+    /* Tableau de performance agents */
+    const agentRows = agents.length ? `
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:720px;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--gray-bg);font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray-text)">
+              <th style="padding:8px 16px;text-align:left;font-weight:700">Agent DFA</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Auj.</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Semaine</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Mois</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Moy./Jour</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Moy./Sem.</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700">Progression J-1</th>
+              <th style="padding:8px 10px;text-align:center;font-weight:700"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${agents.map(a => {
+              const p = AGENT_PERF_DATA[a.id] || { jour:0, hier:0, semaine:0, mois:0, moyJour:0, moySemaine:0 };
+              const prog = p.hier > 0 ? Math.round((p.jour - p.hier) / p.hier * 100) : (p.jour > 0 ? 100 : 0);
+              const progSign  = prog >= 0 ? '+' : '';
+              const progColor = prog > 0 ? 'var(--green)' : prog < 0 ? 'var(--red)' : 'var(--gray-text)';
+              const progIcon  = prog > 0 ? 'fa-arrow-trend-up' : prog < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+              const isAlert   = prog <= -15;
+              const rowBg     = isAlert ? 'rgba(220,53,69,.04)' : '';
+              return `
+              <tr style="border-bottom:1px solid var(--gray-border);background:${rowBg}">
+                <td style="padding:10px 16px">
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <div style="width:30px;height:30px;border-radius:50%;background:${a.statut==='actif'?'var(--yellow)':'var(--gray-bg)'};color:${a.statut==='actif'?'var(--black)':'var(--gray-text)'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">${a.initiales}</div>
+                    <div>
+                      <div style="font-weight:600;font-size:13px">${a.nom}${isAlert ? ' <i class="fa fa-triangle-exclamation" style="color:var(--orange);font-size:11px;margin-left:4px" title="Alerte superviseur : baisse significative"></i>' : ''}</div>
+                      <div style="font-size:11px;color:var(--gray-text)">${a.id} &nbsp;·&nbsp; <span class="badge ${a.statut==='actif'?'badge-green':'badge-red'}" style="font-size:10px">${a.statut}</span></div>
+                    </div>
+                  </div>
+                </td>
+                <td style="padding:10px;text-align:center;font-weight:800;font-size:15px">${p.jour}</td>
+                <td style="padding:10px;text-align:center;font-weight:700;font-size:14px">${p.semaine}</td>
+                <td style="padding:10px;text-align:center;font-weight:700;font-size:14px">${p.mois}</td>
+                <td style="padding:10px;text-align:center;font-size:13px;color:var(--gray-text)">${p.moyJour.toFixed(1)}</td>
+                <td style="padding:10px;text-align:center;font-size:13px;color:var(--gray-text)">${p.moySemaine.toFixed(1)}</td>
+                <td style="padding:10px;text-align:center">
+                  <span style="font-weight:700;font-size:13px;color:${progColor};display:flex;align-items:center;justify-content:center;gap:4px">
+                    <i class="fa ${progIcon}"></i> ${progSign}${prog}%
+                    ${isAlert ? '<i class="fa fa-bell" style="color:var(--orange);font-size:11px;margin-left:2px" title="Alerte envoyée au superviseur"></i>' : ''}
+                  </span>
+                  <div style="font-size:10px;color:var(--gray-text);margin-top:2px">hier : ${p.hier} act.</div>
+                </td>
+                <td style="padding:10px;text-align:center">
+                  <button class="btn btn-secondary btn-sm" onclick="openUserModal('${a.id}')"><i class="fa fa-pen"></i></button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`
       : `<div style="padding:20px 24px;color:var(--gray-text);font-size:13px;text-align:center">
            <i class="fa fa-circle-info" style="margin-right:6px"></i>Aucun agent enregistré pour cette zone
          </div>`;
@@ -2619,9 +2671,11 @@
           </button>
         </div>
         <div class="zone-team-body">
-          <div style="padding:10px 20px 4px;font-size:12px;font-weight:600;color:var(--gray-text);letter-spacing:.5px;text-transform:uppercase">
-            Agents DFA — ${dfaTotal} agent${dfaTotal !== 1 ? 's' : ''}
-            (<span style="color:var(--green)">${dfaActifsStatut} actif${dfaActifsStatut !== 1 ? 's' : ''}</span>)
+          <div style="padding:10px 20px 6px;font-size:12px;font-weight:600;color:var(--gray-text);letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:10px">
+            <span>Agents DFA — ${dfaTotal} agent${dfaTotal !== 1 ? 's' : ''} (<span style="color:var(--green)">${dfaActifsStatut} actif${dfaActifsStatut !== 1 ? 's' : ''}</span>)</span>
+            ${agents.filter(a => { const p = AGENT_PERF_DATA[a.id]; return p && p.hier > 0 && Math.round((p.jour-p.hier)/p.hier*100) <= -15; }).length > 0
+              ? `<span style="background:rgba(253,126,20,.12);color:var(--orange);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700"><i class="fa fa-triangle-exclamation" style="margin-right:4px"></i>${agents.filter(a => { const p = AGENT_PERF_DATA[a.id]; return p && p.hier > 0 && Math.round((p.jour-p.hier)/p.hier*100) <= -15; }).length} alerte${agents.filter(a => { const p = AGENT_PERF_DATA[a.id]; return p && p.hier > 0 && Math.round((p.jour-p.hier)/p.hier*100) <= -15; }).length > 1 ? 's' : ''}</span>`
+              : ''}
           </div>
           ${agentRows}
         </div>
@@ -2846,6 +2900,23 @@
       mois:    { grossAdd: 3590,  dfaActifs: 12, target: 4105,  evolution: -1 },
       annee:   { grossAdd: 24100, dfaActifs: 12, target: 49260, evolution: 3  },
     },
+  };
+
+  /* Mock performance individuelle par agent — { jour, hier, semaine, mois, moyJour, moySemaine } */
+  const AGENT_PERF_DATA = {
+    'Agent.Test':     { jour: 24, hier: 18, semaine: 112, mois: 380, moyJour: 14.6, moySemaine: 22.4 },
+    'Jules.Akindes':  { jour: 21, hier: 23, semaine: 96,  mois: 340, moyJour: 13.1, moySemaine: 19.2 },
+    'Sylvie.Houngbo': { jour: 0,  hier: 7,  semaine: 18,  mois: 62,  moyJour: 2.4,  moySemaine: 3.6  },
+    'Kofi.Agbodji':   { jour: 19, hier: 15, semaine: 87,  mois: 310, moyJour: 12.4, moySemaine: 17.4 },
+    'Marie.Hounsou':  { jour: 22, hier: 24, semaine: 101, mois: 362, moyJour: 13.9, moySemaine: 20.2 },
+    'Pascal.Dossou':  { jour: 4,  hier: 12, semaine: 28,  mois: 95,  moyJour: 3.7,  moySemaine: 5.6  },
+    'Raoul.Adanle':   { jour: 14, hier: 11, semaine: 68,  mois: 241, moyJour: 9.3,  moySemaine: 13.6 },
+    'Chantal.Gbedji': { jour: 16, hier: 17, semaine: 75,  mois: 275, moyJour: 10.6, moySemaine: 15.0 },
+    'Basile.Ganfon':  { jour: 28, hier: 22, semaine: 132, mois: 470, moyJour: 18.1, moySemaine: 26.4 },
+    'Nadia.Zannou':   { jour: 31, hier: 29, semaine: 148, mois: 520, moyJour: 20.0, moySemaine: 29.6 },
+    'Cedric.Dansou':  { jour: 25, hier: 30, semaine: 120, mois: 432, moyJour: 16.6, moySemaine: 24.0 },
+    'Brice.Akpede':   { jour: 12, hier: 16, semaine: 59,  mois: 208, moyJour: 8.0,  moySemaine: 11.8 },
+    'Fatima.Adeko':   { jour: 15, hier: 13, semaine: 71,  mois: 252, moyJour: 9.7,  moySemaine: 14.2 },
   };
 
   function setZonePeriod(period, btn) {
