@@ -2917,6 +2917,10 @@
   /* ---- Navigation arborescente Équipes ---- */
 
   function toggleNavGroup(group, el) {
+    if (group === 'superviseur' && currentUser && currentUser.role === 'superviseur') {
+      showSupView(currentUser.id, el);
+      return;
+    }
     const sub     = document.getElementById('nav-sub-' + group);
     const chevron = document.getElementById('nav-chevron-' + group);
     if (!sub) return;
