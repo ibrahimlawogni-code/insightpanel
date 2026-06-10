@@ -1457,6 +1457,21 @@
         <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
       </div>
 
+      <!-- SÉLECTEUR DFA (superviseur / ra uniquement) -->
+      <div id="agent-dfa-selector-row" style="display:none;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:800;color:var(--gray-text);white-space:nowrap">
+            <i class="fa fa-eye" style="margin-right:5px;color:var(--yellow)"></i>Vue DFA
+          </label>
+          <select id="agent-dfa-select" class="input-field" style="width:auto;min-width:220px;padding:6px 10px;font-size:13px" onchange="setAgentViewDfa(this.value)">
+            <option value="">— Choisir un DFA —</option>
+          </select>
+          <span id="agent-dfa-select-hint" style="font-size:11px;color:var(--gray-text);display:none">
+            <i class="fa fa-circle-info" style="margin-right:3px"></i>Vue en lecture seule
+          </span>
+        </div>
+      </div>
+
       <!-- PERFORMANCE RÉSUMÉE -->
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
@@ -2376,7 +2391,11 @@
       parametres:  'Paramètres'
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
-    if (name === 'agent')     { updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); }
+    if (name === 'agent') {
+      agentViewDfaId = null;
+      _initAgentDfaSelector();
+      updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier();
+    }
     if (name === 'evaluation')  renderEvaluation();
     if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
@@ -2929,6 +2948,44 @@
     if (chevron) chevron.classList.toggle('open', !isOpen);
   }
 
+  /* --- Sélecteur DFA dans Vue Agent (superviseur / ra) --- */
+  function _initAgentDfaSelector() {
+    const row    = document.getElementById('agent-dfa-selector-row');
+    const sel    = document.getElementById('agent-dfa-select');
+    const hint   = document.getElementById('agent-dfa-select-hint');
+    const canPick = currentUser && (currentUser.role === 'superviseur' || currentUser.role === 'ra' || currentUser.role === 'dg' || currentUser.role === 'dga');
+    if (!row) return;
+    row.style.display = canPick ? 'block' : 'none';
+    if (!canPick || !sel) return;
+
+    /* Peupler la liste selon le rôle */
+    const agents = currentUser.role === 'superviseur'
+      ? USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(currentUser.zone))
+      : USERS.filter(u => u.role === 'agent' && u.statut === 'actif');
+
+    agents.sort((a, b) => (a.nom||'').localeCompare(b.nom||''));
+    sel.innerHTML = '<option value="">— Choisir un DFA —</option>' +
+      agents.map(a => `<option value="${a.id}">${a.nom}${a.zone ? ' · ' + a.zone : ''}</option>`).join('');
+    sel.value = agentViewDfaId || '';
+    if (hint) hint.style.display = agentViewDfaId ? 'inline' : 'none';
+  }
+
+  function setAgentViewDfa(dfaId) {
+    agentViewDfaId = dfaId || null;
+    const hint = document.getElementById('agent-dfa-select-hint');
+    if (hint) hint.style.display = dfaId ? 'inline' : 'none';
+
+    /* Mettre à jour le sous-titre */
+    const sub  = document.getElementById('agent-page-subtitle');
+    const user = _agentUser();
+    if (sub && user) {
+      sub.textContent = dfaId
+        ? `${user.nom} · Agent DFA · Zone ${user.zone || '—'} (vue superviseur)`
+        : `${currentUser.nom} · ${currentUser.role} · Zone ${currentUser.zone}`;
+    }
+    updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier();
+  }
+
   function _activateEquipesView() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-equipes').classList.add('active');
@@ -3359,6 +3416,10 @@
   let supDfaPerfPeriod   = 'semaine';
   let currentSupDfaFilter = '';
   let CURRENT_ZONE_PERIOD = 'jour';
+  let agentViewDfaId      = null; // null = currentUser, sinon ID du DFA visualisé par sup/ra
+
+  function _agentId()   { return agentViewDfaId || (currentUser ? currentUser.id   : null); }
+  function _agentUser() { const id = _agentId(); return (id ? USERS.find(u => u.id === id) : null) || currentUser; }
 
   /* Mock performance par zone — 30 DFAs/zone × 10 SIMs/jour = target 300/jour par zone */
   const ZONE_PERF_DATA = {
@@ -4378,9 +4439,9 @@
 
     let gsmJ, momoJ, gsmS, momoS, gsmM, momoM;
     if (SAISIES_DATA.length) {
-      const dJ = _computeAgentPerf(currentUser.id, 'jour',    today);
-      const dS = _computeAgentPerf(currentUser.id, 'semaine', today);
-      const dM = _computeAgentPerf(currentUser.id, 'mois',    today);
+      const dJ = _computeAgentPerf(_agentId(), 'jour',    today);
+      const dS = _computeAgentPerf(_agentId(), 'semaine', today);
+      const dM = _computeAgentPerf(_agentId(), 'mois',    today);
       gsmJ = dJ.gsm; momoJ = dJ.momo;
       gsmS = dS.gsm; momoS = dS.momo;
       gsmM = dM.gsm; momoM = dM.momo;
@@ -4445,7 +4506,7 @@
 
     let gsm, momo, conformite;
     if (SAISIES_DATA.length) {
-      const mine   = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const mine   = SAISIES_DATA.filter(s => s.dfaId === _agentId());
       const semFil = _filterPeriod(mine, 'semaine', today);
       gsm        = _sumField(semFil, 'grossAdd');
       momo       = _sumField(semFil, 'momoUser');
@@ -4497,15 +4558,15 @@
     if (SAISIES_DATA.length) {
       const rankThis = rankSaisies(_filterWeekOffset(SAISIES_DATA,  0));
       const rankLast = rankSaisies(_filterWeekOffset(SAISIES_DATA, -1));
-      const idxThis  = rankThis.findIndex(a => a.id === currentUser.id);
-      const idxLast  = rankLast.findIndex(a => a.id === currentUser.id);
+      const idxThis  = rankThis.findIndex(a => a.id === _agentId());
+      const idxLast  = rankLast.findIndex(a => a.id === _agentId());
       rang    = idxThis >= 0 ? idxThis + 1 : null;
       total   = Math.max(rankThis.length, USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length);
-      perfPct = _computeAgentPerf(currentUser.id, 'semaine', today).tauxGSM;
+      perfPct = _computeAgentPerf(_agentId(), 'semaine', today).tauxGSM;
       if (idxThis >= 0 && idxLast >= 0) evol = (idxLast + 1) - (idxThis + 1);
     } else {
       const sorted = [...BESTSELLER_MOCK].sort((a, b) => b.semaine - a.semaine);
-      const idx    = sorted.findIndex(a => a.id === currentUser.id);
+      const idx    = sorted.findIndex(a => a.id === _agentId());
       rang    = idx >= 0 ? idx + 1 : null;
       total   = sorted.length;
       const keyS = today.getFullYear() + '-W' + getWeekNumber(today);
@@ -4546,7 +4607,7 @@
     const todayStr = today.toLocaleDateString('fr-FR');
 
     if (SAISIES_DATA.length) {
-      const mine  = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const mine  = SAISIES_DATA.filter(s => s.dfaId === _agentId());
       const dates = [...new Set(mine.map(s => s.date).filter(Boolean))].sort((a, b) => {
         const da = _parseFrDate(a), db = _parseFrDate(b);
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
@@ -4619,7 +4680,7 @@
     }
 
     function buildRow(agent, i, hasMomoActiv) {
-      const isMe = agent.id === currentUser.id;
+      const isMe = agent.id === _agentId();
       const [, evalLbl, evalCls] = evalInfo(agent.semaine);
       const namePart = isMe
         ? `<strong>${agent.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
@@ -5152,7 +5213,7 @@
     function weekData(offset) {
       const lbl = offset === 0 ? 'Cette sem.' : `S-${Math.abs(offset)}`;
       if (SAISIES_DATA.length) {
-        const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+        const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
         const fil  = _filterWeekOffset(mine, offset);
         return { lbl, gsm: _sumField(fil, 'grossAdd'), momo: _sumField(fil, 'momoUser') };
       } else {
@@ -5214,7 +5275,7 @@
 
     let gsmM, momoM, semW, semW1;
     if (SAISIES_DATA.length) {
-      const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
       gsmM  = _sumField(_filterPeriod(mine, 'mois',    today), 'grossAdd');
       momoM = _sumField(_filterPeriod(mine, 'mois',    today), 'momoUser');
       semW  = _sumField(_filterWeekOffset(mine,  0), 'grossAdd');
@@ -5256,7 +5317,7 @@
 
     let daysActifs;
     if (SAISIES_DATA.length) {
-      const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
       daysActifs = _uniqueDays(_filterWeekOffset(mine, 0));
     } else {
       daysActifs = Object.values(agentPerfData.jour).filter(j => j.gsm > 0).length;
@@ -5295,7 +5356,7 @@
 
     const saisieMap = {};
     if (SAISIES_DATA.length) {
-      const mine = _filterPeriod(SAISIES_DATA.filter(s => s.dfaId === currentUser.id), 'mois', today);
+      const mine = _filterPeriod(SAISIES_DATA.filter(s => s.dfaId === _agentId()), 'mois', today);
       mine.forEach(s => {
         const d = _parseFrDate(s.date);
         if (d) { const k = d.getDate(); saisieMap[k] = (saisieMap[k]||0) + (s.grossAdd||0); }
@@ -5675,7 +5736,7 @@
 
     function buildRows(list, showZone) {
       return list.slice(0, 10).map((agent, i) => {
-        const isMe = (agent.id === currentUser.id);
+        const isMe = (agent.id === _agentId());
         const [, evalLbl, evalCls] = evalInfo(agent[key]);
         const namePart = isMe
           ? `<strong>${agent.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
@@ -5724,8 +5785,8 @@
     if (!labelEl || !gridEl) return;
     labelEl.textContent = formatPerfLabel();
     const key = getPerfKey();
-    const d   = (SAISIES_DATA.length && currentUser)
-      ? _computeAgentPerf(currentUser.id, perfPeriod, perfDate)
+    const d   = (SAISIES_DATA.length && _agentId())
+      ? _computeAgentPerf(_agentId(), perfPeriod, perfDate)
       : ((agentPerfData[perfPeriod] || {})[key]);
     if (!d) {
       gridEl.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px">Aucune donnée disponible pour cette période.</div>';
@@ -6367,7 +6428,7 @@
       return;
     }
 
-    const mine    = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+    const mine    = SAISIES_DATA.filter(s => s.dfaId === _agentId());
     const moisFil = _filterPeriod(mine, 'mois', today);
     const semFil  = _filterPeriod(mine, 'semaine', today);
     const jourFil = _filterPeriod(mine, 'jour', today);
@@ -6392,7 +6453,7 @@
 
     /* Classement global cette semaine */
     const bsData  = _computeBestsellerData('semaine').sort((a,b)=>b.semaine-a.semaine);
-    const rang    = bsData.findIndex(a => a.id === currentUser.id);
+    const rang    = bsData.findIndex(a => a.id === _agentId());
     const rangLbl = rang >= 0 ? '#'+(rang+1) : '—';
 
     /* Note globale */
