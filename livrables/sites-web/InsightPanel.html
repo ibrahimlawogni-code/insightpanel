@@ -3972,7 +3972,8 @@
     const zoneTgt  = _zoneTarget(sup.zone, supPeriodKey) || 70;
     const agentTgt = Math.round(zoneTgt / nbAgents);
 
-    const agentsData = zoneAgents.map(agent => {
+    const totalAgents = zoneAgents.length;
+    const agentsData = zoneAgents.slice(0, 10).map(agent => {
       const saisies = periodSaisies.filter(s => s.dfaId === agent.id);
       const ga  = _sumField(saisies, 'grossAdd');
       const mm  = _sumField(saisies, 'momoUser');
@@ -4029,7 +4030,10 @@
         <td></td>
       </tr>`;
 
-    tbody.innerHTML = agentRows + agentFooter;
+    const moreRow1 = totalAgents > 10
+      ? `<tr><td colspan="6" style="text-align:center;font-size:12px;color:var(--gray-text);padding:8px;border-top:1px dashed #ddd"><i class="fa fa-ellipsis" style="margin-right:5px"></i>${totalAgents - 10} DFA supplémentaire(s) non affiché(s) — total : ${totalAgents}</td></tr>`
+      : '';
+    tbody.innerHTML = agentRows + moreRow1 + agentFooter;
 
     renderSupDfaPerfTable(supId);
     renderSupDfaHebdoTable(supId);
@@ -4842,10 +4846,11 @@
       return;
     }
 
-    const zoneTgt  = _zoneTarget(sup.zone, supDfaPerfPeriod) || 0;
-    const agentTgt = Math.round(zoneTgt / Math.max(1, agents.length));
+    const zoneTgt    = _zoneTarget(sup.zone, supDfaPerfPeriod) || 0;
+    const totalPerf  = agents.length;
+    const agentTgt   = Math.round(zoneTgt / Math.max(1, agents.length));
 
-    const perfData = agents.map(agent => {
+    const perfData = agents.slice(0, 10).map(agent => {
       let ga = 0, mm = 0, mj = 0;
       if (SAISIES_DATA.length) {
         const s = _filterPeriod(SAISIES_DATA.filter(x => x.dfaId === agent.id), supDfaPerfPeriod, today);
@@ -4926,7 +4931,7 @@
             <th style="text-align:center">Évolution</th>
           </tr>
         </thead>
-        <tbody>${rows}${footer2}</tbody>
+        <tbody>${rows}${totalPerf > 10 ? `<tr><td colspan="6" style="text-align:center;font-size:12px;color:var(--gray-text);padding:8px;border-top:1px dashed #ddd"><i class="fa fa-ellipsis" style="margin-right:5px"></i>${totalPerf - 10} DFA supplémentaire(s) non affiché(s) — total : ${totalPerf}</td></tr>` : ''}${footer2}</tbody>
       </table>`;
   }
 
@@ -4951,6 +4956,7 @@
     }
 
     const zoneTgtSem  = _zoneTarget(sup.zone, 'semaine') || 0;
+    const totalHebdo  = agents.length;
     const agentTgt    = Math.round(zoneTgtSem / Math.max(1, agents.length));
 
     const fmtGap = val => {
@@ -4961,7 +4967,7 @@
       return `<span style="color:${color};font-weight:700;white-space:nowrap"><i class="fa ${icon}" style="margin-right:3px"></i>${sign}${val} %</span>`;
     };
 
-    const data = agents.map(agent => {
+    const data = agents.slice(0, 10).map(agent => {
       const zAll  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.dfaId === agent.id) : [];
       const wCurr = _sumField(_filterWeekOffset(zAll,  0), 'grossAdd');
       const wM1   = _sumField(_filterWeekOffset(zAll, -1), 'grossAdd');
@@ -5027,7 +5033,7 @@
               <th style="text-align:center">Gap Target</th>
             </tr>
           </thead>
-          <tbody>${rows}${footer}</tbody>
+          <tbody>${rows}${totalHebdo > 10 ? `<tr><td colspan="8" style="text-align:center;font-size:12px;color:var(--gray-text);padding:8px;border-top:1px dashed #ddd"><i class="fa fa-ellipsis" style="margin-right:5px"></i>${totalHebdo - 10} DFA supplémentaire(s) non affiché(s) — total : ${totalHebdo}</td></tr>` : ''}${footer}</tbody>
         </table>
       </div>`;
   }
