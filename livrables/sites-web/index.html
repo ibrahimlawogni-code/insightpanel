@@ -2396,7 +2396,7 @@
       _initAgentDfaSelector();
       updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier();
     }
-    if (name === 'evaluation')  renderEvaluation();
+    if (name === 'evaluation')  _renderEvaluationView();
     if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
     if (name === 'equipes')   { loadUsers(); loadDemandes(); }
@@ -5819,92 +5819,6 @@
       </div>`;
   }
 
-  function renderEvaluation() {
-    const body = document.getElementById('evaluation-body');
-    if (!body) return;
-
-    const key = today.getFullYear() + '-W' + getWeekNumber(today);
-    const d = (SAISIES_DATA.length && currentUser)
-      ? _computeAgentPerf(currentUser.id, 'semaine', today)
-      : (agentPerfData.semaine[key] || null);
-
-    if (!d) {
-      body.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:40px">Aucune donnée disponible pour cette période.</div>';
-      return;
-    }
-
-    _applyMentionBadges(d.tauxGSM, d.tauxMomo);
-
-    const score = Math.round(d.tauxGSM * 0.6 + d.tauxMomo * 0.4);
-    const tc = v => v >= 80 ? 'var(--green)' : v >= 60 ? 'var(--orange)' : 'var(--red)';
-    const bc = v => v >= 80 ? 'badge-green' : 'badge-orange';
-    const m  = _getMention(d.tauxGSM, d.tauxMomo);
-
-    let appText, vigilText;
-    if (score >= 90) {
-      appText   = `Performance excellente cette semaine. Gross Add à ${d.tauxGSM} % de l'objectif, MoMo à ${d.tauxMomo} %.`;
-      vigilText = 'Maintenir ce rythme et veiller à la conformité des bases.';
-    } else if (score >= 80) {
-      appText   = `Très bonne performance. Gross Add à ${d.tauxGSM} % de l'objectif, MoMo à ${d.tauxMomo} %.`;
-      vigilText = `Un effort supplémentaire sur le MoMo permettrait d'atteindre l'excellence.`;
-    } else if (score >= 65) {
-      appText   = `Bonne performance globale. Gross Add à ${d.tauxGSM} % de l'objectif, MoMo à ${d.tauxMomo} %.`;
-      vigilText = 'Renforcer la régularité et viser 90 %+ sur les deux indicateurs.';
-    } else if (score >= 50) {
-      appText   = `Performance passable. Gross Add à ${d.tauxGSM} % de l'objectif, MoMo à ${d.tauxMomo} %.`;
-      vigilText = 'Identifier les jours sans saisie et corriger rapidement.';
-    } else {
-      appText   = `Performance insuffisante. Gross Add à ${d.tauxGSM} % de l'objectif, MoMo à ${d.tauxMomo} %.`;
-      vigilText = 'Un coaching est recommandé. Revoir les objectifs journaliers.';
-    }
-
-    body.innerHTML = `
-      <div class="card">
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:${tc(d.tauxGSM)}">${d.tauxGSM} %</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Atteinte Gross Add</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:${tc(d.tauxMomo)}">${d.tauxMomo} %</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Atteinte MoMo</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:${tc(score)}">${score} %</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Score global</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif Gross Add hebdo</span>
-              <span class="badge ${bc(d.tauxGSM)}">${d.tauxGSM} %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif New MoMo User hebdo</span>
-              <span class="badge ${bc(d.tauxMomo)}">${d.tauxMomo} %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-chart-bar" style="color:var(--yellow);margin-right:8px"></i>Gross Add réalisé cette semaine</span>
-              <span class="badge badge-black">${d.gsm} activations</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-mobile-screen" style="color:var(--yellow);margin-right:8px"></i>New MoMo User réalisé cette semaine</span>
-              <span class="badge badge-black">${d.momo} abonnés</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-star" style="color:var(--yellow);margin-right:8px"></i>Mention globale</span>
-              <span class="badge ${m.cls}" style="font-weight:800">${m.label}</span>
-            </div>
-          </div>
-          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
-            <strong>Appréciation :</strong> ${appText}<br>
-            <strong>Point de vigilance :</strong> ${vigilText}
-          </div>
-        </div>
-      </div>`;
-  }
-
   /* ============================================================
      DONNÉES RÉELLES — SYNCHRONISATION DEPUIS GOOGLE SHEETS
   ============================================================ */
@@ -6422,65 +6336,100 @@
     const container = document.getElementById('evaluation-body');
     if (!container || !currentUser) return;
 
-    /* Branche RA / rôles managériaux : évaluation d'équipe */
-    if (['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+    /* Branche managériale (superviseur inclus) */
+    if (['ra','superviseur','dg','dga','dcc','dc'].includes(currentUser.role)) {
       _renderEvaluationViewRA(container);
       return;
     }
 
     const mine    = SAISIES_DATA.filter(s => s.dfaId === _agentId());
-    const moisFil = _filterPeriod(mine, 'mois', today);
+    const moisFil = _filterPeriod(mine, 'mois',    today);
     const semFil  = _filterPeriod(mine, 'semaine', today);
-    const jourFil = _filterPeriod(mine, 'jour', today);
+    const semPFil = _filterWeekOffset(mine, -1);
 
     const gsmMois  = _sumField(moisFil, 'grossAdd');
     const momoMois = _sumField(moisFil, 'momoUser');
     const gsmSem   = _sumField(semFil,  'grossAdd');
     const momoSem  = _sumField(semFil,  'momoUser');
+    const gsmSemP  = _sumField(semPFil, 'grossAdd');
 
     const daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-    const tMois = DFA_DAILY_TARGET * daysInM;
-    const tSem  = DFA_DAILY_TARGET * 7;
+    const tMois   = DFA_DAILY_TARGET * daysInM;
+    const tSem    = DFA_DAILY_TARGET * 7;
 
     const atteinteGSM  = tMois > 0 ? Math.min(100, Math.round(gsmMois  / tMois * 100)) : 0;
     const atteinteGSMs = tSem  > 0 ? Math.min(100, Math.round(gsmSem   / tSem  * 100)) : 0;
     const atteintemomo = gsmMois > 0 ? Math.min(100, Math.round(momoMois / gsmMois * 100)) : 0;
     const atteinteMomoS = gsmSem > 0 ? Math.min(100, Math.round(momoSem  / gsmSem  * 100)) : 0;
 
-    const daysActifs   = _uniqueDays(semFil);
-    const joursOuv     = 6;
-    const regularitePct = Math.round(daysActifs / joursOuv * 100);
+    /* Régularité : jours ouvrés écoulés cette semaine (lun-sam, pas au-delà d'aujourd'hui) */
+    const todayDow = today.getDay() === 0 ? 7 : today.getDay(); // 1=lun … 7=dim
+    const joursOuv = Math.min(todayDow, 6); // max 6 jours ouvrés (lun-sam)
+    const daysActifs    = _uniqueDays(semFil);
+    const regularitePct = joursOuv > 0 ? Math.round(daysActifs / joursOuv * 100) : 0;
+
+    /* Tendance réelle : semaine en cours vs semaine précédente */
+    const tendPct  = gsmSemP > 0 ? Math.round((gsmSem - gsmSemP) / gsmSemP * 100) : null;
+    const tendLbl  = tendPct === null ? '—'
+      : tendPct > 0  ? `+${tendPct}% vs S-1`
+      : tendPct < 0  ? `${tendPct}% vs S-1`
+      : 'Stable vs S-1';
+    const tendBdg  = tendPct === null ? 'badge-yellow'
+      : tendPct > 5  ? 'badge-green'
+      : tendPct >= 0 ? 'badge-yellow'
+      : 'badge-red';
 
     /* Classement global cette semaine */
-    const bsData  = _computeBestsellerData('semaine').sort((a,b)=>b.semaine-a.semaine);
+    const bsData  = _computeBestsellerData('semaine').sort((a,b) => b.semaine - a.semaine);
     const rang    = bsData.findIndex(a => a.id === _agentId());
-    const rangLbl = rang >= 0 ? '#'+(rang+1) : '—';
+    const rangLbl = rang >= 0 ? '#' + (rang + 1) : '—';
 
-    /* Note globale */
-    const avg = Math.round((atteinteGSM + atteintemomo + Math.min(100,regularitePct)) / 3);
+    /* Note globale (GA mensuel + MoMo mensuel + régularité) */
+    const avg = Math.round((atteinteGSM + atteintemomo + Math.min(100, regularitePct)) / 3);
     const [grade, gradeLbl, gradeColor] =
-      avg >= 85 ? ['A', 'Excellent',  'var(--green)'] :
-      avg >= 70 ? ['B+','Bon',        'var(--green)'] :
-      avg >= 55 ? ['B', 'Correct',    'var(--orange)'] :
-                  ['C', 'À améliorer','var(--red)'];
+      avg >= 85 ? ['A',  'Excellent',   'var(--green)']  :
+      avg >= 70 ? ['B+', 'Bon',         'var(--green)']  :
+      avg >= 55 ? ['B',  'Correct',     'var(--orange)'] :
+                  ['C',  'À améliorer', 'var(--red)'];
 
-    /* Badge label dans le page-header */
     const badgeEl = document.querySelector('#view-evaluation .page-header .badge');
     if (badgeEl) { badgeEl.textContent = `${grade}  ${gradeLbl}`; badgeEl.style.color = gradeColor; }
 
-    const tc = v => v>=80?'var(--green)':v>=65?'var(--orange)':'var(--red)';
+    const tc = v => v >= 80 ? 'var(--green)' : v >= 65 ? 'var(--orange)' : 'var(--red)';
     const evalRow = (icon, label, value, cls) =>
       `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
         <span><i class="fa ${icon}" style="color:var(--yellow);margin-right:8px"></i>${label}</span>
         <span class="badge ${cls}">${value}</span>
       </div>`;
 
-    const gsmSemBdg  = atteinteGSMs  >= 80?'badge-green':atteinteGSMs  >=65?'badge-orange':'badge-red';
-    const momoSemBdg = atteinteMomoS >= 80?'badge-green':atteinteMomoS >=65?'badge-orange':'badge-red';
-    const regBdg     = daysActifs    >= 5 ?'badge-green':daysActifs     >= 3?'badge-orange':'badge-red';
-    const regLbl     = daysActifs    >= 5 ?'Excellent'  :daysActifs     >= 3?'Correct'     :'À améliorer';
-    const tendBdg    = avg           >= 70?'badge-green':avg            >= 55?'badge-orange':'badge-red';
-    const tendLbl    = avg           >= 70?'En progression':avg         >= 55?'Stable'      :'En baisse';
+    const gsmSemBdg  = atteinteGSMs  >= 80 ? 'badge-green' : atteinteGSMs  >= 65 ? 'badge-orange' : 'badge-red';
+    const momoSemBdg = atteinteMomoS >= 80 ? 'badge-green' : atteinteMomoS >= 65 ? 'badge-orange' : 'badge-red';
+    const regBdg     = regularitePct >= 80 ? 'badge-green' : regularitePct >= 50 ? 'badge-orange' : 'badge-red';
+    const regLbl     = regularitePct >= 80 ? 'Excellent'   : regularitePct >= 50 ? 'Correct'      : 'À améliorer';
+
+    /* Message de coaching adapté */
+    let coachingIcon, coachingText, vigilText;
+    if (avg >= 85) {
+      coachingIcon = 'fa-trophy';
+      coachingText = `Excellente performance ce mois. Gross Add à ${atteinteGSM} % de l'objectif, MoMo à ${atteintemomo} %.`;
+      vigilText    = 'Maintenir ce rythme et veiller à la conformité des bases.';
+    } else if (avg >= 70) {
+      coachingIcon = 'fa-thumbs-up';
+      coachingText = `Bonne performance globale. Gross Add à ${atteinteGSM} %, MoMo à ${atteintemomo} %.`;
+      vigilText    = atteintemomo < 80
+        ? 'Renforcer les enrôlements MoMo pour atteindre 90 %.'
+        : 'Maintenir la cadence et consolider la régularité terrain.';
+    } else if (avg >= 55) {
+      coachingIcon = 'fa-circle-exclamation';
+      coachingText = `Performance correcte mais perfectible. Gross Add à ${atteinteGSM} %, MoMo à ${atteintemomo} %.`;
+      vigilText    = atteinteGSMs < 65
+        ? 'Le rythme hebdomadaire est insuffisant : viser au moins 65 % de l'objectif par semaine.'
+        : 'Travailler la régularité : éviter les jours sans saisie.';
+    } else {
+      coachingIcon = 'fa-triangle-exclamation';
+      coachingText = `Performance insuffisante. Gross Add à ${atteinteGSM} %, MoMo à ${atteintemomo} %.`;
+      vigilText    = 'Un coaching est recommandé. Revoir les objectifs journaliers et identifier les blocages terrain.';
+    }
 
     container.innerHTML = `
       <div class="kpi-grid" style="margin-bottom:20px">
@@ -6491,11 +6440,11 @@
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Jours actifs</div>
-          <div class="kpi-value" style="color:${daysActifs>=5?'var(--green)':'var(--orange)'}">${daysActifs} / ${joursOuv}</div>
-          <div class="kpi-sub">Cette semaine</div>
+          <div class="kpi-value" style="color:${regularitePct>=80?'var(--green)':regularitePct>=50?'var(--orange)':'var(--red)'}">${daysActifs} / ${joursOuv}</div>
+          <div class="kpi-sub">Jours ouvrés écoulés cette sem.</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">New MoMo User</div>
+          <div class="kpi-label">Ratio MoMo</div>
           <div class="kpi-value" style="color:${tc(atteintemomo)}">${atteintemomo} %</div>
           <div class="kpi-sub">vs Gross Add ce mois</div>
         </div>
@@ -6509,21 +6458,34 @@
         <div class="card-header"><div class="card-title">Détail par indicateur</div></div>
         <div class="card-body">
           <div style="display:flex;flex-direction:column;gap:8px">
-            ${evalRow('fa-bullseye',      'Objectif Gross Add hebdomadaire',     atteinteGSMs+'%',   gsmSemBdg)}
-            ${evalRow('fa-wallet',        'Objectif New MoMo User hebdomadaire', atteinteMomoS+'%', momoSemBdg)}
-            ${evalRow('fa-calendar-check','Régularité terrain',                  regLbl,             regBdg)}
-            ${evalRow('fa-chart-line',    'Tendance générale',                   tendLbl,            tendBdg)}
+            ${evalRow('fa-bullseye',       'Objectif Gross Add hebdomadaire',     atteinteGSMs + ' %',  gsmSemBdg)}
+            ${evalRow('fa-wallet',         'Objectif New MoMo User hebdomadaire', atteinteMomoS + ' %', momoSemBdg)}
+            ${evalRow('fa-calendar-check', 'Régularité terrain (sem. en cours)',  regLbl,               regBdg)}
+            ${evalRow('fa-chart-line',     'Tendance Gross Add (S vs S-1)',       tendLbl,              tendBdg)}
           </div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:20px">
         <div class="card-header"><div class="card-title">Bilan du mois</div></div>
         <div class="card-body">
           <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
             <strong>Gross Add :</strong> ${gsmMois.toLocaleString('fr-FR')} / ${tMois.toLocaleString('fr-FR')} (${atteinteGSM} %)<br>
             <strong>New MoMo User :</strong> ${momoMois.toLocaleString('fr-FR')} (${atteintemomo} % du Gross Add)<br>
-            <strong>Jours actifs cette semaine :</strong> ${daysActifs}/${joursOuv} — Régularité ${regLbl.toLowerCase()}<br>
+            <strong>Jours actifs cette semaine :</strong> ${daysActifs} / ${joursOuv} jour${joursOuv > 1 ? 's' : ''} écoulé${joursOuv > 1 ? 's' : ''}<br>
             <strong>Classement équipe :</strong> ${rangLbl}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fa ${coachingIcon}" style="color:var(--yellow);margin-right:8px"></i>Coaching & recommandation</div></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="padding:12px 16px;background:var(--gray-bg);border-radius:8px;font-size:13px;line-height:1.7">
+              <strong>Appréciation :</strong> ${coachingText}
+            </div>
+            <div style="padding:12px 16px;background:var(--gray-bg);border-radius:8px;font-size:13px;line-height:1.7;border-left:3px solid var(--yellow)">
+              <strong>Point de vigilance :</strong> ${vigilText}
+            </div>
           </div>
         </div>
       </div>`;
