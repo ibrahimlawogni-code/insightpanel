@@ -3988,7 +3988,18 @@
         ventesEl.textContent = '—';
       }
     }
-    if (confEl) confEl.textContent = '—';
+    if (confEl) {
+      if (SAISIES_DATA.length && sup) {
+        const weekZone  = _filterWeekOffset(_filterZone(SAISIES_DATA, sup.zone), 0);
+        const activeIds = new Set(weekZone.map(s => s.dfaId));
+        const confPct   = Math.round(activeIds.size / Math.max(1, allZoneAgents.length) * 100);
+        confEl.textContent = confPct + '%';
+        confEl.style.color = confPct >= 80 ? 'var(--green)' : confPct >= 60 ? 'var(--orange)' : 'var(--red)';
+      } else {
+        confEl.textContent = '—';
+        confEl.style.color = 'var(--green)';
+      }
+    }
 
     const cardTitle = document.getElementById('sup-agents-card-title');
     if (cardTitle) cardTitle.textContent = sup
@@ -4018,25 +4029,37 @@
 
     const totalAgents = zoneAgents.length;
     const agentsData = zoneAgents.slice(0, 10).map(agent => {
-      const saisies = periodSaisies.filter(s => s.dfaId === agent.id);
-      const ga  = _sumField(saisies, 'grossAdd');
-      const mm  = _sumField(saisies, 'momoUser');
-      const pct = agentTgt > 0 ? Math.min(100, Math.round(ga / agentTgt * 100)) : 0;
-      return { agent, ga, mm, pct };
+      const saisies  = periodSaisies.filter(s => s.dfaId === agent.id);
+      const ga       = _sumField(saisies, 'grossAdd');
+      const mm       = _sumField(saisies, 'momoUser');
+      const pct      = agentTgt > 0 ? Math.min(100, Math.round(ga / agentTgt * 100)) : 0;
+      const momoRate = ga > 0 ? Math.round(mm / ga * 100) : 0;
+      return { agent, ga, mm, pct, momoRate };
     });
 
-    const agentRows = agentsData.map(({ agent, ga, mm, pct }) => {
-      const color  = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
-      const bdg    = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
-      const statut = ga > 0
-        ? '<span class="badge badge-green">Actif</span>'
-        : '<span class="badge badge-gray" style="background:#e5e7eb;color:#6b7280">Aucune saisie</span>';
+    const agentRows = agentsData.map(({ agent, ga, mm, pct, momoRate }) => {
+      const color   = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
+      const bdg     = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
+      const momoCol = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : ga > 0 ? 'var(--red)' : 'var(--gray-text)';
+      let statutBdg;
+      if (ga === 0) {
+        statutBdg = '<span class="badge" style="background:#e5e7eb;color:#6b7280">Absent</span>';
+      } else if (pct >= 80) {
+        statutBdg = '<span class="badge badge-green">En objectif</span>';
+      } else if (pct >= 65) {
+        statutBdg = '<span class="badge badge-orange">À risque</span>';
+      } else {
+        statutBdg = '<span class="badge badge-red">Critique</span>';
+      }
       return `
         <tr>
           <td><strong>${agent.nom}</strong></td>
           <td>${agent.zone}</td>
           <td style="text-align:center;font-weight:800">${ga}</td>
-          <td style="text-align:center;font-weight:800">${mm}</td>
+          <td style="text-align:center">
+            <div style="font-weight:800">${mm}</div>
+            <div style="font-size:11px;color:${momoCol};font-weight:600">${ga > 0 ? momoRate + '%' : '—'}</div>
+          </td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
               <div style="flex:1;height:7px;background:#e9e9e9;border-radius:4px;min-width:60px">
@@ -4045,14 +4068,16 @@
               <span class="badge ${bdg}" style="min-width:46px;text-align:center">${pct} %</span>
             </div>
           </td>
-          <td></td>
+          <td>${statutBdg}</td>
         </tr>`;
     }).join('');
 
-    const n1     = agentsData.length || 1;
-    const sumGa1 = agentsData.reduce((s,d) => s + d.ga,  0);
-    const sumMm1 = agentsData.reduce((s,d) => s + d.mm,  0);
-    const avgPct1 = Math.round(agentsData.reduce((s,d) => s + d.pct, 0) / n1);
+    const n1           = agentsData.length || 1;
+    const sumGa1       = agentsData.reduce((s,d) => s + d.ga,  0);
+    const sumMm1       = agentsData.reduce((s,d) => s + d.mm,  0);
+    const avgPct1      = Math.round(agentsData.reduce((s,d) => s + d.pct, 0) / n1);
+    const totalMomoR   = sumGa1 > 0 ? Math.round(sumMm1 / sumGa1 * 100) : 0;
+    const momoTotalCol = totalMomoR >= 90 ? 'var(--green)' : totalMomoR >= 70 ? 'var(--orange)' : sumGa1 > 0 ? 'var(--red)' : 'var(--gray-text)';
     const c1 = avgPct1 >= 80 ? 'var(--green)' : avgPct1 >= 65 ? 'var(--orange)' : 'var(--red)';
     const b1 = avgPct1 >= 80 ? 'badge-green'  : avgPct1 >= 65 ? 'badge-orange'  : 'badge-red';
     const footStyle = 'background:var(--yellow-light);font-weight:800;border-top:2px solid var(--yellow)';
@@ -4062,7 +4087,10 @@
           <i class="fa fa-sigma" style="margin-right:5px;color:var(--yellow)"></i>TOTAL / MOYENNE
         </td>
         <td style="text-align:center;font-weight:900;font-size:15px">${sumGa1}</td>
-        <td style="text-align:center;font-weight:900;font-size:15px">${sumMm1}</td>
+        <td style="text-align:center">
+          <div style="font-weight:900;font-size:15px">${sumMm1}</div>
+          <div style="font-size:11px;color:${momoTotalCol};font-weight:700">${sumGa1 > 0 ? totalMomoR + '%' : '—'}</div>
+        </td>
         <td>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="flex:1;height:7px;background:#e9e9e9;border-radius:4px;min-width:60px">
