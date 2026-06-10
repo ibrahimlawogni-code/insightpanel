@@ -7,6 +7,42 @@
 
 ---
 
+## 2026-06-09 / 2026-06-10
+
+### InsightPanel — Vue Superviseur complète, filtres DFA, menus RA
+
+- Correction bug critique : USERS devenait undefined si Apps Script ne renvoyait pas de champ "users" (ajout vérification Array.isArray)
+- Nouveau endpoint getSaisies dans Apps Script pour alimenter les dashboards depuis Google Sheets
+- Vue Superviseur : sous-menus latéraux par superviseur (Alphonse DJOKPE, Missimahou HONKOU, Ghislain BAH, Loukmane YESSOUFOU, François DANSOU)
+- Vue Superviseur : sélecteur de période groupé (Aujourd'hui / Semaine / Mois / Année + bouton Période pour plage personnalisée)
+- Vue d'ensemble : tableau "Suivi hebdomadaire — Performance par superviseur" (W-2 / W-1 / W / Target / Gap WoW / Gap Target) avec ligne Total/Moyenne
+- Format de date "Semaine X du mois de juin 2026" appliqué dans tout le dashboard
+- Suppression de la section "Superviseurs — Performance par zone" dans Vue d'ensemble
+- Chaque sous-menu superviseur : tableau hebdomadaire DFA + tableau Suivi performance DFA avec lignes Total/Moyenne
+- Limitation à 10 DFAs max par tableau dans les sous-menus superviseur
+- Filtre déroulant "DFAs" au-dessus des 3 tableaux du sous-menu superviseur (filtrage simultané, reset automatique au changement de superviseur)
+- Compte RA : ajout menus "Mon évaluation de performance" et "Best Seller" dans la navigation
+- Évaluation RA : métriques d'équipe (atteinte objectifs, agents actifs, ratio MoMo, zones actives) au lieu des métriques DFA individuelles
+- Best Seller : pour le RA, "Mon équipe" affiche toute l'équipe toutes zones confondues
+
+---
+
+## 2026-06-09
+
+### InsightPanel — Dashboard RA complet + améliorations techniques
+
+- Dashboard RA enrichi : compteurs équipe (DFA total/actifs, superviseurs actifs)
+- Suivi performance superviseurs par zone avec tabs Jour/Semaine/Mois (taux évolutif, moy./jour)
+- Objectifs périodiques (journalier/hebdo/mensuel) avec sélecteur de date
+- Cibles officielles juin intégrées : 18 660 Gross Add (18 117 × 1,03), 16 794 New MoMo (90 % du Gross Add)
+- Responsive mobile : sidebar hamburger overlay, grilles empilées, tables scrollables
+- Toggle afficher/masquer mot de passe sur la page de connexion
+- Motif africain jaune/noir en arrière-plan de la page de connexion
+- Hook Git pre-commit automatisant la sync InsightPanel.html vers index.html (fix Netlify)
+- Format identifiant capitalisé (Ibrahim.Lawogni) + normalisation à la connexion
+
+---
+
 ## 2026-06-05
 
 ### Installation initiale du Jarvis

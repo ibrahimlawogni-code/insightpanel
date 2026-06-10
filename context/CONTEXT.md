@@ -83,7 +83,7 @@ Piloter l'acquisition et la performance terrain, en assurant la disponibilité d
 ## Mes projets en cours
 
 - **Automatisation des tâches :** Mettre en place des outils et scripts pour automatiser les tâches répétitives opérationnelles
-- **Site web :** Développement d'un site web lié à son activité ou projet personnel
+- **InsightPanel (site web) :** Tableau de bord opérationnel MTN Bénin déployé sur Netlify et GitHub (repo : ibrahimlawogni-code/insightpanel). SPA en HTML/JS vanilla, backend Google Apps Script + Google Sheets. Fonctionnalités actives : authentification par rôle (agent, superviseur, ra, dc, dcc, dga, dg), dashboard RA avec KPIs et objectifs périodiques, Vue d'ensemble avec suivi hebdomadaire par superviseur (W-2/W-1/W/Target/Gap), Vue Superviseur avec sous-menus par superviseur et filtres DFA, tableaux Suivi performance DFA et hebdomadaire DFA dans chaque sous-menu, menus "Mon évaluation de performance" et "Best Seller" adaptés au rôle RA, responsive mobile, hook Git pre-commit synchronisant InsightPanel.html vers index.html pour Netlify.
 - **Application mobile :** Développement d'une application mobile pour simplifier le travail terrain
 - **Formation en analyse de données :** Montée en compétences sur l'analyse de données pour améliorer le pilotage des KPIs
 
