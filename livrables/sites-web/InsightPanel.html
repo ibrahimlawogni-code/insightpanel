@@ -4663,20 +4663,22 @@
       return `<span style="color:${color};font-weight:700;white-space:nowrap"><i class="fa ${icon}" style="margin-right:3px"></i>${sign}${val} %</span>`;
     };
 
-    const rows = superviseurs.map(sup => {
+    // Calcul des données par superviseur
+    const data = superviseurs.map(sup => {
       const zAll       = SAISIES_DATA.length ? _filterZone(SAISIES_DATA, sup.zone) : [];
       const zoneAgents = USERS.filter(u => u.role === 'agent' && _normZ(u.zone) === _normZ(sup.zone));
       const wCurr      = _sumField(_filterWeekOffset(zAll,  0), 'grossAdd');
       const wM1        = _sumField(_filterWeekOffset(zAll, -1), 'grossAdd');
       const wM2        = _sumField(_filterWeekOffset(zAll, -2), 'grossAdd');
       const tgt        = _zoneTarget(sup.zone, 'semaine') || 0;
-      const activeSet  = new Set(_filterWeekOffset(zAll, 0).map(s => s.dfaId));
-      const nbActifs   = activeSet.size;
+      const nbActifs   = new Set(_filterWeekOffset(zAll, 0).map(s => s.dfaId)).size;
+      const gapWow     = wM1 > 0 ? parseFloat(((wCurr - wM1) / wM1 * 100).toFixed(1)) : null;
+      const gapTgt     = tgt > 0 ? parseFloat(((wCurr - tgt)  / tgt  * 100).toFixed(1)) : null;
+      return { sup, totalDfa: zoneAgents.length, nbActifs, tgt, wM2, wM1, wCurr, gapWow, gapTgt };
+    });
 
-      const gapWow = wM1  > 0 ? parseFloat(((wCurr - wM1) / wM1 * 100).toFixed(1)) : null;
-      const gapTgt = tgt  > 0 ? parseFloat(((wCurr - tgt)  / tgt  * 100).toFixed(1)) : null;
+    const rows = data.map(({ sup, totalDfa, nbActifs, tgt, wM2, wM1, wCurr, gapWow, gapTgt }) => {
       const tgtColor = gapTgt === null ? '' : gapTgt >= 0 ? 'color:var(--green)' : 'color:var(--red)';
-
       return `
         <tr>
           <td>
@@ -4686,16 +4688,45 @@
             </div>
           </td>
           <td style="color:var(--gray-text);font-size:12px;white-space:nowrap">${sup.zone}</td>
-          <td style="text-align:center">${zoneAgents.length}</td>
+          <td style="text-align:center">${totalDfa}</td>
           <td style="text-align:center"><span class="badge badge-green">${nbActifs}</span></td>
           <td style="text-align:center;font-weight:700">${tgt || '—'}</td>
-          <td style="text-align:center;color:var(--gray-text)">${wM2 || 0}</td>
-          <td style="text-align:center;color:var(--gray-text)">${wM1 || 0}</td>
+          <td style="text-align:center;color:var(--gray-text)">${wM2}</td>
+          <td style="text-align:center;color:var(--gray-text)">${wM1}</td>
           <td style="text-align:center;font-weight:900;font-size:16px">${wCurr}</td>
           <td style="text-align:center">${fmtGap(gapWow)}</td>
           <td style="text-align:center;${tgtColor}">${fmtGap(gapTgt)}</td>
         </tr>`;
     }).join('');
+
+    // Ligne de synthèse
+    const n       = data.length || 1;
+    const avgDfa    = parseFloat((data.reduce((s,d) => s + d.totalDfa, 0) / n).toFixed(1));
+    const avgActifs = parseFloat((data.reduce((s,d) => s + d.nbActifs, 0) / n).toFixed(1));
+    const sumTgt    = data.reduce((s,d) => s + d.tgt,   0);
+    const sumWm2    = data.reduce((s,d) => s + d.wM2,   0);
+    const sumWm1    = data.reduce((s,d) => s + d.wM1,   0);
+    const sumW      = data.reduce((s,d) => s + d.wCurr, 0);
+    const validWow  = data.map(d => d.gapWow).filter(v => v !== null);
+    const validTgt  = data.map(d => d.gapTgt).filter(v => v !== null);
+    const avgGapWow = validWow.length ? parseFloat((validWow.reduce((a,b) => a+b, 0) / validWow.length).toFixed(1)) : null;
+    const avgGapTgt = validTgt.length ? parseFloat((validTgt.reduce((a,b) => a+b, 0) / validTgt.length).toFixed(1)) : null;
+
+    const footerStyle = 'background:var(--yellow-light);font-weight:800;border-top:2px solid var(--yellow)';
+    const footer = `
+      <tr style="${footerStyle}">
+        <td colspan="2" style="font-size:12px;font-weight:800;color:var(--black)">
+          <i class="fa fa-sigma" style="margin-right:5px;color:var(--yellow)"></i>TOTAL / MOYENNE
+        </td>
+        <td style="text-align:center">${avgDfa}</td>
+        <td style="text-align:center">${avgActifs}</td>
+        <td style="text-align:center;font-weight:900">${sumTgt}</td>
+        <td style="text-align:center">${sumWm2}</td>
+        <td style="text-align:center">${sumWm1}</td>
+        <td style="text-align:center;font-size:16px">${sumW}</td>
+        <td style="text-align:center">${fmtGap(avgGapWow)}</td>
+        <td style="text-align:center">${fmtGap(avgGapTgt)}</td>
+      </tr>`;
 
     container.innerHTML = `
       <div style="overflow-x:auto">
@@ -4714,7 +4745,7 @@
               <th style="text-align:center">Gap Target</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows}${footer}</tbody>
         </table>
       </div>`;
   }
