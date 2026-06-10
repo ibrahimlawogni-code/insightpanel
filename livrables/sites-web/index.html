@@ -1313,6 +1313,17 @@
         </div>
       </div>
 
+      <!-- FILTRE DFA -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:800;color:var(--gray-text);white-space:nowrap"><i class="fa fa-user" style="margin-right:5px;color:var(--yellow)"></i>DFAs</label>
+        <select id="sup-dfa-filter" class="input-field" style="width:auto;min-width:220px;padding:6px 10px;font-size:13px" onchange="setSupDfaFilter(this.value)">
+          <option value="">Tous les DFAs</option>
+        </select>
+        <span id="sup-dfa-filter-hint" style="font-size:11px;color:var(--gray-text);display:none">
+          <i class="fa fa-circle-info" style="margin-right:3px"></i>Filtré sur 1 DFA — <a href="#" style="color:var(--yellow);text-decoration:none" onclick="resetSupDfaFilter();return false">Réinitialiser</a>
+        </span>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div class="card-title" id="sup-agents-card-title">Agents de la zone</div>
@@ -3021,6 +3032,7 @@
     const sup = USERS.find(u => u.id === supId);
     document.getElementById('topbar-title').textContent = sup ? 'Vue Superviseur — ' + sup.nom : 'Vue Superviseur';
     currentSupSelected = supId;
+    currentSupDfaFilter = '';
     const sel = document.getElementById('sup-selector');
     if (sel) sel.value = supId;
     _initSupSelector();
@@ -3408,6 +3420,7 @@
   let currentSupSelected = null;
   let supViewPeriod      = 'jour';
   let supDfaPerfPeriod   = 'semaine';
+  let currentSupDfaFilter = '';
   let CURRENT_ZONE_PERIOD = 'jour';
 
   /* Mock performance par zone (à remplacer par vraies données Sheets) */
@@ -3871,6 +3884,40 @@
     renderSuperviseurPerf();
   }
 
+  function _initDfaSelector(sup) {
+    const sel  = document.getElementById('sup-dfa-filter');
+    const hint = document.getElementById('sup-dfa-filter-hint');
+    if (!sel) return;
+    currentSupDfaFilter = '';
+    sel.innerHTML = '<option value="">Tous les DFAs</option>';
+    if (sup) {
+      const agents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+      agents.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = `${a.nom} — ${a.zone}`;
+        sel.appendChild(opt);
+      });
+    }
+    if (hint) hint.style.display = 'none';
+  }
+
+  function setSupDfaFilter(dfaId) {
+    currentSupDfaFilter = dfaId || '';
+    const hint = document.getElementById('sup-dfa-filter-hint');
+    if (hint) hint.style.display = dfaId ? 'inline' : 'none';
+    _renderSupView(currentSupSelected);
+  }
+
+  function resetSupDfaFilter() {
+    currentSupDfaFilter = '';
+    const sel  = document.getElementById('sup-dfa-filter');
+    const hint = document.getElementById('sup-dfa-filter-hint');
+    if (sel)  sel.value = '';
+    if (hint) hint.style.display = 'none';
+    _renderSupView(currentSupSelected);
+  }
+
   function _initSupSelector() {
     if (currentUser && currentUser.role === 'superviseur') {
       currentSupSelected = currentUser.id;
@@ -3925,9 +3972,13 @@
     const subtitle = document.getElementById('sup-view-subtitle');
     if (subtitle) subtitle.textContent = sup ? `${sup.nom} · Zone ${sup.zone}` : '—';
 
-    const zoneAgents = sup
+    const allZoneAgents = sup
       ? USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone))
       : [];
+    _initDfaSelector(sup);
+    const zoneAgents = currentSupDfaFilter
+      ? allZoneAgents.filter(u => u.id === currentSupDfaFilter)
+      : allZoneAgents;
 
     const agentsEl   = document.getElementById('sup-mini-agents');
     const ventesEl   = document.getElementById('sup-mini-ventes');
@@ -4840,7 +4891,10 @@
       return;
     }
 
-    const agents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+    const allAgentsPerf = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+    const agents = currentSupDfaFilter
+      ? allAgentsPerf.filter(u => u.id === currentSupDfaFilter)
+      : allAgentsPerf;
     if (!agents.length) {
       container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-users" style="margin-right:6px"></i>Aucun agent enregistré dans cette zone</div>';
       return;
@@ -4848,7 +4902,7 @@
 
     const zoneTgt    = _zoneTarget(sup.zone, supDfaPerfPeriod) || 0;
     const totalPerf  = agents.length;
-    const agentTgt   = Math.round(zoneTgt / Math.max(1, agents.length));
+    const agentTgt   = Math.round(zoneTgt / Math.max(1, allAgentsPerf.length));
 
     const perfData = agents.slice(0, 10).map(agent => {
       let ga = 0, mm = 0, mj = 0;
@@ -4949,7 +5003,10 @@
       return;
     }
 
-    const agents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+    const allAgentsHebdo = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+    const agents = currentSupDfaFilter
+      ? allAgentsHebdo.filter(u => u.id === currentSupDfaFilter)
+      : allAgentsHebdo;
     if (!agents.length) {
       container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-users" style="margin-right:6px"></i>Aucun agent enregistré dans cette zone</div>';
       return;
