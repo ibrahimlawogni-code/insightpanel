@@ -4645,9 +4645,13 @@
     const container = document.getElementById('sup-hebdo-body');
     if (!container) return;
 
-    const wNum = getWeekNumber(today);
+    const wNum       = getWeekNumber(today);
+    const moisFR     = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const semMois    = Math.ceil(today.getDate() / 7);
+    const moisLabel  = moisFR[today.getMonth()];
+    const semLabel   = `Semaine ${semMois} du mois de ${moisLabel} ${today.getFullYear()}`;
     const badge = document.getElementById('sup-hebdo-week-badge');
-    if (badge) badge.textContent = `S${wNum} — ${today.getFullYear()}`;
+    if (badge) badge.textContent = semLabel;
 
     const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
     if (!superviseurs.length) {
@@ -4737,7 +4741,7 @@
               <th>Zone</th>
               <th style="text-align:center">Total DFA</th>
               <th style="text-align:center">DFA Actifs</th>
-              <th style="text-align:center">Target S${wNum}</th>
+              <th style="text-align:center">Target Sem. ${semMois}</th>
               <th style="text-align:center">W-2</th>
               <th style="text-align:center">W-1</th>
               <th style="text-align:center">W (hebdo)</th>
