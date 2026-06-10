@@ -3970,6 +3970,19 @@
     return labels[supViewPeriod] || '';
   }
 
+  function _filterPrevSupPeriod(saisies) {
+    if (supViewPeriod === 'jour') {
+      const yd = new Date(today); yd.setDate(yd.getDate() - 1);
+      return _filterPeriod(saisies, 'jour', yd);
+    }
+    if (supViewPeriod === 'semaine') return _filterWeekOffset(saisies, -1);
+    if (supViewPeriod === 'mois') {
+      const pm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return _filterPeriod(saisies, 'mois', pm);
+    }
+    return [];
+  }
+
   function _renderSupView(supId) {
     currentSupSelected = supId;
     const sup = USERS.find(u => u.id === supId);
@@ -3990,7 +4003,17 @@
     const ventesLbl  = document.getElementById('sup-mini-ventes-lbl');
     const confEl     = document.getElementById('sup-mini-conf');
 
-    if (agentsEl) agentsEl.textContent = zoneAgents.length || '0';
+    if (agentsEl) {
+      const agentLbl = agentsEl.closest('.mini-stat')?.querySelector('.lbl');
+      if (agentLbl) agentLbl.textContent = `Actifs — ${_supPeriodLabel()}`;
+      if (SAISIES_DATA.length && sup) {
+        const pZone = _filterSupViewPeriod(_filterZone(SAISIES_DATA, sup.zone));
+        const cnt   = new Set(pZone.map(s => s.dfaId)).size;
+        agentsEl.innerHTML = `${cnt}<span style="font-size:13px;font-weight:400;color:var(--gray-text)"> / ${allZoneAgents.length}</span>`;
+      } else {
+        agentsEl.textContent = allZoneAgents.length || '0';
+      }
+    }
     if (ventesLbl) ventesLbl.textContent = 'Ventes — ' + _supPeriodLabel();
     if (ventesEl) {
       if (SAISIES_DATA.length && sup) {
@@ -4041,35 +4064,58 @@
     const zoneTgt  = _zoneTarget(sup.zone, supPeriodKey) || 70;
     const agentTgt = Math.round(zoneTgt / nbAgents);
 
+    /* Classement basé sur toute l'équipe (pas seulement les 10 affichés) */
+    const rankMap = {};
+    if (SAISIES_DATA.length) {
+      const rankData = allZoneAgents.map(a => ({
+        id: a.id,
+        ga: _sumField(periodSaisies.filter(s => s.dfaId === a.id), 'grossAdd')
+      }));
+      rankData.sort((a, b) => b.ga - a.ga);
+      rankData.forEach((d, i) => { rankMap[d.id] = i + 1; });
+    }
+
     const totalAgents = zoneAgents.length;
     const agentsData = zoneAgents.slice(0, 10).map(agent => {
       const saisies  = periodSaisies.filter(s => s.dfaId === agent.id);
+      const allMine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.dfaId === agent.id) : [];
       const ga       = _sumField(saisies, 'grossAdd');
+      const gaP      = _sumField(_filterPrevSupPeriod(allMine), 'grossAdd');
       const mm       = _sumField(saisies, 'momoUser');
       const pct      = agentTgt > 0 ? Math.min(100, Math.round(ga / agentTgt * 100)) : 0;
       const momoRate = ga > 0 ? Math.round(mm / ga * 100) : 0;
-      return { agent, ga, mm, pct, momoRate };
+      const trend    = gaP > 0 ? Math.round((ga - gaP) / gaP * 100) : null;
+      const rank     = rankMap[agent.id] || 0;
+      return { agent, ga, gaP, mm, pct, momoRate, trend, rank };
     });
 
-    const agentRows = agentsData.map(({ agent, ga, mm, pct, momoRate }) => {
-      const color   = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
-      const bdg     = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
-      const momoCol = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : ga > 0 ? 'var(--red)' : 'var(--gray-text)';
+    const agentRows = agentsData.map(({ agent, ga, mm, pct, momoRate, trend, rank }) => {
+      const color      = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
+      const bdg        = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
+      const momoCol    = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : ga > 0 ? 'var(--red)' : 'var(--gray-text)';
+      const trendColor = trend === null ? 'var(--gray-text)' : trend > 5 ? 'var(--green)' : trend < -5 ? 'var(--red)' : 'var(--gray-text)';
+      const trendIcon  = trend === null ? '' : trend > 5 ? '↑' : trend < -5 ? '↓' : '→';
+      const trendStr   = trend === null ? '—' : (trend >= 0 ? `+${trend}%` : `${trend}%`);
+      const rankBadge  = rank > 0
+        ? `<span style="font-size:10px;font-weight:800;background:${rank===1?'var(--yellow)':'var(--gray-bg)'};color:${rank===1?'#1a1a1a':'var(--gray-text)'};padding:2px 6px;border-radius:10px;flex-shrink:0">#${rank}</span>`
+        : '';
       let statutBdg;
-      if (ga === 0) {
-        statutBdg = '<span class="badge" style="background:#e5e7eb;color:#6b7280">Absent</span>';
-      } else if (pct >= 80) {
-        statutBdg = '<span class="badge badge-green">En objectif</span>';
-      } else if (pct >= 65) {
-        statutBdg = '<span class="badge badge-orange">À risque</span>';
-      } else {
-        statutBdg = '<span class="badge badge-red">Critique</span>';
-      }
+      if (ga === 0)       statutBdg = '<span class="badge" style="background:#e5e7eb;color:#6b7280">Absent</span>';
+      else if (pct >= 80) statutBdg = '<span class="badge badge-green">En objectif</span>';
+      else if (pct >= 65) statutBdg = '<span class="badge badge-orange">À risque</span>';
+      else                statutBdg = '<span class="badge badge-red">Critique</span>';
       return `
         <tr>
-          <td><strong>${agent.nom}</strong></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              ${rankBadge}<strong>${agent.nom}</strong>
+            </div>
+          </td>
           <td>${agent.zone}</td>
-          <td style="text-align:center;font-weight:800">${ga}</td>
+          <td style="text-align:center">
+            <div style="font-weight:800">${ga}</div>
+            <div style="font-size:11px;color:${trendColor};font-weight:600">${trendIcon} ${trendStr}</div>
+          </td>
           <td style="text-align:center">
             <div style="font-weight:800">${mm}</div>
             <div style="font-size:11px;color:${momoCol};font-weight:600">${ga > 0 ? momoRate + '%' : '—'}</div>
@@ -4087,9 +4133,14 @@
     }).join('');
 
     const n1           = agentsData.length || 1;
-    const sumGa1       = agentsData.reduce((s,d) => s + d.ga,  0);
-    const sumMm1       = agentsData.reduce((s,d) => s + d.mm,  0);
+    const sumGa1       = agentsData.reduce((s,d) => s + d.ga,   0);
+    const sumGaP1      = agentsData.reduce((s,d) => s + (d.gaP||0), 0);
+    const sumMm1       = agentsData.reduce((s,d) => s + d.mm,   0);
     const avgPct1      = Math.round(agentsData.reduce((s,d) => s + d.pct, 0) / n1);
+    const teamTrend    = sumGaP1 > 0 ? Math.round((sumGa1 - sumGaP1) / sumGaP1 * 100) : null;
+    const tTeamCol     = teamTrend === null ? 'var(--gray-text)' : teamTrend > 0 ? 'var(--green)' : 'var(--red)';
+    const tTeamStr     = teamTrend === null ? '—' : (teamTrend >= 0 ? `+${teamTrend}%` : `${teamTrend}%`);
+    const tTeamIcon    = teamTrend === null ? '' : teamTrend > 5 ? '↑' : teamTrend < -5 ? '↓' : '→';
     const totalMomoR   = sumGa1 > 0 ? Math.round(sumMm1 / sumGa1 * 100) : 0;
     const momoTotalCol = totalMomoR >= 90 ? 'var(--green)' : totalMomoR >= 70 ? 'var(--orange)' : sumGa1 > 0 ? 'var(--red)' : 'var(--gray-text)';
     const c1 = avgPct1 >= 80 ? 'var(--green)' : avgPct1 >= 65 ? 'var(--orange)' : 'var(--red)';
@@ -4100,7 +4151,10 @@
         <td colspan="2" style="font-size:12px;font-weight:800">
           <i class="fa fa-sigma" style="margin-right:5px;color:var(--yellow)"></i>TOTAL / MOYENNE
         </td>
-        <td style="text-align:center;font-weight:900;font-size:15px">${sumGa1}</td>
+        <td style="text-align:center">
+          <div style="font-weight:900;font-size:15px">${sumGa1}</div>
+          <div style="font-size:11px;color:${tTeamCol};font-weight:700">${tTeamIcon} ${tTeamStr}</div>
+        </td>
         <td style="text-align:center">
           <div style="font-weight:900;font-size:15px">${sumMm1}</div>
           <div style="font-size:11px;color:${momoTotalCol};font-weight:700">${sumGa1 > 0 ? totalMomoR + '%' : '—'}</div>
