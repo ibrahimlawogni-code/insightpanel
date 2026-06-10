@@ -939,8 +939,28 @@
       <div class="nav-item active" data-roles="dg,dga,dcc,dc,ra" onclick="showView('dashboard', this)">
         <i class="fa fa-chart-line"></i> Vue d'ensemble
       </div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('superviseur', this)">
-        <i class="fa fa-users"></i> Vue Superviseur
+      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,superviseur">
+        <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('superviseur', this)">
+          <i class="fa fa-users"></i> Vue Superviseur
+          <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-superviseur"></i>
+        </div>
+        <div class="nav-sub-items" id="nav-sub-superviseur" style="display:none">
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('Akphonse.Djokpe', this)">
+            <i class="fa fa-circle-dot"></i> Alphonse DJOKPE
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('Missimahou.Honkou', this)">
+            <i class="fa fa-circle-dot"></i> Missimahou HONKOU
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('Dbah', this)">
+            <i class="fa fa-circle-dot"></i> Ghislain BAH
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('Loukmane.Yessoufou', this)">
+            <i class="fa fa-circle-dot"></i> Loukmane YESSOUFOU
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('François.Dansou', this)">
+            <i class="fa fa-circle-dot"></i> François DANSOU
+          </div>
+        </div>
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('saisie', this)">
         <i class="fa fa-pen-to-square"></i> Saisie du jour
@@ -2153,9 +2173,9 @@
   const USERS_SEED = [
     { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',      role: 'ra',          zone: 'Avrankou-Missérété', initiales: 'IL', statut: 'actif' },
     { id: 'Dg.Zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général',    role: 'dg',          zone: 'Toutes zones',        initiales: 'DG', statut: 'actif' },
-    { id: 'Akphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Akphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
+    { id: 'Akphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
     { id: 'Missimahou.Honkou',   pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
-    { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'DBAH',                 role: 'superviseur', zone: 'Akpro - Missérété',     initiales: 'DB', statut: 'actif' },
+    { id: 'Dbah',                pwd: 'Zephir@2026', nom: 'Ghislain BAH',          role: 'superviseur', zone: 'Akpro - Missérété',     initiales: 'GB', statut: 'actif' },
     { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',              initiales: 'LY', statut: 'actif' },
     { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',             initiales: 'FD', statut: 'actif' },
     { id: 'Agent.Test',          pwd: 'Zephir@2026', nom: 'Kofi MENSAH',          role: 'agent', zone: 'Avrankou',          initiales: 'KM', statut: 'actif' },
@@ -2947,6 +2967,27 @@
     document.getElementById('equipes-section-demandes').style.display = 'none';
     document.getElementById('topbar-title').textContent = 'Équipes — ' + zone;
     renderEquipeZone(zone);
+  }
+
+  function showSupView(supId, el) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-superviseur').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const toggle = document.querySelector('[onclick*="toggleNavGroup(\'superviseur\'"]');
+    if (toggle) toggle.classList.add('active');
+    const sub     = document.getElementById('nav-sub-superviseur');
+    const chevron = document.getElementById('nav-chevron-superviseur');
+    if (sub) sub.style.display = 'block';
+    if (chevron) chevron.classList.add('open');
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const sup = USERS.find(u => u.id === supId);
+    document.getElementById('topbar-title').textContent = sup ? 'Vue Superviseur — ' + sup.nom : 'Vue Superviseur';
+    currentSupSelected = supId;
+    const sel = document.getElementById('sup-selector');
+    if (sel) sel.value = supId;
+    _initSupSelector();
+    loadDemandes();
   }
 
   function showEquipeDemandes(el) {
