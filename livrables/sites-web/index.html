@@ -1336,6 +1336,21 @@
         </div>
       </div>
 
+      <!-- SUIVI PERFORMANCE DFA (style dashboard) -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title">Suivi performance — DFA</div>
+          <div class="tabs" id="sup-dfa-perf-tabs">
+            <button class="tab" onclick="setSupDfaPerfPeriod('jour',    this)">Aujourd'hui</button>
+            <button class="tab active" onclick="setSupDfaPerfPeriod('semaine', this)">Semaine</button>
+            <button class="tab" onclick="setSupDfaPerfPeriod('mois',    this)">Mois</button>
+          </div>
+        </div>
+        <div id="sup-dfa-perf-body">
+          <div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+      </div>
+
       <!-- SUIVI HEBDOMADAIRE PAR DFA -->
       <div class="card" style="margin-top:20px">
         <div class="card-header">
@@ -3392,6 +3407,7 @@
   let currentSupPeriod  = 'semaine';
   let currentSupSelected = null;
   let supViewPeriod      = 'jour';
+  let supDfaPerfPeriod   = 'semaine';
   let CURRENT_ZONE_PERIOD = 'jour';
 
   /* Mock performance par zone (à remplacer par vraies données Sheets) */
@@ -3984,6 +4000,7 @@
         </tr>`;
     }).join('');
 
+    renderSupDfaPerfTable(supId);
     renderSupDfaHebdoTable(supId);
   }
 
@@ -4771,6 +4788,86 @@
       </div>`;
   }
 
+  function setSupDfaPerfPeriod(period, el) {
+    supDfaPerfPeriod = period;
+    document.querySelectorAll('#sup-dfa-perf-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderSupDfaPerfTable(currentSupSelected);
+  }
+
+  function renderSupDfaPerfTable(supId) {
+    const container = document.getElementById('sup-dfa-perf-body');
+    if (!container) return;
+
+    const sup = USERS.find(u => u.id === supId);
+    if (!sup) {
+      container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)">Sélectionnez un superviseur</div>';
+      return;
+    }
+
+    const agents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone));
+    if (!agents.length) {
+      container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-users" style="margin-right:6px"></i>Aucun agent enregistré dans cette zone</div>';
+      return;
+    }
+
+    const zoneTgt  = _zoneTarget(sup.zone, supDfaPerfPeriod) || 0;
+    const agentTgt = Math.round(zoneTgt / Math.max(1, agents.length));
+
+    const rows = agents.map(agent => {
+      let ga = 0, mm = 0, mj = 0;
+      if (SAISIES_DATA.length) {
+        const s = _filterPeriod(SAISIES_DATA.filter(x => x.dfaId === agent.id), supDfaPerfPeriod, today);
+        ga = _sumField(s, 'grossAdd');
+        mm = _sumField(s, 'momoUser');
+        mj = _moyJour(s, 'grossAdd');
+      }
+      const pct   = agentTgt > 0 ? Math.min(100, Math.round(ga / agentTgt * 100)) : 0;
+      const color = pct >= 80 ? 'var(--green)' : pct >= 65 ? 'var(--orange)' : 'var(--red)';
+      const bdg   = pct >= 80 ? 'badge-green'  : pct >= 65 ? 'badge-orange'  : 'badge-red';
+      const initiales = agent.initiales || agent.nom.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      return `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:9px">
+              <div class="sup-avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0">${initiales}</div>
+              <div>
+                <div style="font-weight:700;font-size:13px">${agent.nom}</div>
+                <div style="font-size:11px;color:var(--gray-text)"><i class="fa fa-location-dot" style="margin-right:3px"></i>${agent.zone}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:7px;background:#e9e9e9;border-radius:4px;min-width:60px">
+                <div style="width:${pct}%;height:100%;background:${color};border-radius:4px"></div>
+              </div>
+              <span class="badge ${bdg}" style="min-width:46px;text-align:center">${pct} %</span>
+            </div>
+          </td>
+          <td style="text-align:center;font-weight:800;font-size:15px">${ga}</td>
+          <td style="text-align:center;font-weight:800;font-size:15px">${mm}</td>
+          <td style="text-align:center;font-weight:700;font-size:14px">${mj}</td>
+          <td style="text-align:center;color:var(--gray-text)">—</td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>DFA / Zone</th>
+            <th>Perf. globale</th>
+            <th style="text-align:center">Gross Add</th>
+            <th style="text-align:center">New MoMo</th>
+            <th style="text-align:center">Moy./Jour</th>
+            <th style="text-align:center">Évolution</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
   function renderSupDfaHebdoTable(supId) {
     const container = document.getElementById('sup-dfa-hebdo-body');
     if (!container) return;
@@ -4882,7 +4979,7 @@
     updatePerfDisplay();
     _renderDernieresSaisies();
     _renderEvaluationView();
-    if (currentSupSelected) { _renderSupView(currentSupSelected); renderSupDfaHebdoTable(currentSupSelected); }
+    if (currentSupSelected) { _renderSupView(currentSupSelected); }
   }
 
   /* --- Dernières saisies (table droite vue Saisie) --- */
