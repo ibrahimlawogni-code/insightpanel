@@ -1323,6 +1323,44 @@
         </span>
       </div>
 
+      <!-- FICHE ANALYTIQUE DFA (visible uniquement quand un DFA est sélectionné) -->
+      <div id="sup-dfa-fiche" style="display:none;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <i class="fa fa-chart-line" style="color:var(--yellow)"></i>
+          <span style="font-size:13px;font-weight:800" id="sup-dfa-fiche-title">Analyse DFA</span>
+          <span class="badge badge-yellow" id="sup-dfa-fiche-zone">—</span>
+        </div>
+        <div class="grid-2" style="align-items:start;margin-bottom:16px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Tendance Gross Add</div>
+              <span class="badge badge-yellow" id="sup-dfa-tendance-badge">4 semaines</span>
+            </div>
+            <div id="sup-dfa-tendance-body">
+              <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Projection &amp; Analyse</div>
+              <span class="badge badge-yellow" id="sup-dfa-projection-badge">—</span>
+            </div>
+            <div id="sup-dfa-projection-body">
+              <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Calendrier d'activité</div>
+            <span class="badge badge-yellow" id="sup-dfa-calendrier-badge">—</span>
+          </div>
+          <div id="sup-dfa-calendrier-body">
+            <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <div class="card-title" id="sup-agents-card-title">Agents de la zone</div>
@@ -1423,6 +1461,17 @@
           <span class="badge badge-yellow">Gross Add + New MoMo User</span>
         </div>
         <div class="card-body" id="agent-objectifs-body">
+          <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+      </div>
+
+      <!-- CALENDRIER D'ACTIVITÉ -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">Calendrier d'activité</div>
+          <span class="badge badge-yellow" id="agent-calendrier-badge">—</span>
+        </div>
+        <div id="agent-calendrier-body">
           <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
         </div>
       </div>
@@ -2306,7 +2355,7 @@
       parametres:  'Paramètres'
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
-    if (name === 'agent')     { updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); }
+    if (name === 'agent')     { updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); }
     if (name === 'evaluation')  renderEvaluation();
     if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
@@ -3832,9 +3881,12 @@
 
   function setSupDfaFilter(dfaId) {
     currentSupDfaFilter = dfaId || '';
-    const hint = document.getElementById('sup-dfa-filter-hint');
-    if (hint) hint.style.display = dfaId ? 'inline' : 'none';
+    const hint  = document.getElementById('sup-dfa-filter-hint');
+    const fiche = document.getElementById('sup-dfa-fiche');
+    if (hint)  hint.style.display  = dfaId ? 'inline' : 'none';
+    if (fiche) fiche.style.display = dfaId ? 'block'  : 'none';
     _renderSupView(currentSupSelected);
+    if (dfaId) _renderSupDfaFiche(dfaId);
   }
 
   function resetSupDfaFilter() {
@@ -4488,6 +4540,438 @@
     if (badgeEl) badgeEl.textContent = `${sorted.length} / ${total} agents`;
     const rows = sorted.map((a, i) => buildRow(a, i, hasMomoActiv)).join('');
     tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible</td></tr>`;
+  }
+
+  /* --- Fiche analytique DFA dans Vue Superviseur --- */
+  function _renderSupDfaFiche(dfaId) {
+    if (!dfaId) return;
+
+    /* Trouver le nom et la zone du DFA */
+    const allUsers = typeof USERS !== 'undefined' ? USERS : [];
+    const dfaUser  = allUsers.find(u => u.id === dfaId);
+    const dfaNom   = dfaUser ? (dfaUser.nom || dfaUser.name || dfaId) : dfaId;
+    const dfaZone  = dfaUser ? (dfaUser.zone || '—') : '—';
+
+    const titleEl = document.getElementById('sup-dfa-fiche-title');
+    const zoneEl  = document.getElementById('sup-dfa-fiche-zone');
+    if (titleEl) titleEl.textContent = `Analyse — ${dfaNom}`;
+    if (zoneEl)  zoneEl.textContent  = dfaZone;
+
+    _renderSupDfaTendance(dfaId);
+    _renderSupDfaProjection(dfaId);
+    _renderSupDfaCalendrier(dfaId);
+  }
+
+  /* --- Tendance Gross Add 4 semaines (Fiche DFA Superviseur) --- */
+  function _renderSupDfaTendance(dfaId) {
+    const container = document.getElementById('sup-dfa-tendance-body');
+    const badgeEl   = document.getElementById('sup-dfa-tendance-badge');
+    if (!container) return;
+
+    function weekData(offset) {
+      const lbl = offset === 0 ? 'Cette sem.' : `S-${Math.abs(offset)}`;
+      if (SAISIES_DATA.length) {
+        const mine = SAISIES_DATA.filter(s => s.dfaId === dfaId);
+        const fil  = _filterWeekOffset(mine, offset);
+        return { lbl, gsm: _sumField(fil, 'grossAdd'), momo: _sumField(fil, 'momoUser') };
+      } else {
+        const ref  = new Date(today); ref.setDate(ref.getDate() + offset * 7);
+        const keyS = ref.getFullYear() + '-W' + getWeekNumber(ref);
+        const d    = agentPerfData.semaine[keyS] || null;
+        return { lbl, gsm: d ? (d.gsm||0) : 0, momo: d ? (d.momo||0) : 0 };
+      }
+    }
+
+    const weeks  = [-3, -2, -1, 0].map(o => weekData(o));
+    const maxGSM = Math.max(...weeks.map(w => w.gsm), 1);
+    const tSem   = DFA_DAILY_TARGET * 7;
+    const avg4   = Math.round(weeks.reduce((a, w) => a + w.gsm, 0) / 4);
+
+    const last = weeks[3].gsm, prev = weeks[2].gsm;
+    const trendPct = prev > 0 ? Math.round((last - prev) / prev * 100) : null;
+    const trendLbl = trendPct !== null ? (trendPct >= 0 ? '+' : '') + trendPct + '% vs S-1' : '—';
+    const trendCls = trendPct > 0 ? 'badge-green' : trendPct < 0 ? 'badge-red' : 'badge-yellow';
+    if (badgeEl) { badgeEl.textContent = trendLbl; badgeEl.className = `badge ${trendCls}`; }
+
+    const bars = weeks.map((w, i) => {
+      const h   = Math.max(Math.round(w.gsm / maxGSM * 100), 3);
+      const col = w.gsm >= tSem ? 'var(--green)' : w.gsm >= tSem * 0.7 ? 'var(--yellow)' : 'var(--red)';
+      const mr  = w.gsm > 0 && w.momo > 0 ? Math.round(w.momo / w.gsm * 100) : 0;
+      const isCurrent = i === 3;
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:11px;font-weight:700;color:${isCurrent ? 'var(--text)' : 'var(--gray-text)'}">${w.gsm || '—'}</div>
+          <div style="width:100%;background:var(--gray-bg);border-radius:4px 4px 0 0;height:80px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:${h}%;background:${col};border-radius:4px 4px 0 0;opacity:${isCurrent ? '1' : '0.65'}"></div>
+          </div>
+          <div style="font-size:11px;color:var(--gray-text);font-weight:${isCurrent ? '700' : '400'}">${w.lbl}</div>
+          <div style="font-size:10px;color:var(--gray-text)">${mr > 0 ? mr + '% MoMo' : '—'}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="display:flex;gap:8px;padding:8px 4px 0">
+        ${bars}
+      </div>
+      <div style="height:1px;background:var(--gray-border);margin:10px 0 8px"></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-text)">
+        <span>Objectif sem. : <strong style="color:var(--text)">${tSem} GA</strong></span>
+        <span>Moy. 4 sem. : <strong style="color:var(--text)">${avg4}</strong></span>
+      </div>`;
+  }
+
+  /* --- Projection mensuelle + Analyse rapide (Fiche DFA Superviseur) --- */
+  function _renderSupDfaProjection(dfaId) {
+    const container = document.getElementById('sup-dfa-projection-body');
+    const badgeEl   = document.getElementById('sup-dfa-projection-badge');
+    if (!container) return;
+
+    const daysInM  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfM   = today.getDate();
+    const daysLeft = daysInM - dayOfM;
+    const tMois    = DFA_DAILY_TARGET * daysInM;
+
+    let gsmM, momoM, semW, semW1;
+    if (SAISIES_DATA.length) {
+      const mine = SAISIES_DATA.filter(s => s.dfaId === dfaId);
+      gsmM  = _sumField(_filterPeriod(mine, 'mois',    today), 'grossAdd');
+      momoM = _sumField(_filterPeriod(mine, 'mois',    today), 'momoUser');
+      semW  = _sumField(_filterWeekOffset(mine,  0), 'grossAdd');
+      semW1 = _sumField(_filterWeekOffset(mine, -1), 'grossAdd');
+    } else {
+      const keyM = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+      const ref1 = new Date(today); ref1.setDate(ref1.getDate() - 7);
+      const keyS  = today.getFullYear() + '-W' + getWeekNumber(today);
+      const keyS1 = ref1.getFullYear()  + '-W' + getWeekNumber(ref1);
+      const dM  = agentPerfData.mois[keyM]    || agentPerfData.mois['2026-06']  || {};
+      const dS  = agentPerfData.semaine[keyS]  || agentPerfData.semaine['2026-W23'] || {};
+      const dS1 = agentPerfData.semaine[keyS1] || agentPerfData.semaine['2026-W22'] || {};
+      gsmM  = dM.gsm||0; momoM = dM.momo||0;
+      semW  = dS.gsm||0; semW1 = dS1.gsm||0;
+    }
+
+    const avgJour   = dayOfM > 0 ? gsmM / dayOfM : 0;
+    const projected = Math.round(gsmM + avgJour * daysLeft);
+    const projPct   = Math.min(100, Math.round(projected / tMois * 100));
+    const projColor = projPct >= 90 ? 'var(--green)' : projPct >= 70 ? 'var(--orange)' : 'var(--red)';
+    const projCls   = projPct >= 90 ? 'badge-green'  : projPct >= 70 ? 'badge-orange'  : 'badge-red';
+    if (badgeEl) { badgeEl.textContent = `${projPct}% prévu`; badgeEl.className = `badge ${projCls}`; }
+
+    const momoRate = gsmM > 0 ? Math.round(momoM / gsmM * 100) : 0;
+    const momoCol  = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : 'var(--red)';
+
+    let daysActifs;
+    if (SAISIES_DATA.length) {
+      const mine = SAISIES_DATA.filter(s => s.dfaId === dfaId);
+      daysActifs = _uniqueDays(_filterWeekOffset(mine, 0));
+    } else {
+      daysActifs = 3;
+    }
+    const regCol = daysActifs >= 5 ? 'var(--green)' : daysActifs >= 3 ? 'var(--orange)' : 'var(--red)';
+
+    const insights = [];
+    if (semW1 > 0) {
+      const delta = Math.round((semW - semW1) / semW1 * 100);
+      const icon  = delta > 0 ? 'fa-arrow-trend-up' : delta < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+      const col   = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--gray-text)';
+      insights.push({ icon, col, txt: `Sem. en cours : ${delta >= 0 ? '+' : ''}${delta}% vs S-1 (${semW} vs ${semW1} GA)` });
+    } else {
+      insights.push({ icon: 'fa-chart-line', col: 'var(--gray-text)', txt: `Semaine en cours : ${semW} Gross Add réalisés` });
+    }
+    insights.push({ icon: momoRate >= 90 ? 'fa-circle-check' : 'fa-triangle-exclamation', col: momoCol, txt: `Taux MoMo ce mois : ${momoRate}% (objectif : 90%)` });
+    insights.push({ icon: daysActifs >= 5 ? 'fa-calendar-check' : 'fa-calendar-xmark', col: regCol, txt: `Régularité cette semaine : ${daysActifs}/6 jours actifs` });
+
+    const insightHTML = insights.map(ins => `
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--gray-bg);border-radius:8px;font-size:12px;line-height:1.5">
+        <i class="fa ${ins.icon}" style="color:${ins.col};margin-top:2px;flex-shrink:0"></i>
+        <span>${ins.txt}</span>
+      </div>`).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+          <span>Gross Add projeté fin de mois</span>
+          <span style="font-weight:700;color:${projColor}">${projected.toLocaleString('fr-FR')} / ${tMois}</span>
+        </div>
+        <div class="zone-track" style="height:10px"><div class="zone-fill" style="width:${projPct}%;background:${projColor}"></div></div>
+        <div style="font-size:11px;color:${projColor};font-weight:600;margin-top:3px">${projPct}% — ${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Analyse rapide</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${insightHTML}</div>`;
+  }
+
+  /* --- Calendrier d'activité mensuel (Fiche DFA Superviseur) --- */
+  function _renderSupDfaCalendrier(dfaId) {
+    const container = document.getElementById('sup-dfa-calendrier-body');
+    const badgeEl   = document.getElementById('sup-dfa-calendrier-badge');
+    if (!container) return;
+
+    const daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfM  = today.getDate();
+    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+    const saisieMap = {};
+    let activCount  = 0;
+    if (SAISIES_DATA.length) {
+      const mine = _filterPeriod(SAISIES_DATA.filter(s => s.dfaId === dfaId), 'mois', today);
+      mine.forEach(s => {
+        const d = _parseFrDate(s.date);
+        if (d) { const k = d.getDate(); saisieMap[k] = (saisieMap[k]||0) + (s.grossAdd||0); }
+      });
+      activCount = Object.keys(saisieMap).length;
+    } else {
+      [3,5,8,9,10].forEach(d => { saisieMap[d] = Math.floor(Math.random()*15)+5; });
+      activCount = 5;
+    }
+
+    const elapsed = dayOfM;
+    if (badgeEl) badgeEl.textContent = `${activCount} jours actifs / ${elapsed} écoulés`;
+
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
+    const startCol = firstDay === 0 ? 7 : firstDay;
+
+    const dayHeaders = ['L','M','M','J','V','S','D'].map(d =>
+      `<div style="text-align:center;font-size:11px;font-weight:700;color:var(--gray-text);padding:4px 2px">${d}</div>`
+    ).join('');
+
+    let cells = Array(startCol - 1).fill('<div></div>').join('');
+    for (let d = 1; d <= daysInM; d++) {
+      const dow   = new Date(today.getFullYear(), today.getMonth(), d).getDay();
+      const isWE  = dow === 0 || dow === 6;
+      const isPast  = d < dayOfM;
+      const isToday = d === dayOfM;
+      const isFut   = d > dayOfM;
+      const ga      = saisieMap[d] || 0;
+      const isActif = ga > 0;
+      let bg, col, txt;
+      if (isToday) {
+        bg = 'var(--yellow)'; col = '#1a1a1a'; txt = ga > 0 ? ga : d;
+      } else if (isFut || isWE) {
+        bg = 'var(--gray-border)'; col = 'var(--gray-text)'; txt = d;
+      } else if (isActif) {
+        bg = 'var(--green)'; col = '#fff'; txt = ga;
+      } else {
+        bg = 'rgba(220,50,50,0.15)'; col = 'var(--red)'; txt = d;
+      }
+      cells += `<div style="text-align:center;padding:5px 2px;border-radius:6px;background:${bg};color:${col};font-size:11px;font-weight:${isActif||isToday?'700':'400'}">${txt}</div>`;
+    }
+
+    container.innerHTML = `
+      <div style="font-size:12px;font-weight:600;color:var(--gray-text);margin-bottom:8px">${moisFR[today.getMonth()]} ${today.getFullYear()}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">
+        ${dayHeaders}
+        ${cells}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--gray-text)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);vertical-align:middle;margin-right:3px"></span>Actif</span>
+        <span style="font-size:11px;color:var(--gray-text)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(220,50,50,0.15);vertical-align:middle;margin-right:3px"></span>Absent</span>
+        <span style="font-size:11px;color:var(--gray-text)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--yellow);vertical-align:middle;margin-right:3px"></span>Aujourd'hui</span>
+      </div>`;
+  }
+
+  /* --- Tendance Gross Add 4 semaines (Vue Agent Terrain) --- */
+  function _renderAgentTendance() {
+    const container = document.getElementById('agent-tendance-body');
+    const badgeEl   = document.getElementById('agent-tendance-badge');
+    if (!container || !currentUser) return;
+
+    function weekData(offset) {
+      const lbl = offset === 0 ? 'Cette sem.' : `S-${Math.abs(offset)}`;
+      if (SAISIES_DATA.length) {
+        const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+        const fil  = _filterWeekOffset(mine, offset);
+        return { lbl, gsm: _sumField(fil, 'grossAdd'), momo: _sumField(fil, 'momoUser') };
+      } else {
+        const ref  = new Date(today); ref.setDate(ref.getDate() + offset * 7);
+        const keyS = ref.getFullYear() + '-W' + getWeekNumber(ref);
+        const d    = agentPerfData.semaine[keyS] || null;
+        return { lbl, gsm: d ? (d.gsm||0) : 0, momo: d ? (d.momo||0) : 0 };
+      }
+    }
+
+    const weeks  = [-3, -2, -1, 0].map(o => weekData(o));
+    const maxGSM = Math.max(...weeks.map(w => w.gsm), 1);
+    const tSem   = DFA_DAILY_TARGET * 7;
+    const avg4   = Math.round(weeks.reduce((a, w) => a + w.gsm, 0) / 4);
+
+    const last = weeks[3].gsm, prev = weeks[2].gsm;
+    const trendPct = prev > 0 ? Math.round((last - prev) / prev * 100) : null;
+    const trendLbl = trendPct !== null ? (trendPct >= 0 ? '+' : '') + trendPct + '% vs S-1' : '—';
+    const trendCls = trendPct > 0 ? 'badge-green' : trendPct < 0 ? 'badge-red' : 'badge-yellow';
+    if (badgeEl) { badgeEl.textContent = trendLbl; badgeEl.className = `badge ${trendCls}`; }
+
+    const bars = weeks.map((w, i) => {
+      const h   = Math.max(Math.round(w.gsm / maxGSM * 100), 3);
+      const col = w.gsm >= tSem ? 'var(--green)' : w.gsm >= tSem * 0.7 ? 'var(--yellow)' : 'var(--red)';
+      const mr  = w.gsm > 0 && w.momo > 0 ? Math.round(w.momo / w.gsm * 100) : 0;
+      const isCurrent = i === 3;
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:11px;font-weight:700;color:${isCurrent ? 'var(--text)' : 'var(--gray-text)'}">${w.gsm || '—'}</div>
+          <div style="width:100%;background:var(--gray-bg);border-radius:4px 4px 0 0;height:80px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:${h}%;background:${col};border-radius:4px 4px 0 0;opacity:${isCurrent ? '1' : '0.65'}"></div>
+          </div>
+          <div style="font-size:11px;color:var(--gray-text);font-weight:${isCurrent ? '700' : '400'}">${w.lbl}</div>
+          <div style="font-size:10px;color:var(--gray-text)">${mr > 0 ? mr + '% MoMo' : '—'}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="display:flex;gap:8px;padding:8px 4px 0">
+        ${bars}
+      </div>
+      <div style="height:1px;background:var(--gray-border);margin:10px 0 8px"></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-text)">
+        <span>Objectif sem. : <strong style="color:var(--text)">${tSem} GA</strong></span>
+        <span>Moy. 4 sem. : <strong style="color:var(--text)">${avg4}</strong></span>
+      </div>`;
+  }
+
+  /* --- Projection mensuelle + Analyse rapide (Vue Agent Terrain) --- */
+  function _renderAgentProjection() {
+    const container = document.getElementById('agent-projection-body');
+    const badgeEl   = document.getElementById('agent-projection-badge');
+    if (!container || !currentUser) return;
+
+    const daysInM  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfM   = today.getDate();
+    const daysLeft = daysInM - dayOfM;
+    const tMois    = DFA_DAILY_TARGET * daysInM;
+
+    let gsmM, momoM, semW, semW1;
+    if (SAISIES_DATA.length) {
+      const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      gsmM  = _sumField(_filterPeriod(mine, 'mois',    today), 'grossAdd');
+      momoM = _sumField(_filterPeriod(mine, 'mois',    today), 'momoUser');
+      semW  = _sumField(_filterWeekOffset(mine,  0), 'grossAdd');
+      semW1 = _sumField(_filterWeekOffset(mine, -1), 'grossAdd');
+    } else {
+      const keyM = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+      const ref1 = new Date(today); ref1.setDate(ref1.getDate() - 7);
+      const keyS  = today.getFullYear() + '-W' + getWeekNumber(today);
+      const keyS1 = ref1.getFullYear()  + '-W' + getWeekNumber(ref1);
+      const dM  = agentPerfData.mois[keyM]    || agentPerfData.mois['2026-06']  || {};
+      const dS  = agentPerfData.semaine[keyS]  || agentPerfData.semaine['2026-W23'] || {};
+      const dS1 = agentPerfData.semaine[keyS1] || agentPerfData.semaine['2026-W22'] || {};
+      gsmM  = dM.gsm||0; momoM = dM.momo||0;
+      semW  = dS.gsm||0; semW1 = dS1.gsm||0;
+    }
+
+    const avgJour   = dayOfM > 0 ? gsmM / dayOfM : 0;
+    const projected = Math.round(gsmM + avgJour * daysLeft);
+    const projPct   = Math.min(100, Math.round(projected / tMois * 100));
+    const projColor = projPct >= 90 ? 'var(--green)' : projPct >= 70 ? 'var(--orange)' : 'var(--red)';
+    const projCls   = projPct >= 90 ? 'badge-green'  : projPct >= 70 ? 'badge-orange'  : 'badge-red';
+    if (badgeEl) { badgeEl.textContent = `${projPct}% prévu`; badgeEl.className = `badge ${projCls}`; }
+
+    /* Analyse rapide — 3 insights */
+    const insights = [];
+
+    if (semW1 > 0) {
+      const delta = Math.round((semW - semW1) / semW1 * 100);
+      const icon  = delta > 0 ? 'fa-arrow-trend-up' : delta < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+      const col   = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--gray-text)';
+      insights.push({ icon, col, txt: `Semaine en cours : ${delta >= 0 ? '+' : ''}${delta}% vs semaine dernière (${semW} vs ${semW1} GA)` });
+    } else {
+      insights.push({ icon: 'fa-chart-line', col: 'var(--gray-text)', txt: `Semaine en cours : ${semW} Gross Add réalisés` });
+    }
+
+    const momoRate = gsmM > 0 ? Math.round(momoM / gsmM * 100) : 0;
+    const momoCol  = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : 'var(--red)';
+    insights.push({ icon: momoRate >= 90 ? 'fa-circle-check' : 'fa-triangle-exclamation', col: momoCol, txt: `Taux MoMo ce mois : ${momoRate}% (objectif : 90%)` });
+
+    let daysActifs;
+    if (SAISIES_DATA.length) {
+      const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      daysActifs = _uniqueDays(_filterWeekOffset(mine, 0));
+    } else {
+      daysActifs = Object.values(agentPerfData.jour).filter(j => j.gsm > 0).length;
+    }
+    const regCol  = daysActifs >= 5 ? 'var(--green)' : daysActifs >= 3 ? 'var(--orange)' : 'var(--red)';
+    insights.push({ icon: daysActifs >= 5 ? 'fa-calendar-check' : 'fa-calendar-xmark', col: regCol, txt: `Régularité cette semaine : ${daysActifs}/6 jours actifs` });
+
+    const insightHTML = insights.map(ins => `
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--gray-bg);border-radius:8px;font-size:12px;line-height:1.5">
+        <i class="fa ${ins.icon}" style="color:${ins.col};margin-top:2px;flex-shrink:0"></i>
+        <span>${ins.txt}</span>
+      </div>`).join('');
+
+    container.innerHTML = `
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+          <span>Gross Add projeté fin de mois</span>
+          <span style="font-weight:700;color:${projColor}">${projected.toLocaleString('fr-FR')} / ${tMois}</span>
+        </div>
+        <div class="zone-track" style="height:10px"><div class="zone-fill" style="width:${projPct}%;background:${projColor}"></div></div>
+        <div style="font-size:11px;color:${projColor};font-weight:600;margin-top:3px">${projPct}% — ${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Analyse rapide</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${insightHTML}</div>`;
+  }
+
+  /* --- Calendrier d'activité mensuel (Vue Agent Terrain) --- */
+  function _renderAgentCalendrier() {
+    const container = document.getElementById('agent-calendrier-body');
+    const badgeEl   = document.getElementById('agent-calendrier-badge');
+    if (!container || !currentUser) return;
+
+    const daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfM  = today.getDate();
+    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+    const saisieMap = {};
+    if (SAISIES_DATA.length) {
+      const mine = _filterPeriod(SAISIES_DATA.filter(s => s.dfaId === currentUser.id), 'mois', today);
+      mine.forEach(s => {
+        const d = _parseFrDate(s.date);
+        if (d) { const k = d.getDate(); saisieMap[k] = (saisieMap[k]||0) + (s.grossAdd||0); }
+      });
+    } else {
+      Object.entries(agentPerfData.jour).forEach(([k, v]) => {
+        const d = new Date(k + 'T00:00:00');
+        if (d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear())
+          saisieMap[d.getDate()] = v.gsm || 0;
+      });
+    }
+
+    const joursActifs  = Object.keys(saisieMap).filter(k => saisieMap[k] > 0 && parseInt(k) <= dayOfM).length;
+    const joursEcoules = dayOfM;
+    if (badgeEl) badgeEl.textContent = `${joursActifs} jours actifs / ${joursEcoules} écoulés`;
+
+    const startOffset = (() => { const f = new Date(today.getFullYear(), today.getMonth(), 1).getDay(); return f === 0 ? 6 : f - 1; })();
+    const dayLabels   = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const headerHTML  = dayLabels.map(d => `<div style="text-align:center;font-size:11px;font-weight:700;color:var(--gray-text);padding:4px 0">${d}</div>`).join('');
+
+    let cells = Array(startOffset).fill('<div></div>').join('');
+    for (let d = 1; d <= daysInM; d++) {
+      const col      = (startOffset + d - 1) % 7;
+      const isWeekend = col >= 5;
+      const isFuture  = d > dayOfM;
+      const isToday   = d === dayOfM;
+      const gsm       = saisieMap[d] || 0;
+
+      let bg, textCol = 'var(--gray-text)';
+      if (isFuture)       { bg = 'var(--gray-bg)'; }
+      else if (isToday)   { bg = 'var(--yellow)'; textCol = '#000'; }
+      else if (isWeekend) { bg = gsm > 0 ? '#d3f9d8' : 'var(--gray-bg)'; }
+      else                { bg = gsm > 0 ? 'var(--green)' : '#ffe3e3'; textCol = gsm > 0 ? '#fff' : '#c92a2a'; }
+
+      const valTxt = gsm > 0 && !isFuture ? `<div style="font-size:9px;font-weight:700;line-height:1">${gsm}</div>` : '';
+      cells += `<div title="${d}/${today.getMonth()+1} : ${gsm} GA" style="background:${bg};border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px;gap:1px">
+        <div style="font-size:11px;font-weight:${isToday?'800':'600'};color:${textCol}">${d}</div>
+        ${valTxt}
+      </div>`;
+    }
+
+    container.innerHTML = `
+      <div style="font-size:12px;font-weight:600;color:var(--gray-text);margin-bottom:10px;text-transform:capitalize">${moisFR[today.getMonth()]} ${today.getFullYear()}</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${headerHTML}${cells}</div>
+      <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--gray-text);flex-wrap:wrap">
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;vertical-align:middle;margin-right:4px"></span>Actif</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ffe3e3;border:1px solid #fcc;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Absent</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--yellow);border-radius:2px;vertical-align:middle;margin-right:4px"></span>Aujourd'hui</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--gray-bg);border-radius:2px;vertical-align:middle;margin-right:4px"></span>À venir / Week-end</span>
+      </div>`;
   }
 
   /* Données de performance par zone (mock — à remplacer par vraies données Sheets) */
@@ -5463,6 +5947,7 @@
     _renderAgentClassement();
     _renderAgentHistorique();
     _renderAgentTop10();
+    _renderAgentCalendrier();
     _renderDernieresSaisies();
     _renderEvaluationView();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
