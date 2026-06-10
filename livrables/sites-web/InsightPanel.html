@@ -1876,43 +1876,45 @@
             <span class="badge badge-yellow" id="bs-equipe-badge">—</span>
           </div>
           <div style="overflow-x:auto">
-            <table style="min-width:320px">
+            <table style="min-width:360px">
               <thead>
                 <tr>
                   <th style="width:36px">#</th>
                   <th>Agent DFA</th>
                   <th style="text-align:center">Gross Add</th>
+                  <th style="text-align:center">MoMo %</th>
                   <th style="text-align:center">Moy./Jour</th>
                   <th style="text-align:center">Éval.</th>
                 </tr>
               </thead>
               <tbody id="bs-equipe-tbody">
-                <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
+                <tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- CLASSEMENT GLOBAL -->
+        <!-- PANEL DROIT : Classement global (non-admin) ou Par zone (admin) -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Classement global</div>
+            <div class="card-title" id="bs-right-title">Classement global</div>
             <span class="badge badge-black" id="bs-global-badge">—</span>
           </div>
-          <div style="overflow-x:auto">
-            <table style="min-width:380px">
-              <thead>
+          <div id="bs-right-content" style="overflow-x:auto">
+            <table style="min-width:400px">
+              <thead id="bs-right-thead">
                 <tr>
                   <th style="width:36px">#</th>
                   <th>Agent DFA</th>
                   <th>Zone</th>
                   <th style="text-align:center">Gross Add</th>
+                  <th style="text-align:center">MoMo %</th>
                   <th style="text-align:center">Moy./Jour</th>
                   <th style="text-align:center">Éval.</th>
                 </tr>
               </thead>
               <tbody id="bs-global-tbody">
-                <tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
+                <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Chargement...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1954,6 +1956,7 @@
                   <th>Zone</th>
                   <th style="text-align:center">Gross Add</th>
                   <th style="text-align:center">Agents actifs</th>
+                  <th style="text-align:center">MoMo %</th>
                   <th style="text-align:center">Moy./Agent</th>
                   <th style="text-align:center">Éval.</th>
                 </tr>
@@ -5774,34 +5777,47 @@
 
     const key = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
     const _moisFR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-    const ref = period === 'mois'
-      ? today.toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
+    const periodLabel = period === 'mois'
+      ? today.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : period === 'jour'
       ? `${today.getDate()} ${_moisFR[today.getMonth()]} ${today.getFullYear()}`
       : `Semaine ${Math.ceil(today.getDate() / 7)} du mois de ${_moisFR[today.getMonth()]} ${today.getFullYear()}`;
-    const periodLabel = ref;
+
     const userZone = currentUser.zone;
 
-    /* Données : vraies saisies si disponibles, sinon mock (jour dérivé de moyJour pour le mock) */
+    /* Données : vraies saisies si disponibles, sinon mock avec momo approximé à 85 % */
     const source = SAISIES_DATA.length
       ? _computeBestsellerData(period)
-      : [...BESTSELLER_MOCK].map(a => ({ ...a, jour: a.jour ?? Math.round(a.moyJour) }));
-    const sorted = source.sort((a, b) => b[key] - a[key]);
+      : [...BESTSELLER_MOCK].map(a => ({ ...a, jour: a.jour ?? Math.round(a.moyJour), momo: Math.round((a[key] || 0) * 0.85) }));
+    const sorted = [...source].sort((a, b) => b[key] - a[key]);
 
-    /* Filtrage par zone — RA et rôles supérieurs voient toute l'équipe */
-    const isAdmin = ['ra','dg','dga','dcc','dc'].includes(currentUser.role);
-    const teamSorted = isAdmin ? sorted : sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
-
-    /* Seuils d'évaluation selon la période */
-    const thresholds = key === 'mois'
-      ? [[400,'Excellent','badge-green'],[280,'Très bien','badge-green'],[160,'Bien','badge-orange'],[80,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
-      : key === 'jour'
-      ? [[25,'Excellent','badge-green'],[18,'Très bien','badge-green'],[12,'Bien','badge-orange'],[6,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
-      : [[130,'Excellent','badge-green'],[90,'Très bien','badge-green'],[55,'Bien','badge-orange'],[25,'Moyen','badge-orange'],[0,'À améliorer','badge-red']];
-
-    function evalInfo(val) {
-      return thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
+    /* Tendance S vs S-1 (données réelles seulement) */
+    if (SAISIES_DATA.length) {
+      const prevSource = _computeBestsellerData(period === 'jour' ? 'jour' : period === 'mois' ? 'mois' : 'semaine', -1);
+      const prevMap = {};
+      prevSource.forEach(a => { prevMap[a.id] = a[key] || 0; });
+      sorted.forEach(a => {
+        const prev = prevMap[a.id];
+        a.trendPct = (prev > 0) ? Math.round((a[key] - prev) / prev * 100) : null;
+      });
     }
+
+    /* Seuils ancrés sur DFA_DAILY_TARGET (objectif réel) */
+    const daysInM  = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const tgt      = DFA_DAILY_TARGET * (key === 'jour' ? 1 : key === 'semaine' ? 7 : daysInM);
+    const thresholds = [
+      [Math.round(tgt * 1.2), 'Excellent',   'badge-green'],
+      [Math.round(tgt * 0.9), 'Très bien',   'badge-green'],
+      [Math.round(tgt * 0.7), 'Bien',        'badge-orange'],
+      [Math.round(tgt * 0.5), 'Moyen',       'badge-orange'],
+      [0,                     'À améliorer', 'badge-red']
+    ];
+
+    const evalInfo = val => thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
+
+    /* Filtrage par zone — RA/admin voient toute l'équipe */
+    const isAdmin    = ['ra','dg','dga','dcc','dc'].includes(currentUser.role);
+    const teamSorted = isAdmin ? sorted : sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
 
     function rankCell(i) {
       if (i === 0) return '<td><i class="fa fa-medal medal-1"></i></td>';
@@ -5810,63 +5826,136 @@
       return `<td style="color:#bbb;font-weight:600">${i + 1}</td>`;
     }
 
-    function buildRows(list, showZone) {
+    function trendCell(pct) {
+      if (pct === null || pct === undefined) return '<td style="text-align:center;color:var(--gray-text)">—</td>';
+      const icon  = pct > 0 ? 'fa-arrow-trend-up' : pct < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+      const color = pct > 5 ? 'var(--green)' : pct < -5 ? 'var(--red)' : 'var(--orange)';
+      return `<td style="text-align:center;font-size:12px;color:${color};font-weight:700"><i class="fa ${icon}"></i> ${pct > 0 ? '+' : ''}${pct}%</td>`;
+    }
+
+    function buildRows(list, showZone, showTrend) {
+      const cols = 6 + (showZone ? 1 : 0) + (showTrend ? 1 : 0);
+      if (!list.length) return `<tr><td colspan="${cols}" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée</td></tr>`;
       return list.slice(0, 10).map((agent, i) => {
-        const isMe = (agent.id === _agentId());
+        const isMe    = (agent.id === _agentId());
         const [, evalLbl, evalCls] = evalInfo(agent[key]);
+        const momoRate = agent[key] > 0 && agent.momo > 0 ? Math.round(agent.momo / agent[key] * 100) : null;
+        const momoCls  = momoRate === null ? 'badge-yellow' : momoRate >= 90 ? 'badge-green' : momoRate >= 70 ? 'badge-orange' : 'badge-red';
+        const momoTxt  = momoRate !== null ? momoRate + ' %' : '—';
         const namePart = isMe
           ? `<strong>${agent.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
           : agent.nom;
-        const zoneCell = showZone ? `<td style="font-size:12px;color:var(--gray-text)">${agent.zone}</td>` : '';
-        const rowStyle = isMe ? ' style="background:var(--yellow-light)"' : '';
-        return `<tr${rowStyle}>
+        const zoneCell  = showZone  ? `<td style="font-size:12px;color:var(--gray-text)">${agent.zone}</td>` : '';
+        const rowBg     = isMe ? 'background:var(--yellow-light)' : '';
+        return `<tr style="${rowBg}">
           ${rankCell(i)}
           <td>${namePart}</td>
           ${zoneCell}
           <td style="text-align:center;font-weight:700">${agent[key]}</td>
+          <td style="text-align:center"><span class="badge ${momoCls}">${momoTxt}</span></td>
+          ${showTrend ? trendCell(agent.trendPct) : ''}
           <td style="text-align:center">${agent.moyJour.toFixed(1)}</td>
           <td style="text-align:center"><span class="badge ${evalCls}">${evalLbl}</span></td>
         </tr>`;
       }).join('');
     }
 
-    const equipeTbody  = document.getElementById('bs-equipe-tbody');
-    const globalTbody  = document.getElementById('bs-global-tbody');
-    const equipeTitle  = document.getElementById('bs-equipe-title');
-    const equipeBadge  = document.getElementById('bs-equipe-badge');
-    const globalBadge  = document.getElementById('bs-global-badge');
+    const equipeTbody = document.getElementById('bs-equipe-tbody');
+    const equipeTitle = document.getElementById('bs-equipe-title');
+    const equipeBadge = document.getElementById('bs-equipe-badge');
+    const globalBadge = document.getElementById('bs-global-badge');
+    const rightTitle  = document.getElementById('bs-right-title');
+    const rightThead  = document.getElementById('bs-right-thead');
+    const globalTbody = document.getElementById('bs-global-tbody');
+    const hasTrend    = SAISIES_DATA.length > 0;
 
-    if (equipeTitle) equipeTitle.textContent = isAdmin ? 'Toute l\'équipe' : `Mon équipe — ${userZone}`;
-    if (equipeBadge) equipeBadge.textContent = `${Math.min(teamSorted.length, 10)} agents · ${periodLabel}`;
-    if (globalBadge) globalBadge.textContent = `${Math.min(sorted.length, 10)} agents · ${periodLabel}`;
-
-    if (equipeTbody) {
-      equipeTbody.innerHTML = teamSorted.length
-        ? buildRows(teamSorted, false)
-        : '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucun agent dans cette zone</td></tr>';
+    /* Mise à jour en-têtes du tableau "Mon équipe" pour inclure la colonne Tendance si données réelles */
+    const equipeTable = equipeTbody && equipeTbody.closest('table');
+    if (equipeTable) {
+      equipeTable.querySelector('thead tr').innerHTML = `
+        <th style="width:36px">#</th><th>Agent DFA</th>
+        <th style="text-align:center">Gross Add</th>
+        <th style="text-align:center">MoMo %</th>
+        ${hasTrend ? '<th style="text-align:center">Tendance</th>' : ''}
+        <th style="text-align:center">Moy./Jour</th>
+        <th style="text-align:center">Éval.</th>`;
     }
-    if (globalTbody) {
-      globalTbody.innerHTML = buildRows(sorted, true);
+
+    if (equipeTitle) equipeTitle.textContent = isAdmin ? "Toute l'équipe" : `Mon équipe — ${userZone}`;
+    if (equipeBadge) equipeBadge.textContent = `${Math.min(teamSorted.length, 10)} agents · ${periodLabel}`;
+    if (equipeTbody) equipeTbody.innerHTML   = buildRows(teamSorted, false, hasTrend);
+
+    /* Panel droit : classement global (non-admin) ou résumé par zone (admin) */
+    if (isAdmin) {
+      if (rightTitle) rightTitle.textContent = 'Résumé par zone';
+      if (globalBadge) globalBadge.textContent = `${periodLabel}`;
+      if (rightThead) rightThead.innerHTML = `<tr>
+        <th>Zone</th>
+        <th style="text-align:center">Gross Add</th>
+        <th style="text-align:center">MoMo %</th>
+        <th style="text-align:center">Agents actifs</th>
+        <th style="text-align:center">Moy./Agent</th>
+        <th style="text-align:center">Éval. zone</th>
+      </tr>`;
+      if (globalTbody) {
+        const zones = [...new Set(sorted.map(a => a.zone).filter(Boolean))];
+        const zoneRows = zones.map(zone => {
+          const za    = sorted.filter(a => _normZ(a.zone) === _normZ(zone));
+          const gaZ   = za.reduce((s, a) => s + (a[key] || 0), 0);
+          const momoZ = za.reduce((s, a) => s + (a.momo || 0), 0);
+          const actifs = za.filter(a => (a[key] || 0) > 0).length;
+          const nbA    = za.length || 1;
+          const moyA   = parseFloat((gaZ / nbA).toFixed(1));
+          const momoRateZ = gaZ > 0 ? Math.round(momoZ / gaZ * 100) : null;
+          const momoCZ  = momoRateZ === null ? 'badge-yellow' : momoRateZ >= 90 ? 'badge-green' : momoRateZ >= 70 ? 'badge-orange' : 'badge-red';
+          const [, evalLbl, evalCls] = evalInfo(moyA);
+          return `<tr>
+            <td style="font-weight:700">${zone}</td>
+            <td style="text-align:center;font-weight:700">${gaZ}</td>
+            <td style="text-align:center"><span class="badge ${momoCZ}">${momoRateZ !== null ? momoRateZ + ' %' : '—'}</span></td>
+            <td style="text-align:center">${actifs} / ${nbA}</td>
+            <td style="text-align:center">${moyA}</td>
+            <td style="text-align:center"><span class="badge ${evalCls}">${evalLbl}</span></td>
+          </tr>`;
+        });
+        globalTbody.innerHTML = zoneRows.length ? zoneRows.join('') : '<tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée</td></tr>';
+      }
+    } else {
+      if (rightTitle) rightTitle.textContent = 'Classement global';
+      if (globalBadge) globalBadge.textContent = `${Math.min(sorted.length, 10)} agents · ${periodLabel}`;
+      if (rightThead) rightThead.innerHTML = `<tr>
+        <th style="width:36px">#</th><th>Agent DFA</th><th>Zone</th>
+        <th style="text-align:center">Gross Add</th>
+        <th style="text-align:center">MoMo %</th>
+        ${hasTrend ? '<th style="text-align:center">Tendance</th>' : ''}
+        <th style="text-align:center">Moy./Jour</th>
+        <th style="text-align:center">Éval.</th>
+      </tr>`;
+      if (globalTbody) globalTbody.innerHTML = buildRows(sorted, true, hasTrend);
     }
   }
 
   /* --- Best Seller Superviseurs MPOS --- */
-  let bestsellerSupPeriod = 'semaine';
+  let bestsellerSupPeriod   = 'semaine';
+  let bestsellerSupSelected = null; // ID du superviseur sélectionné pour le détail
 
   function setBestsellerSupPeriod(p) {
     bestsellerSupPeriod = p;
     const sel = document.getElementById('bs-sup-period-select');
     if (sel) sel.value = p;
     renderBestsellerSup(p);
+    /* Rafraîchir le détail si un superviseur était déjà sélectionné */
+    if (bestsellerSupSelected) renderBestsellerSupDetail(bestsellerSupSelected, p);
   }
 
   function renderBestsellerSup(period) {
     if (!currentUser) return;
-    const tbody     = document.getElementById('bs-sup-tbody');
-    const badgeEl   = document.getElementById('bs-sup-badge');
+    const tbody   = document.getElementById('bs-sup-tbody');
+    const badgeEl = document.getElementById('bs-sup-badge');
     if (!tbody) return;
 
     const _moisFR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const daysInM = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const periodLabel = period === 'mois'
       ? today.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : period === 'jour'
@@ -5881,32 +5970,36 @@
       let ga = 0, momo = 0, agentsActifs = 0;
 
       if (SAISIES_DATA.length) {
-        const fil = period === 'mois'
-          ? _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), 'mois', today)
-          : period === 'jour'
-          ? _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), 'jour', today)
-          : _filterWeekOffset(_filterZone(SAISIES_DATA, sup.zone), 0);
-        ga   = _sumField(fil, 'grossAdd');
-        momo = _sumField(fil, 'momoUser');
+        const zoneSaisies = _filterZone(SAISIES_DATA, sup.zone);
+        const fil = period === 'mois'   ? _filterPeriod(zoneSaisies, 'mois', today)
+                  : period === 'jour'   ? _filterPeriod(zoneSaisies, 'jour', today)
+                  : _filterWeekOffset(zoneSaisies, 0);
+        ga           = _sumField(fil, 'grossAdd');
+        momo         = _sumField(fil, 'momoUser');
         agentsActifs = new Set(fil.map(s => s.dfaId)).size;
       }
 
-      const nbAgents = zoneAgents.length || 1;
-      const moyAgent = nbAgents > 0 ? Math.round(ga / nbAgents * 10) / 10 : 0;
-      const momoRate = ga > 0 ? Math.round(momo / ga * 100) : 0;
-      return { sup, zone: sup.zone || '—', ga, momo, agentsActifs, nbAgents, moyAgent, momoRate };
+      const nbAgents  = zoneAgents.length || 1;
+      const moyAgent  = parseFloat((ga / nbAgents).toFixed(1));
+      const momoRate  = ga > 0 ? Math.round(momo / ga * 100) : null;
+
+      /* Seuil dynamique : objectif réel de la zone pour la période */
+      const periodFactor = period === 'jour' ? 1 : period === 'semaine' ? 7 : daysInM;
+      const objectif     = DFA_DAILY_TARGET * periodFactor * nbAgents;
+      const atteintePct  = objectif > 0 ? Math.round(ga / objectif * 100) : 0;
+
+      return { sup, zone: sup.zone || '—', ga, momo, agentsActifs, nbAgents, moyAgent, momoRate, objectif, atteintePct };
     });
 
     supData.sort((a, b) => b.ga - a.ga);
 
-    const thresholds = period === 'mois'
-      ? [[2000,'Excellent','badge-green'],[1400,'Très bien','badge-green'],[800,'Bien','badge-orange'],[400,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
-      : period === 'jour'
-      ? [[100,'Excellent','badge-green'],[70,'Très bien','badge-green'],[40,'Bien','badge-orange'],[20,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
-      : [[500,'Excellent','badge-green'],[350,'Très bien','badge-green'],[200,'Bien','badge-orange'],[100,'Moyen','badge-orange'],[0,'À améliorer','badge-red']];
-
-    function evalInfo(val) {
-      return thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
+    /* Évaluation basée sur % d'atteinte de l'objectif réel */
+    function evalInfo(atteintePct) {
+      if (atteintePct >= 100) return ['', 'Excellent',   'badge-green'];
+      if (atteintePct >=  80) return ['', 'Très bien',   'badge-green'];
+      if (atteintePct >=  65) return ['', 'Bien',        'badge-orange'];
+      if (atteintePct >=  50) return ['', 'Moyen',       'badge-orange'];
+      return                         ['', 'À améliorer', 'badge-red'];
     }
 
     function rankCell(i) {
@@ -5919,23 +6012,29 @@
     if (badgeEl) badgeEl.textContent = `${supData.length} superviseurs · ${periodLabel}`;
 
     if (!supData.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucun superviseur actif</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Aucun superviseur actif</td></tr>';
       return;
     }
 
     tbody.innerHTML = supData.map((d, i) => {
-      const [, evalLbl, evalCls] = evalInfo(d.ga);
-      const isMe = currentUser && currentUser.id === d.sup.id;
+      const [, evalLbl, evalCls] = evalInfo(d.atteintePct);
+      const isMe     = currentUser && currentUser.id === d.sup.id;
       const namePart = isMe
         ? `<strong>${d.sup.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
         : d.sup.nom;
-      const rowStyle = isMe ? ' style="background:var(--yellow-light)"' : '';
-      return `<tr${rowStyle} style="cursor:pointer" onclick="renderBestsellerSupDetail('${d.sup.id}','${period}')">
+      /* style fusionné pour éviter l'écrasement du fond "Moi" par cursor:pointer */
+      const trStyle  = isMe ? 'background:var(--yellow-light);cursor:pointer' : 'cursor:pointer';
+      const momoCls  = d.momoRate === null ? 'badge-yellow' : d.momoRate >= 90 ? 'badge-green' : d.momoRate >= 70 ? 'badge-orange' : 'badge-red';
+      const momoTxt  = d.momoRate !== null ? d.momoRate + ' %' : '—';
+      const attLbl   = d.objectif > 0 ? `${d.atteintePct} %` : '—';
+      const attCls   = d.atteintePct >= 100 ? 'badge-green' : d.atteintePct >= 65 ? 'badge-orange' : 'badge-red';
+      return `<tr style="${trStyle}" onclick="renderBestsellerSupDetail('${d.sup.id}','${period}')">
         ${rankCell(i)}
         <td>${namePart}</td>
         <td style="font-size:12px;color:var(--gray-text)">${d.zone}</td>
-        <td style="text-align:center;font-weight:700">${d.ga}</td>
+        <td style="text-align:center;font-weight:700">${d.ga} <span class="badge ${attCls}" style="font-size:10px;margin-left:4px">${attLbl}</span></td>
         <td style="text-align:center">${d.agentsActifs} / ${d.nbAgents}</td>
+        <td style="text-align:center"><span class="badge ${momoCls}">${momoTxt}</span></td>
         <td style="text-align:center">${d.moyAgent}</td>
         <td style="text-align:center"><span class="badge ${evalCls}">${evalLbl}</span></td>
       </tr>`;
@@ -5943,6 +6042,7 @@
   }
 
   function renderBestsellerSupDetail(supId, period) {
+    bestsellerSupSelected = supId; // mémoriser pour rafraîchissement auto
     const detailBody  = document.getElementById('bs-sup-detail-body');
     const detailTitle = document.getElementById('bs-sup-detail-title');
     const detailBadge = document.getElementById('bs-sup-detail-badge');
@@ -6136,9 +6236,17 @@
   }
 
   /* --- Données Best Seller depuis saisies réelles --- */
-  function _computeBestsellerData(period) {
+  /* offset : 0 = période courante, -1 = période précédente (S-1, M-1, hier) */
+  function _computeBestsellerData(period, offset) {
     const filterKey = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
-    const fil = _filterPeriod(SAISIES_DATA, filterKey, today);
+    let refDate = today;
+    if (offset) {
+      refDate = new Date(today);
+      if (filterKey === 'jour')    refDate.setDate(refDate.getDate() + offset);
+      if (filterKey === 'semaine') refDate.setDate(refDate.getDate() + offset * 7);
+      if (filterKey === 'mois')    refDate.setMonth(refDate.getMonth() + offset);
+    }
+    const fil = _filterPeriod(SAISIES_DATA, filterKey, refDate);
     const byDFA = {};
     fil.forEach(s => {
       if (!s.dfaId) return;
