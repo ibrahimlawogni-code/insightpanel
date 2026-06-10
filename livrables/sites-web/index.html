@@ -1422,48 +1422,8 @@
           <div class="card-title">Mes objectifs</div>
           <span class="badge badge-yellow">Gross Add + New MoMo User</span>
         </div>
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-sun" style="color:var(--yellow)"></i> Journalier</div>
-              <div style="margin-bottom:10px">
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">16 / 10</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:100%;background:var(--green)"></div></div>
-                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">160 % — Dépassé</div>
-              </div>
-              <div>
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">9 / 12</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:75%;background:var(--orange)"></div></div>
-                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">75 % — En cours</div>
-              </div>
-            </div>
-            <div style="border-left:1px solid var(--gray-border);padding-left:24px">
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-calendar-week" style="color:var(--yellow)"></i> Hebdomadaire</div>
-              <div style="margin-bottom:10px">
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">74 / 70</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:100%;background:var(--green)"></div></div>
-                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">106 % — Dépassé</div>
-              </div>
-              <div>
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">42 / 50</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:84%;background:var(--green)"></div></div>
-                <div style="font-size:11px;color:var(--green);font-weight:600;margin-top:3px">84 % — Bon rythme</div>
-              </div>
-            </div>
-            <div style="border-left:1px solid var(--gray-border);padding-left:24px">
-              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px"><i class="fa fa-calendar" style="color:var(--yellow)"></i> Mensuel</div>
-              <div style="margin-bottom:10px">
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>Gross Add</span><span style="font-weight:700">186 / 300</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:62%;background:var(--orange)"></div></div>
-                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">62 % — 22 jours restants</div>
-              </div>
-              <div>
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>New MoMo User</span><span style="font-weight:700">112 / 180</span></div>
-                <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:62%;background:var(--orange)"></div></div>
-                <div style="font-size:11px;color:var(--orange);font-weight:600;margin-top:3px">62 % — 22 jours restants</div>
-              </div>
-            </div>
-          </div>
+        <div class="card-body" id="agent-objectifs-body">
+          <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
         </div>
       </div>
 
@@ -1473,21 +1433,8 @@
             <div class="card-header">
               <div class="card-title" id="agent-stats-semaine-title">Mes stats — Semaine 23</div>
             </div>
-            <div class="card-body">
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-                <div class="mini-stat">
-                  <div class="val" style="color:var(--yellow)">74</div>
-                  <div class="lbl">Gross Add</div>
-                </div>
-                <div class="mini-stat">
-                  <div class="val" style="color:var(--yellow)">42</div>
-                  <div class="lbl">New MoMo User</div>
-                </div>
-                <div class="mini-stat">
-                  <div class="val" style="color:var(--green)">83 %</div>
-                  <div class="lbl">Conformité</div>
-                </div>
-              </div>
+            <div class="card-body" id="agent-stats-body">
+              <div style="text-align:center;color:var(--gray-text);padding:12px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
             </div>
           </div>
 
@@ -1495,17 +1442,8 @@
             <div class="card-header">
               <div class="card-title">Mon classement</div>
             </div>
-            <div class="card-body">
-              <div class="rank-box">
-                <div class="rank-number">#7</div>
-                <div>
-                  <div style="font-size:14px;font-weight:700">Sur 150 agents terrain</div>
-                  <div style="font-size:12px;color:var(--gray-text);margin-top:2px">Performance globale : 83 %</div>
-                  <div style="font-size:12px;color:var(--orange);margin-top:5px">
-                    <i class="fa fa-arrow-up"></i> +2 places vs semaine dernière
-                  </div>
-                </div>
-              </div>
+            <div class="card-body" id="agent-classement-body">
+              <div style="text-align:center;color:var(--gray-text);padding:12px"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
             </div>
           </div>
 
@@ -1517,11 +1455,8 @@
               <thead>
                 <tr><th>Date</th><th>Gross Add</th><th>New MoMo User</th><th>Statut</th></tr>
               </thead>
-              <tbody>
-                <tr><td>05/06</td><td>16</td><td>9</td><td><span class="badge badge-green">Validé</span></td></tr>
-                <tr><td>04/06</td><td>21</td><td>13</td><td><span class="badge badge-green">Validé</span></td></tr>
-                <tr><td>03/06</td><td>14</td><td>8</td><td><span class="badge badge-green">Validé</span></td></tr>
-                <tr><td>02/06</td><td>23</td><td>12</td><td><span class="badge badge-green">Validé</span></td></tr>
+              <tbody id="agent-historique-tbody">
+                <tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:16px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
               </tbody>
             </table>
           </div>
@@ -1530,95 +1465,28 @@
       <!-- TOP 10 DFA -->
       <div class="card" style="margin-top:20px;margin-bottom:20px">
         <div class="card-header">
-          <div class="card-title">Top 10 Agents DFA — Semaine 23</div>
-          <span class="badge badge-black">10 / 150 agents</span>
+          <div class="card-title" id="agent-top10-title">Top 10 Agents DFA</div>
+          <span class="badge badge-black" id="agent-top10-badge">—</span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Agent DFA</th>
-              <th>Zone</th>
-              <th>Gross Add</th>
-              <th>New MoMo User</th>
-              <th>Moy. / Jour</th>
-              <th>Taux activ.</th>
-              <th>Évaluation</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><i class="fa fa-medal medal-1"></i></td>
-              <td><strong>Kossi ADJOVI</strong></td>
-              <td>Avrankou</td><td>143</td><td>87</td><td>20.4</td>
-              <td><span class="badge badge-green">96 %</span></td>
-              <td><span class="badge badge-green">Excellent</span></td>
-            </tr>
-            <tr>
-              <td><i class="fa fa-medal medal-2"></i></td>
-              <td><strong>Aïssatou GNONA</strong></td>
-              <td>Akpro - Missérété</td><td>128</td><td>79</td><td>18.3</td>
-              <td><span class="badge badge-green">91 %</span></td>
-              <td><span class="badge badge-green">Excellent</span></td>
-            </tr>
-            <tr>
-              <td><i class="fa fa-medal medal-3"></i></td>
-              <td><strong>Mouftaou SABI</strong></td>
-              <td>Avrankou</td><td>117</td><td>65</td><td>16.7</td>
-              <td><span class="badge badge-green">88 %</span></td>
-              <td><span class="badge badge-green">Très bien</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">4</td>
-              <td>Clarisse YOVO</td>
-              <td>Bonou - Adjohoun</td><td>104</td><td>58</td><td>14.9</td>
-              <td><span class="badge badge-orange">79 %</span></td>
-              <td><span class="badge badge-orange">Bien</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">5</td>
-              <td>Romuald AGBO</td>
-              <td>Aguégués - Dangbo</td><td>98</td><td>51</td><td>14.0</td>
-              <td><span class="badge badge-orange">74 %</span></td>
-              <td><span class="badge badge-orange">Bien</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">6</td>
-              <td>Félicité DOSSOU</td>
-              <td>Avrankou</td><td>87</td><td>44</td><td>12.4</td>
-              <td><span class="badge badge-orange">68 %</span></td>
-              <td><span class="badge badge-orange">Moyen</span></td>
-            </tr>
-            <tr style="background:var(--yellow-light)">
-              <td><strong>#7</strong></td>
-              <td><strong>Kofi MENSAH</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span></td>
-              <td>Avrankou</td><td>74</td><td>42</td><td>10.6</td>
-              <td><span class="badge badge-orange">83 %</span></td>
-              <td><span class="badge badge-green">Bien</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">8</td>
-              <td>Brice HOUINATO</td>
-              <td>Akpro - Missérété</td><td>76</td><td>39</td><td>10.9</td>
-              <td><span class="badge badge-red">62 %</span></td>
-              <td><span class="badge badge-red">À améliorer</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">9</td>
-              <td>Sènan AKAKPO</td>
-              <td>Bonou - Adjohoun</td><td>68</td><td>33</td><td>9.7</td>
-              <td><span class="badge badge-red">58 %</span></td>
-              <td><span class="badge badge-red">À améliorer</span></td>
-            </tr>
-            <tr>
-              <td style="color:#bbb">10</td>
-              <td>Mariam OUOROU</td>
-              <td>Aguégués - Dangbo</td><td>61</td><td>28</td><td>8.7</td>
-              <td><span class="badge badge-red">54 %</span></td>
-              <td><span class="badge badge-red">À améliorer</span></td>
-            </tr>
-          </tbody>
-        </table>
+        <div style="overflow-x:auto">
+          <table style="min-width:560px">
+            <thead>
+              <tr>
+                <th style="width:36px">#</th>
+                <th>Agent DFA</th>
+                <th>Zone</th>
+                <th style="text-align:center">Gross Add</th>
+                <th style="text-align:center">New MoMo</th>
+                <th style="text-align:center">Moy./Jour</th>
+                <th style="text-align:center">Taux activ.</th>
+                <th style="text-align:center">Éval.</th>
+              </tr>
+            </thead>
+            <tbody id="agent-top10-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ÉVALUATION -->
@@ -1891,9 +1759,12 @@
           <div class="page-title">Best Seller — DFA</div>
           <div class="page-subtitle">Classement des meilleurs agents terrain</div>
         </div>
-        <div class="tabs">
-          <button class="tab active" onclick="setBestsellerPeriod('semaine',this)">Semaine</button>
-          <button class="tab" onclick="setBestsellerPeriod('mois',this)">Mois</button>
+        <div>
+          <select id="bs-period-select" onchange="setBestsellerPeriod(this.value)" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:14px;cursor:pointer">
+            <option value="jour">Aujourd'hui</option>
+            <option value="semaine" selected>Cette semaine</option>
+            <option value="mois">Ce mois</option>
+          </select>
         </div>
       </div>
 
@@ -2435,7 +2306,7 @@
       parametres:  'Paramètres'
     };
     document.getElementById('topbar-title').textContent = titles[name] || name;
-    if (name === 'agent')       updatePerfDisplay();
+    if (name === 'agent')     { updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); }
     if (name === 'evaluation')  renderEvaluation();
     if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')  renderBestseller(bestsellerPeriod);
@@ -4329,6 +4200,296 @@
     </div>`;
   }
 
+  /* --- Objectifs individuels DFA (Vue Agent Terrain) --- */
+  function _renderAgentObjectifs() {
+    const container = document.getElementById('agent-objectifs-body');
+    if (!container || !currentUser) return;
+
+    const daysInM   = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const tJour     = DFA_DAILY_TARGET;
+    const tSem      = DFA_DAILY_TARGET * 7;
+    const tMois     = DFA_DAILY_TARGET * daysInM;
+    const mtJour    = Math.round(tJour * 0.9);
+    const mtSem     = Math.round(tSem  * 0.9);
+    const mtMois    = Math.round(tMois * 0.9);
+
+    let gsmJ, momoJ, gsmS, momoS, gsmM, momoM;
+    if (SAISIES_DATA.length) {
+      const dJ = _computeAgentPerf(currentUser.id, 'jour',    today);
+      const dS = _computeAgentPerf(currentUser.id, 'semaine', today);
+      const dM = _computeAgentPerf(currentUser.id, 'mois',    today);
+      gsmJ = dJ.gsm; momoJ = dJ.momo;
+      gsmS = dS.gsm; momoS = dS.momo;
+      gsmM = dM.gsm; momoM = dM.momo;
+    } else {
+      const keyJ = today.toISOString().split('T')[0];
+      const keyS = today.getFullYear() + '-W' + getWeekNumber(today);
+      const keyM = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+      const dJ = agentPerfData.jour[keyJ]    || agentPerfData.jour['2026-06-08']  || {};
+      const dS = agentPerfData.semaine[keyS] || agentPerfData.semaine['2026-W23'] || {};
+      const dM = agentPerfData.mois[keyM]    || agentPerfData.mois['2026-06']     || {};
+      gsmJ = dJ.gsm||0; momoJ = dJ.momo||0;
+      gsmS = dS.gsm||0; momoS = dS.momo||0;
+      gsmM = dM.gsm||0; momoM = dM.momo||0;
+    }
+
+    const pct   = (v,t) => t > 0 ? Math.min(100, Math.round(v/t*100)) : 0;
+    const color = p => p >= 100 ? 'var(--green)' : p >= 70 ? 'var(--orange)' : 'var(--red)';
+    const lbl   = p => p >= 100 ? 'Dépassé' : p >= 80 ? 'Bon rythme' : p >= 50 ? 'En cours' : 'En retard';
+
+    function col(icon, titre, gsmVal, momoVal, gsmT, momoT, borderLeft) {
+      const gP = pct(gsmVal, gsmT), mP = pct(momoVal, momoT);
+      const style = borderLeft ? 'border-left:1px solid var(--gray-border);padding-left:24px' : '';
+      return `
+        <div style="${style}">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">
+            <i class="fa ${icon}" style="color:var(--yellow)"></i> ${titre}
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+              <span>Gross Add</span><span style="font-weight:700">${gsmVal} / ${gsmT}</span>
+            </div>
+            <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:${gP}%;background:${color(gP)}"></div></div>
+            <div style="font-size:11px;color:${color(gP)};font-weight:600;margin-top:3px">${gP} % — ${lbl(gP)}</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+              <span>New MoMo User</span><span style="font-weight:700">${momoVal} / ${momoT}</span>
+            </div>
+            <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:${mP}%;background:${color(mP)}"></div></div>
+            <div style="font-size:11px;color:${color(mP)};font-weight:600;margin-top:3px">${mP} % — ${lbl(mP)}</div>
+          </div>
+        </div>`;
+    }
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+        ${col('fa-sun',           'Journalier',    gsmJ, momoJ, tJour, mtJour, false)}
+        ${col('fa-calendar-week', 'Hebdomadaire',  gsmS, momoS, tSem,  mtSem,  true)}
+        ${col('fa-calendar',      'Mensuel',       gsmM, momoM, tMois, mtMois, true)}
+      </div>`;
+  }
+
+  /* --- Stats hebdomadaires DFA (Vue Agent Terrain) --- */
+  function _renderAgentStats() {
+    const container = document.getElementById('agent-stats-body');
+    if (!container || !currentUser) return;
+
+    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const semMois = Math.ceil(today.getDate() / 7);
+    const titleEl = document.getElementById('agent-stats-semaine-title');
+    if (titleEl) titleEl.textContent = `Mes stats — Semaine ${semMois} du mois de ${moisFR[today.getMonth()]} ${today.getFullYear()}`;
+
+    let gsm, momo, conformite;
+    if (SAISIES_DATA.length) {
+      const mine   = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const semFil = _filterPeriod(mine, 'semaine', today);
+      gsm        = _sumField(semFil, 'grossAdd');
+      momo       = _sumField(semFil, 'momoUser');
+      conformite = Math.min(100, Math.round(_uniqueDays(semFil) / 6 * 100));
+    } else {
+      const keyS = today.getFullYear() + '-W' + getWeekNumber(today);
+      const d    = agentPerfData.semaine[keyS] || agentPerfData.semaine['2026-W23'] || {};
+      gsm        = d.gsm  || 0;
+      momo       = d.momo || 0;
+      const joursActifs = Object.values(agentPerfData.jour).filter(j => j.gsm > 0).length;
+      conformite = Math.min(100, Math.round(joursActifs / 6 * 100));
+    }
+
+    const tc = v => v >= 80 ? 'var(--green)' : v >= 60 ? 'var(--orange)' : 'var(--red)';
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)">${gsm}</div>
+          <div class="lbl">Gross Add</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:var(--yellow)">${momo}</div>
+          <div class="lbl">New MoMo User</div>
+        </div>
+        <div class="mini-stat">
+          <div class="val" style="color:${tc(conformite)}">${conformite} %</div>
+          <div class="lbl">Conformité</div>
+        </div>
+      </div>`;
+  }
+
+  /* --- Classement hebdomadaire DFA (Vue Agent Terrain) --- */
+  function _renderAgentClassement() {
+    const container = document.getElementById('agent-classement-body');
+    if (!container || !currentUser) return;
+
+    function rankSaisies(saisies) {
+      const by = {};
+      saisies.forEach(s => {
+        if (!s.dfaId) return;
+        if (!by[s.dfaId]) by[s.dfaId] = { id: s.dfaId, val: 0 };
+        by[s.dfaId].val += s.grossAdd;
+      });
+      return Object.values(by).sort((a, b) => b.val - a.val);
+    }
+
+    let rang, total, perfPct, evol = null;
+
+    if (SAISIES_DATA.length) {
+      const rankThis = rankSaisies(_filterWeekOffset(SAISIES_DATA,  0));
+      const rankLast = rankSaisies(_filterWeekOffset(SAISIES_DATA, -1));
+      const idxThis  = rankThis.findIndex(a => a.id === currentUser.id);
+      const idxLast  = rankLast.findIndex(a => a.id === currentUser.id);
+      rang    = idxThis >= 0 ? idxThis + 1 : null;
+      total   = Math.max(rankThis.length, USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length);
+      perfPct = _computeAgentPerf(currentUser.id, 'semaine', today).tauxGSM;
+      if (idxThis >= 0 && idxLast >= 0) evol = (idxLast + 1) - (idxThis + 1);
+    } else {
+      const sorted = [...BESTSELLER_MOCK].sort((a, b) => b.semaine - a.semaine);
+      const idx    = sorted.findIndex(a => a.id === currentUser.id);
+      rang    = idx >= 0 ? idx + 1 : null;
+      total   = sorted.length;
+      const keyS = today.getFullYear() + '-W' + getWeekNumber(today);
+      const d  = agentPerfData.semaine[keyS] || agentPerfData.semaine['2026-W23'] || {};
+      perfPct  = d.tauxGSM || 0;
+    }
+
+    const rangTxt  = rang  ? '#' + rang  : '—';
+    const totalTxt = total ? `Sur ${total} agents terrain` : 'Classement en cours';
+
+    let evolHTML = '';
+    if (evol !== null) {
+      if (evol > 0) {
+        evolHTML = `<div style="font-size:12px;color:var(--green);margin-top:5px"><i class="fa fa-arrow-up"></i> +${evol} place${evol > 1 ? 's' : ''} vs semaine dernière</div>`;
+      } else if (evol < 0) {
+        evolHTML = `<div style="font-size:12px;color:var(--red);margin-top:5px"><i class="fa fa-arrow-down"></i> ${Math.abs(evol)} place${Math.abs(evol) > 1 ? 's' : ''} de moins vs semaine dernière</div>`;
+      } else {
+        evolHTML = `<div style="font-size:12px;color:var(--gray-text);margin-top:5px"><i class="fa fa-minus"></i> Stable vs semaine dernière</div>`;
+      }
+    }
+
+    container.innerHTML = `
+      <div class="rank-box">
+        <div class="rank-number">${rangTxt}</div>
+        <div>
+          <div style="font-size:14px;font-weight:700">${totalTxt}</div>
+          <div style="font-size:12px;color:var(--gray-text);margin-top:2px">Performance globale : ${perfPct} %</div>
+          ${evolHTML}
+        </div>
+      </div>`;
+  }
+
+  /* --- Historique récent DFA (Vue Agent Terrain) --- */
+  function _renderAgentHistorique() {
+    const tbody = document.getElementById('agent-historique-tbody');
+    if (!tbody || !currentUser) return;
+
+    const todayStr = today.toLocaleDateString('fr-FR');
+
+    if (SAISIES_DATA.length) {
+      const mine  = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+      const dates = [...new Set(mine.map(s => s.date).filter(Boolean))].sort((a, b) => {
+        const da = _parseFrDate(a), db = _parseFrDate(b);
+        return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+      }).slice(0, 7);
+      if (!dates.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:16px">Aucune saisie enregistrée</td></tr>';
+        return;
+      }
+      tbody.innerHTML = dates.map(dateStr => {
+        const ds  = mine.filter(s => s.date === dateStr);
+        const ga  = _sumField(ds, 'grossAdd');
+        const mm  = _sumField(ds, 'momoUser');
+        const d   = _parseFrDate(dateStr);
+        const lbl = d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : dateStr;
+        const isToday = dateStr === todayStr;
+        const bdg = isToday
+          ? '<span class="badge badge-yellow">Aujourd\'hui</span>'
+          : '<span class="badge badge-green">Validé</span>';
+        return `<tr><td>${lbl}</td><td style="text-align:center;font-weight:700">${ga}</td><td style="text-align:center;font-weight:700">${mm}</td><td>${bdg}</td></tr>`;
+      }).join('');
+    } else {
+      /* Fallback mock depuis agentPerfData.jour */
+      const entries = Object.entries(agentPerfData.jour)
+        .map(([k, v]) => ({ dateStr: k, gsm: v.gsm || 0, momo: v.momo || 0 }))
+        .filter(e => e.gsm > 0)
+        .sort((a, b) => b.dateStr.localeCompare(a.dateStr))
+        .slice(0, 7);
+      if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--gray-text);padding:16px">Aucune donnée disponible</td></tr>';
+        return;
+      }
+      tbody.innerHTML = entries.map(e => {
+        const d   = new Date(e.dateStr + 'T00:00:00');
+        const lbl = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        const isToday = e.dateStr === today.toISOString().split('T')[0];
+        const bdg = isToday
+          ? '<span class="badge badge-yellow">Aujourd\'hui</span>'
+          : '<span class="badge badge-green">Validé</span>';
+        return `<tr><td>${lbl}</td><td style="text-align:center;font-weight:700">${e.gsm}</td><td style="text-align:center;font-weight:700">${e.momo}</td><td>${bdg}</td></tr>`;
+      }).join('');
+    }
+  }
+
+  /* --- Top 10 DFA (Vue Agent Terrain) --- */
+  function _renderAgentTop10() {
+    const tbody   = document.getElementById('agent-top10-tbody');
+    const titleEl = document.getElementById('agent-top10-title');
+    const badgeEl = document.getElementById('agent-top10-badge');
+    if (!tbody || !currentUser) return;
+
+    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const semMois = Math.ceil(today.getDate() / 7);
+    if (titleEl) titleEl.textContent = `Top 10 Agents DFA — Semaine ${semMois} de ${moisFR[today.getMonth()]} ${today.getFullYear()}`;
+
+    const thresholds = [[130,'Excellent','badge-green'],[90,'Très bien','badge-green'],[55,'Bien','badge-orange'],[25,'Moyen','badge-orange'],[0,'À améliorer','badge-red']];
+    const evalInfo = val => thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
+    const total    = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length || '?';
+
+    function rankCell(i) {
+      if (i === 0) return '<td><i class="fa fa-medal medal-1"></i></td>';
+      if (i === 1) return '<td><i class="fa fa-medal medal-2"></i></td>';
+      if (i === 2) return '<td><i class="fa fa-medal medal-3"></i></td>';
+      return `<td style="color:#bbb;font-weight:600">${i + 1}</td>`;
+    }
+
+    function tauxCell(pct) {
+      if (pct === null || pct === undefined) return '<td style="text-align:center;color:var(--gray-text)">—</td>';
+      const cls = pct >= 80 ? 'badge-green' : pct >= 60 ? 'badge-orange' : 'badge-red';
+      return `<td style="text-align:center"><span class="badge ${cls}">${pct} %</span></td>`;
+    }
+
+    function buildRow(agent, i, hasMomoActiv) {
+      const isMe = agent.id === currentUser.id;
+      const [, evalLbl, evalCls] = evalInfo(agent.semaine);
+      const namePart = isMe
+        ? `<strong>${agent.nom}</strong> <span class="badge badge-yellow" style="font-size:10px">Moi</span>`
+        : agent.nom;
+      const momoCell = hasMomoActiv
+        ? `<td style="text-align:center;font-weight:700">${agent.momo}</td>`
+        : '<td style="text-align:center;color:var(--gray-text)">—</td>';
+      return `<tr${isMe ? ' style="background:var(--yellow-light)"' : ''}>
+        ${rankCell(i)}
+        <td>${namePart}</td>
+        <td style="font-size:12px;color:var(--gray-text)">${agent.zone}</td>
+        <td style="text-align:center;font-weight:700">${agent.semaine}</td>
+        ${momoCell}
+        <td style="text-align:center">${agent.moyJour.toFixed(1)}</td>
+        ${tauxCell(hasMomoActiv ? agent.tauxActiv : null)}
+        <td style="text-align:center"><span class="badge ${evalCls}">${evalLbl}</span></td>
+      </tr>`;
+    }
+
+    let sorted, hasMomoActiv;
+    if (SAISIES_DATA.length) {
+      sorted       = _computeBestsellerData('semaine').sort((a, b) => b.semaine - a.semaine).slice(0, 10);
+      hasMomoActiv = true;
+    } else {
+      sorted       = [...BESTSELLER_MOCK].sort((a, b) => b.semaine - a.semaine).slice(0, 10);
+      hasMomoActiv = false;
+    }
+
+    if (badgeEl) badgeEl.textContent = `${sorted.length} / ${total} agents`;
+    const rows = sorted.map((a, i) => buildRow(a, i, hasMomoActiv)).join('');
+    tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible</td></tr>`;
+  }
+
   /* Données de performance par zone (mock — à remplacer par vraies données Sheets) */
   const ZONE_PERF = {
     'Avrankou':           { gsm: 88, momo: 82 },
@@ -4606,26 +4767,30 @@
 
   let bestsellerPeriod = 'semaine';
 
-  function setBestsellerPeriod(p, el) {
+  function setBestsellerPeriod(p) {
     bestsellerPeriod = p;
-    document.querySelectorAll('#view-bestseller .tabs .tab').forEach(t => t.classList.remove('active'));
-    if (el) el.classList.add('active');
+    const sel = document.getElementById('bs-period-select');
+    if (sel) sel.value = p;
     renderBestseller(p);
   }
 
   function renderBestseller(period) {
     if (!currentUser) return;
 
-    const key = (period === 'mois') ? 'mois' : 'semaine';
+    const key = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
     const _moisFR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
     const ref = period === 'mois'
       ? today.toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
+      : period === 'jour'
+      ? `${today.getDate()} ${_moisFR[today.getMonth()]} ${today.getFullYear()}`
       : `Semaine ${Math.ceil(today.getDate() / 7)} du mois de ${_moisFR[today.getMonth()]} ${today.getFullYear()}`;
     const periodLabel = ref;
     const userZone = currentUser.zone;
 
-    /* Données : vraies saisies si disponibles, sinon mock */
-    const source = SAISIES_DATA.length ? _computeBestsellerData(period) : [...BESTSELLER_MOCK];
+    /* Données : vraies saisies si disponibles, sinon mock (jour dérivé de moyJour pour le mock) */
+    const source = SAISIES_DATA.length
+      ? _computeBestsellerData(period)
+      : [...BESTSELLER_MOCK].map(a => ({ ...a, jour: a.jour ?? Math.round(a.moyJour) }));
     const sorted = source.sort((a, b) => b[key] - a[key]);
 
     /* Filtrage par zone — RA et rôles supérieurs voient toute l'équipe */
@@ -4633,8 +4798,10 @@
     const teamSorted = isAdmin ? sorted : sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
 
     /* Seuils d'évaluation selon la période */
-    const thresholds = (key === 'mois')
+    const thresholds = key === 'mois'
       ? [[400,'Excellent','badge-green'],[280,'Très bien','badge-green'],[160,'Bien','badge-orange'],[80,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
+      : key === 'jour'
+      ? [[25,'Excellent','badge-green'],[18,'Très bien','badge-green'],[12,'Bien','badge-orange'],[6,'Moyen','badge-orange'],[0,'À améliorer','badge-red']]
       : [[130,'Excellent','badge-green'],[90,'Très bien','badge-green'],[55,'Bien','badge-orange'],[25,'Moyen','badge-orange'],[0,'À améliorer','badge-red']];
 
     function evalInfo(val) {
@@ -4902,19 +5069,27 @@
 
   /* --- Données Best Seller depuis saisies réelles --- */
   function _computeBestsellerData(period) {
-    const fil = _filterPeriod(SAISIES_DATA, period==='mois' ? 'mois' : 'semaine', today);
+    const filterKey = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
+    const fil = _filterPeriod(SAISIES_DATA, filterKey, today);
     const byDFA = {};
     fil.forEach(s => {
       if (!s.dfaId) return;
-      if (!byDFA[s.dfaId]) byDFA[s.dfaId] = { id:s.dfaId, nom:s.dfaNom||s.dfaId, zone:s.zone, val:0, days:new Set() };
-      byDFA[s.dfaId].val += s.grossAdd;
+      if (!byDFA[s.dfaId]) byDFA[s.dfaId] = { id:s.dfaId, nom:s.dfaNom||s.dfaId, zone:s.zone, val:0, momo:0, days:new Set() };
+      byDFA[s.dfaId].val  += s.grossAdd;
+      byDFA[s.dfaId].momo += (s.momoUser || 0);
       byDFA[s.dfaId].days.add(s.date);
     });
+    const periodDays = period === 'jour' ? 1
+      : period === 'mois' ? new Date(today.getFullYear(), today.getMonth()+1, 0).getDate()
+      : 6;
     return Object.values(byDFA).map(a => ({
       id: a.id, nom: a.nom, zone: a.zone,
-      semaine: period!=='mois' ? a.val : 0,
-      mois:    period==='mois' ? a.val : 0,
-      moyJour: a.days.size ? parseFloat((a.val/a.days.size).toFixed(1)) : 0
+      jour:      period === 'jour'    ? a.val : 0,
+      semaine:   period === 'semaine' ? a.val : 0,
+      mois:      period === 'mois'    ? a.val : 0,
+      momo:      a.momo,
+      tauxActiv: Math.min(100, Math.round(a.days.size / periodDays * 100)),
+      moyJour:   a.days.size ? parseFloat((a.val/a.days.size).toFixed(1)) : 0
     }));
   }
 
@@ -5283,6 +5458,11 @@
     renderSupHebdoTable();
     renderBestseller(bestsellerPeriod);
     updatePerfDisplay();
+    _renderAgentObjectifs();
+    _renderAgentStats();
+    _renderAgentClassement();
+    _renderAgentHistorique();
+    _renderAgentTop10();
     _renderDernieresSaisies();
     _renderEvaluationView();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
