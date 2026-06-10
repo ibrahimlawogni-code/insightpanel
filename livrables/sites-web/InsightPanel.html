@@ -1325,6 +1325,28 @@
         </div>
       </div>
 
+      <!-- PROGRESSION MENSUELLE + TENDANCE ÉQUIPE -->
+      <div class="grid-2" style="align-items:start;margin-bottom:16px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Progression mensuelle — Équipe</div>
+            <span class="badge badge-yellow" id="sup-mensuel-badge">—</span>
+          </div>
+          <div id="sup-mensuel-body">
+            <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Tendance équipe — 4 semaines</div>
+            <span class="badge badge-yellow" id="sup-tendance-badge">—</span>
+          </div>
+          <div id="sup-tendance-body">
+            <div style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></div>
+          </div>
+        </div>
+      </div>
+
       <!-- FILTRE DFA -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <label style="font-size:12px;font-weight:800;color:var(--gray-text);white-space:nowrap"><i class="fa fa-user" style="margin-right:5px;color:var(--yellow)"></i>DFAs</label>
@@ -4110,6 +4132,8 @@
     renderSupDfaPerfTable(supId);
     renderSupDfaHebdoTable(supId);
     _renderSupAlertes(supId);
+    _renderSupEquipeMensuel(supId);
+    _renderSupEquipeTendance(supId);
   }
 
   function renderSuperviseurPerf() {
@@ -4582,6 +4606,150 @@
     if (badgeEl) badgeEl.textContent = `${sorted.length} / ${total} agents`;
     const rows = sorted.map((a, i) => buildRow(a, i, hasMomoActiv)).join('');
     tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible</td></tr>`;
+  }
+
+  /* --- Progression mensuelle équipe (Vue Superviseur) --- */
+  function _renderSupEquipeMensuel(supId) {
+    const container = document.getElementById('sup-mensuel-body');
+    const badgeEl   = document.getElementById('sup-mensuel-badge');
+    if (!container) return;
+
+    const sup = USERS.find(u => u.id === supId);
+    if (!sup) {
+      container.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:16px;font-size:13px">Sélectionnez un superviseur</div>';
+      return;
+    }
+
+    if (!SAISIES_DATA.length) {
+      container.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:16px;font-size:13px;color:var(--gray-text)"><i class="fa fa-circle-info"></i> Données en attente de connexion</div>';
+      if (badgeEl) { badgeEl.textContent = '—'; badgeEl.className = 'badge badge-yellow'; }
+      return;
+    }
+
+    const daysInM  = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfM   = today.getDate();
+    const daysLeft = daysInM - dayOfM;
+    const tMois    = _zoneTarget(sup.zone, 'mois') || 0;
+
+    const zoneSaisies = _filterZone(SAISIES_DATA, sup.zone);
+    const moisSaisies = _filterPeriod(zoneSaisies, 'mois', today);
+    const gsmM        = _sumField(moisSaisies, 'grossAdd');
+    const momoM       = _sumField(moisSaisies, 'momoUser');
+
+    const avgJour   = dayOfM > 0 ? gsmM / dayOfM : 0;
+    const projected = tMois > 0 ? Math.round(gsmM + avgJour * daysLeft) : null;
+    const curPct    = tMois > 0 ? Math.min(100, Math.round(gsmM / tMois * 100)) : null;
+    const projPct   = projected !== null ? Math.min(100, Math.round(projected / tMois * 100)) : null;
+
+    const curColor  = curPct  !== null ? (curPct  >= 80 ? 'var(--green)' : curPct  >= 60 ? 'var(--orange)' : 'var(--red)') : 'var(--gray-text)';
+    const projColor = projPct !== null ? (projPct >= 90 ? 'var(--green)' : projPct >= 70 ? 'var(--orange)' : 'var(--red)') : 'var(--gray-text)';
+    const projCls   = projPct !== null ? (projPct >= 90 ? 'badge-green'  : projPct >= 70 ? 'badge-orange'  : 'badge-red')  : 'badge-yellow';
+
+    if (badgeEl) { badgeEl.textContent = projPct !== null ? `${projPct}% prévu` : '—'; badgeEl.className = `badge ${projCls}`; }
+
+    const momoRate = gsmM > 0 ? Math.round(momoM / gsmM * 100) : 0;
+    const momoCol  = momoRate >= 90 ? 'var(--green)' : momoRate >= 70 ? 'var(--orange)' : 'var(--red)';
+    const activeIds      = new Set(moisSaisies.map(s => s.dfaId)).size;
+    const totalZoneAgents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone)).length;
+
+    container.innerHTML = `
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+          <span>Gross Add ce mois</span>
+          <span style="font-weight:700">${gsmM.toLocaleString('fr-FR')} / ${tMois > 0 ? tMois.toLocaleString('fr-FR') : '—'}</span>
+        </div>
+        ${curPct !== null ? `
+        <div class="zone-track" style="height:10px"><div class="zone-fill" style="width:${curPct}%;background:${curColor}"></div></div>
+        <div style="font-size:11px;color:${curColor};font-weight:600;margin-top:3px">${curPct}% atteint · ${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}</div>
+        ` : ''}
+        <div style="height:1px;background:var(--gray-border);margin:12px 0"></div>
+        ${projected !== null ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span style="color:var(--gray-text)">Projection fin de mois</span>
+          <span style="font-weight:700;color:${projColor}">${projected.toLocaleString('fr-FR')}</span>
+        </div>
+        <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:${projPct}%;background:${projColor}"></div></div>
+        <div style="font-size:11px;color:${projColor};font-weight:600;margin-top:3px">${projPct}% projeté</div>
+        <div style="height:1px;background:var(--gray-border);margin:12px 0"></div>
+        ` : ''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:70px">
+            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">Taux MoMo</div>
+            <div style="font-size:16px;font-weight:800;color:${momoCol}">${momoRate}%</div>
+          </div>
+          <div style="flex:1;min-width:70px">
+            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">DFA actifs</div>
+            <div style="font-size:16px;font-weight:800">${activeIds}<span style="font-size:12px;font-weight:400;color:var(--gray-text)"> / ${totalZoneAgents}</span></div>
+          </div>
+          <div style="flex:1;min-width:70px">
+            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">Moy. / jour</div>
+            <div style="font-size:16px;font-weight:800">${Math.round(avgJour)}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* --- Tendance équipe 4 semaines (Vue Superviseur) --- */
+  function _renderSupEquipeTendance(supId) {
+    const container = document.getElementById('sup-tendance-body');
+    const badgeEl   = document.getElementById('sup-tendance-badge');
+    if (!container) return;
+
+    const sup = USERS.find(u => u.id === supId);
+    if (!sup) {
+      container.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:16px;font-size:13px">Sélectionnez un superviseur</div>';
+      return;
+    }
+
+    if (!SAISIES_DATA.length) {
+      container.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:16px;font-size:13px;color:var(--gray-text)"><i class="fa fa-circle-info"></i> Données en attente de connexion</div>';
+      if (badgeEl) { badgeEl.textContent = '—'; badgeEl.className = 'badge badge-yellow'; }
+      return;
+    }
+
+    const zoneSaisies = _filterZone(SAISIES_DATA, sup.zone);
+
+    const weeks  = [-3, -2, -1, 0].map(offset => {
+      const lbl = offset === 0 ? 'Cette sem.' : `S-${Math.abs(offset)}`;
+      const fil  = _filterWeekOffset(zoneSaisies, offset);
+      return { lbl, gsm: _sumField(fil, 'grossAdd'), momo: _sumField(fil, 'momoUser') };
+    });
+
+    const maxGSM = Math.max(...weeks.map(w => w.gsm), 1);
+    const tSem   = _zoneTarget(sup.zone, 'semaine') || 0;
+    const avg4   = Math.round(weeks.reduce((a, w) => a + w.gsm, 0) / 4);
+
+    const last = weeks[3].gsm, prev = weeks[2].gsm;
+    const trendPct = prev > 0 ? Math.round((last - prev) / prev * 100) : null;
+    const trendLbl = trendPct !== null ? (trendPct >= 0 ? '+' : '') + trendPct + '% vs S-1' : '—';
+    const trendCls = trendPct !== null ? (trendPct > 0 ? 'badge-green' : trendPct < 0 ? 'badge-red' : 'badge-yellow') : 'badge-yellow';
+    if (badgeEl) { badgeEl.textContent = trendLbl; badgeEl.className = `badge ${trendCls}`; }
+
+    const bars = weeks.map((w, i) => {
+      const h   = Math.max(Math.round(w.gsm / maxGSM * 100), 3);
+      const col = tSem > 0
+        ? (w.gsm >= tSem ? 'var(--green)' : w.gsm >= tSem * 0.7 ? 'var(--yellow)' : 'var(--red)')
+        : 'var(--yellow)';
+      const mr  = w.gsm > 0 && w.momo > 0 ? Math.round(w.momo / w.gsm * 100) : 0;
+      const isCurrent = i === 3;
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <div style="font-size:11px;font-weight:700;color:${isCurrent ? 'var(--text)' : 'var(--gray-text)'}">${w.gsm || '—'}</div>
+          <div style="width:100%;background:var(--gray-bg);border-radius:4px 4px 0 0;height:80px;display:flex;align-items:flex-end">
+            <div style="width:100%;height:${h}%;background:${col};border-radius:4px 4px 0 0;opacity:${isCurrent ? '1' : '0.65'}"></div>
+          </div>
+          <div style="font-size:11px;color:var(--gray-text);font-weight:${isCurrent ? '700' : '400'}">${w.lbl}</div>
+          <div style="font-size:10px;color:var(--gray-text)">${mr > 0 ? mr + '% MoMo' : '—'}</div>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="display:flex;gap:8px;padding:8px 4px 0">${bars}</div>
+      <div style="height:1px;background:var(--gray-border);margin:10px 0 8px"></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-text)">
+        <span>Objectif sem. : <strong style="color:var(--text)">${tSem > 0 ? tSem.toLocaleString('fr-FR') : '—'} GA</strong></span>
+        <span>Moy. 4 sem. : <strong style="color:var(--text)">${avg4.toLocaleString('fr-FR')}</strong></span>
+      </div>`;
   }
 
   /* --- Alertes équipe dans Vue Superviseur --- */
