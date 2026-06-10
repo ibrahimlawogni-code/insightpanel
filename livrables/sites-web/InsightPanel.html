@@ -1270,6 +1270,17 @@
           </div>
         </div>
       </div>
+
+      <!-- SUIVI HEBDOMADAIRE PAR SUPERVISEUR -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-table-cells-large" style="margin-right:6px"></i>Suivi hebdomadaire — Performance par Superviseur</div>
+          <span class="badge badge-black" id="sup-hebdo-week-badge">S—</span>
+        </div>
+        <div id="sup-hebdo-body">
+          <div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================
@@ -2416,7 +2427,7 @@
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
-      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); loadUsers();
+      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); loadUsers();
     }
   }
 
@@ -4619,10 +4630,100 @@
     } catch(e) { console.warn('[InsightPanel] Chargement saisies échoué :', e); }
   }
 
+  function _filterWeekOffset(saisies, offset) {
+    const ref = new Date(today);
+    ref.setDate(ref.getDate() + offset * 7);
+    const wn = getWeekNumber(ref);
+    const yr = ref.getFullYear();
+    return saisies.filter(s => {
+      const d = _parseFrDate(s.date);
+      return d && getWeekNumber(d) === wn && d.getFullYear() === yr;
+    });
+  }
+
+  function renderSupHebdoTable() {
+    const container = document.getElementById('sup-hebdo-body');
+    if (!container) return;
+
+    const wNum = getWeekNumber(today);
+    const badge = document.getElementById('sup-hebdo-week-badge');
+    if (badge) badge.textContent = `S${wNum} — ${today.getFullYear()}`;
+
+    const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+    if (!superviseurs.length) {
+      container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)">Aucun superviseur actif</div>';
+      return;
+    }
+
+    const fmtGap = val => {
+      if (val === null || isNaN(val)) return '<span style="color:var(--gray-text)">—</span>';
+      const color = val > 0 ? 'var(--green)' : val < 0 ? 'var(--red)' : 'var(--gray-text)';
+      const icon  = val > 0 ? 'fa-arrow-trend-up' : val < 0 ? 'fa-arrow-trend-down' : 'fa-minus';
+      const sign  = val > 0 ? '+' : '';
+      return `<span style="color:${color};font-weight:700;white-space:nowrap"><i class="fa ${icon}" style="margin-right:3px"></i>${sign}${val} %</span>`;
+    };
+
+    const rows = superviseurs.map(sup => {
+      const zAll       = SAISIES_DATA.length ? _filterZone(SAISIES_DATA, sup.zone) : [];
+      const zoneAgents = USERS.filter(u => u.role === 'agent' && _normZ(u.zone) === _normZ(sup.zone));
+      const wCurr      = _sumField(_filterWeekOffset(zAll,  0), 'grossAdd');
+      const wM1        = _sumField(_filterWeekOffset(zAll, -1), 'grossAdd');
+      const wM2        = _sumField(_filterWeekOffset(zAll, -2), 'grossAdd');
+      const tgt        = _zoneTarget(sup.zone, 'semaine') || 0;
+      const activeSet  = new Set(_filterWeekOffset(zAll, 0).map(s => s.dfaId));
+      const nbActifs   = activeSet.size;
+
+      const gapWow = wM1  > 0 ? parseFloat(((wCurr - wM1) / wM1 * 100).toFixed(1)) : null;
+      const gapTgt = tgt  > 0 ? parseFloat(((wCurr - tgt)  / tgt  * 100).toFixed(1)) : null;
+      const tgtColor = gapTgt === null ? '' : gapTgt >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+
+      return `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="sup-avatar" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${sup.initiales}</div>
+              <strong style="white-space:nowrap">${sup.nom}</strong>
+            </div>
+          </td>
+          <td style="color:var(--gray-text);font-size:12px;white-space:nowrap">${sup.zone}</td>
+          <td style="text-align:center">${zoneAgents.length}</td>
+          <td style="text-align:center"><span class="badge badge-green">${nbActifs}</span></td>
+          <td style="text-align:center;font-weight:700">${tgt || '—'}</td>
+          <td style="text-align:center;color:var(--gray-text)">${wM2 || 0}</td>
+          <td style="text-align:center;color:var(--gray-text)">${wM1 || 0}</td>
+          <td style="text-align:center;font-weight:900;font-size:16px">${wCurr}</td>
+          <td style="text-align:center">${fmtGap(gapWow)}</td>
+          <td style="text-align:center;${tgtColor}">${fmtGap(gapTgt)}</td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Superviseur</th>
+              <th>Zone</th>
+              <th style="text-align:center">Total DFA</th>
+              <th style="text-align:center">DFA Actifs</th>
+              <th style="text-align:center">Target S${wNum}</th>
+              <th style="text-align:center">W-2</th>
+              <th style="text-align:center">W-1</th>
+              <th style="text-align:center">W (hebdo)</th>
+              <th style="text-align:center">Gap WoW</th>
+              <th style="text-align:center">Gap Target</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   function _onSaisiesLoaded() {
     renderObjectifs();
     renderSuperviseurZones();
     renderSuperviseurPerf();
+    renderSupHebdoTable();
     renderBestseller(bestsellerPeriod);
     updatePerfDisplay();
     _renderDernieresSaisies();
