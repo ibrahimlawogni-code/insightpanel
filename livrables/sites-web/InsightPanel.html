@@ -1281,9 +1281,19 @@
           <div class="page-title">Vue Superviseur</div>
           <div class="page-subtitle" id="sup-view-subtitle">—</div>
         </div>
-        <div id="sup-selector-wrap" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
-          <label style="font-size:12px;font-weight:700;color:var(--gray-text);white-space:nowrap"><i class="fa fa-user-tie" style="margin-right:4px"></i>Superviseur</label>
-          <select id="sup-selector" class="input-field" style="width:auto;min-width:200px;padding:6px 10px;font-size:13px" onchange="_renderSupView(this.value)"></select>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="tabs" style="gap:4px">
+            <button class="tab active" id="sup-tab-jour"    onclick="setSupPeriod('jour',    this)">Aujourd'hui</button>
+            <button class="tab"        id="sup-tab-semaine" onclick="setSupPeriod('semaine', this)">Semaine</button>
+            <button class="tab"        id="sup-tab-mois"    onclick="setSupPeriod('mois',    this)">Mois</button>
+            <button class="tab"        id="sup-tab-annee"   onclick="setSupPeriod('annee',   this)">Année</button>
+            <button class="tab"        id="sup-tab-custom"  onclick="setSupPeriod('custom',  this)">Période</button>
+          </div>
+          <div id="sup-custom-range" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
+            <input type="date" id="sup-date-from" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="_renderSupView(currentSupSelected)">
+            <span style="font-size:12px;color:var(--gray-text)">au</span>
+            <input type="date" id="sup-date-to"   class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="_renderSupView(currentSupSelected)">
+          </div>
         </div>
       </div>
 
@@ -1294,7 +1304,7 @@
         </div>
         <div class="mini-stat">
           <div class="val" style="color:var(--yellow)" id="sup-mini-ventes">—</div>
-          <div class="lbl">Ventes cette semaine</div>
+          <div class="lbl" id="sup-mini-ventes-lbl">Ventes</div>
         </div>
         <div class="mini-stat">
           <div class="val" style="color:var(--green)" id="sup-mini-conf">—</div>
@@ -3353,6 +3363,7 @@
 
   let currentSupPeriod  = 'semaine';
   let currentSupSelected = null;
+  let supViewPeriod      = 'jour';
   let CURRENT_ZONE_PERIOD = 'jour';
 
   /* Mock performance par zone (à remplacer par vraies données Sheets) */
@@ -3817,26 +3828,43 @@
   }
 
   function _initSupSelector() {
-    const wrap = document.getElementById('sup-selector-wrap');
-    const sel  = document.getElementById('sup-selector');
-    if (!wrap || !sel) return;
-
-    const canSelect = currentUser && ['ra','dc','dcc','dga','dg'].includes(currentUser.role);
-    wrap.style.display = canSelect ? 'flex' : 'none';
-
-    if (!canSelect) {
-      _renderSupView(currentUser ? currentUser.id : null);
-      return;
+    if (currentUser && currentUser.role === 'superviseur') {
+      currentSupSelected = currentUser.id;
     }
+    _renderSupView(currentSupSelected);
+  }
 
-    const sups = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
-    sel.innerHTML = '<option value="">-- Choisir un superviseur --</option>' +
-      sups.map(u => `<option value="${u.id}">${u.nom} — ${u.zone}</option>`).join('');
+  function setSupPeriod(period, el) {
+    supViewPeriod = period;
+    document.querySelectorAll('[id^="sup-tab-"]').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const customRange = document.getElementById('sup-custom-range');
+    if (customRange) customRange.style.display = period === 'custom' ? 'flex' : 'none';
+    _renderSupView(currentSupSelected);
+  }
 
-    if (currentSupSelected) sel.value = currentSupSelected;
-    const target = sel.value || (sups.length ? sups[0].id : null);
-    if (!sel.value && sups.length) sel.value = sups[0].id;
-    _renderSupView(target);
+  function _filterSupViewPeriod(saisies) {
+    if (supViewPeriod === 'jour')    return _filterPeriod(saisies, 'jour',    today);
+    if (supViewPeriod === 'semaine') return _filterPeriod(saisies, 'semaine', today);
+    if (supViewPeriod === 'mois')    return _filterPeriod(saisies, 'mois',    today);
+    if (supViewPeriod === 'annee') {
+      const yr = today.getFullYear();
+      return saisies.filter(s => { const d = _parseFrDate(s.date); return d && d.getFullYear() === yr; });
+    }
+    if (supViewPeriod === 'custom') {
+      const fEl = document.getElementById('sup-date-from');
+      const tEl = document.getElementById('sup-date-to');
+      if (!fEl?.value || !tEl?.value) return saisies;
+      const from = new Date(fEl.value + 'T00:00:00');
+      const to   = new Date(tEl.value + 'T23:59:59');
+      return saisies.filter(s => { const d = _parseFrDate(s.date); return d && d >= from && d <= to; });
+    }
+    return saisies;
+  }
+
+  function _supPeriodLabel() {
+    const labels = { jour: "Aujourd'hui", semaine: 'Cette semaine', mois: 'Ce mois', annee: "Cette année", custom: 'Période' };
+    return labels[supViewPeriod] || '';
   }
 
   function _renderSupView(supId) {
@@ -3850,14 +3878,16 @@
       ? USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone))
       : [];
 
-    const agentsEl = document.getElementById('sup-mini-agents');
-    const ventesEl = document.getElementById('sup-mini-ventes');
-    const confEl   = document.getElementById('sup-mini-conf');
+    const agentsEl   = document.getElementById('sup-mini-agents');
+    const ventesEl   = document.getElementById('sup-mini-ventes');
+    const ventesLbl  = document.getElementById('sup-mini-ventes-lbl');
+    const confEl     = document.getElementById('sup-mini-conf');
 
     if (agentsEl) agentsEl.textContent = zoneAgents.length || '0';
+    if (ventesLbl) ventesLbl.textContent = 'Ventes — ' + _supPeriodLabel();
     if (ventesEl) {
       if (SAISIES_DATA.length && sup) {
-        const zSaisies = _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), 'semaine', today);
+        const zSaisies = _filterSupViewPeriod(_filterZone(SAISIES_DATA, sup.zone));
         ventesEl.textContent = _sumField(zSaisies, 'grossAdd');
       } else {
         ventesEl.textContent = '—';
@@ -3866,7 +3896,9 @@
     if (confEl) confEl.textContent = '—';
 
     const cardTitle = document.getElementById('sup-agents-card-title');
-    if (cardTitle) cardTitle.textContent = sup ? `Agents de la zone — ${sup.zone}` : 'Agents';
+    if (cardTitle) cardTitle.textContent = sup
+      ? `Agents de la zone — ${sup.zone} · ${_supPeriodLabel()}`
+      : 'Agents';
 
     const tbody = document.getElementById('sup-agents-tbody');
     if (!tbody) return;
@@ -3881,15 +3913,16 @@
       return;
     }
 
-    const weekSaisies = SAISIES_DATA.length
-      ? _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), 'semaine', today)
+    const periodSaisies = SAISIES_DATA.length
+      ? _filterSupViewPeriod(_filterZone(SAISIES_DATA, sup.zone))
       : [];
     const nbAgents = Math.max(1, zoneAgents.length);
-    const zoneTgt  = _zoneTarget(sup.zone, 'semaine') || 70;
+    const supPeriodKey = supViewPeriod === 'annee' || supViewPeriod === 'custom' ? 'mois' : supViewPeriod;
+    const zoneTgt  = _zoneTarget(sup.zone, supPeriodKey) || 70;
     const agentTgt = Math.round(zoneTgt / nbAgents);
 
     tbody.innerHTML = zoneAgents.map(agent => {
-      const saisies = weekSaisies.filter(s => s.dfaId === agent.id);
+      const saisies = periodSaisies.filter(s => s.dfaId === agent.id);
       const ga  = _sumField(saisies, 'grossAdd');
       const mm  = _sumField(saisies, 'momoUser');
       const pct = agentTgt > 0 ? Math.min(100, Math.round(ga / agentTgt * 100)) : 0;
