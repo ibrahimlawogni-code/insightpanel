@@ -1282,13 +1282,15 @@
           <div class="page-subtitle" id="sup-view-subtitle">—</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div class="tabs" style="gap:4px">
-            <button class="tab active" id="sup-tab-jour"    onclick="setSupPeriod('jour',    this)">Aujourd'hui</button>
-            <button class="tab"        id="sup-tab-semaine" onclick="setSupPeriod('semaine', this)">Semaine</button>
-            <button class="tab"        id="sup-tab-mois"    onclick="setSupPeriod('mois',    this)">Mois</button>
-            <button class="tab"        id="sup-tab-annee"   onclick="setSupPeriod('annee',   this)">Année</button>
-            <button class="tab"        id="sup-tab-custom"  onclick="setSupPeriod('custom',  this)">Période</button>
-          </div>
+          <select id="sup-period-select" class="input-field" style="padding:6px 10px;font-size:13px;width:auto" onchange="setSupPeriod(this.value, null)">
+            <option value="jour">Aujourd'hui</option>
+            <option value="semaine">Semaine</option>
+            <option value="mois">Mois</option>
+            <option value="annee">Année</option>
+          </select>
+          <button class="tab" id="sup-tab-custom" onclick="setSupPeriod('custom', this)" style="white-space:nowrap">
+            <i class="fa fa-calendar-days" style="margin-right:4px"></i>Période
+          </button>
           <div id="sup-custom-range" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
             <input type="date" id="sup-date-from" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="_renderSupView(currentSupSelected)">
             <span style="font-size:12px;color:var(--gray-text)">au</span>
@@ -3836,9 +3838,16 @@
 
   function setSupPeriod(period, el) {
     supViewPeriod = period;
-    document.querySelectorAll('[id^="sup-tab-"]').forEach(t => t.classList.remove('active'));
-    if (el) el.classList.add('active');
+    const sel = document.getElementById('sup-period-select');
+    const customBtn = document.getElementById('sup-tab-custom');
     const customRange = document.getElementById('sup-custom-range');
+    if (period === 'custom') {
+      if (sel) sel.value = 'jour'; // reset select visuel
+      if (customBtn) customBtn.classList.add('active');
+    } else {
+      if (sel) sel.value = period;
+      if (customBtn) customBtn.classList.remove('active');
+    }
     if (customRange) customRange.style.display = period === 'custom' ? 'flex' : 'none';
     _renderSupView(currentSupSelected);
   }
