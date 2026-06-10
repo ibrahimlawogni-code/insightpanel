@@ -1172,7 +1172,7 @@
       <div class="grid-2">
         <div class="card">
           <div class="card-header">
-            <div class="card-title">Top Agents — Semaine 23</div>
+            <div class="card-title" id="dash-top-agents-title">Top Agents — Semaine 23</div>
             <span class="badge badge-black">5 sur 24</span>
           </div>
           <table>
@@ -1250,7 +1250,7 @@
               <div class="alert-item info">
                 <i class="fa fa-circle-info"></i>
                 <div>
-                  <strong>Rapport Semaine 22 disponible</strong><br>
+                  <strong id="dash-rapport-semaine">Rapport Semaine 22 disponible</strong><br>
                   La synthèse hebdomadaire est prête. Export PDF disponible.
                 </div>
               </div>
@@ -2415,7 +2415,7 @@
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
-      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); loadUsers();
+      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); loadUsers();
     }
   }
 
@@ -3343,6 +3343,22 @@
   function filterUsers(val) { renderUsersTable(val); }
 
   /* ---- Compteurs d'équipe ---- */
+  function _semaineLisible(dateRef) {
+    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const semMois = Math.ceil(dateRef.getDate() / 7);
+    return `Semaine ${semMois} du mois de ${moisFR[dateRef.getMonth()]} ${dateRef.getFullYear()}`;
+  }
+
+  function _updateDashWeekLabels() {
+    const semCourante  = _semaineLisible(today);
+    const refM1        = new Date(today); refM1.setDate(today.getDate() - 7);
+    const semPrecedente = _semaineLisible(refM1);
+    const el1 = document.getElementById('dash-top-agents-title');
+    const el2 = document.getElementById('dash-rapport-semaine');
+    if (el1) el1.textContent = `Top Agents — ${semCourante}`;
+    if (el2) el2.textContent = `Rapport ${semPrecedente} disponible`;
+  }
+
   function renderTeamStats() {
     const dfaTotal  = USERS.filter(u => u.role === 'agent').length;
     const dfaActifs = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
