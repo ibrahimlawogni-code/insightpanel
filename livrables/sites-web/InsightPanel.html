@@ -1990,8 +1990,41 @@
     </div>
 
     <div class="view" id="view-rapports">
-      <div class="page-header"><div><div class="page-title">Rapports</div><div class="page-subtitle">Rapports journaliers, hebdomadaires et mensuels</div></div></div>
-      <div class="card"><div class="empty-state"><i class="fa fa-file-lines"></i><p>Module disponible prochainement</p></div></div>
+      <div class="page-header">
+        <div>
+          <div class="page-title">Rapports</div>
+          <div class="page-subtitle" id="rapport-subtitle">Rapport automatique</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="rapport-type-select" onchange="renderRapports()" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;cursor:pointer">
+            <option value="jour">Journalier</option>
+            <option value="semaine" selected>Hebdomadaire</option>
+            <option value="mois">Mensuel</option>
+          </select>
+          <input type="date" id="rapport-date-input" onchange="renderRapports()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
+          <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 16px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+            <i class="fa fa-copy" style="margin-right:6px"></i>Copier WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <!-- Section KPIs visuels (remplie dynamiquement) -->
+      <div id="rapport-kpi-section"></div>
+
+      <!-- Aperçu texte exportable -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa fa-comment-dots" style="color:#25D366;margin-right:8px"></i>Aperçu texte — WhatsApp
+          </div>
+          <button onclick="copyRapport()" style="padding:5px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
+            <i class="fa fa-copy" style="margin-right:4px"></i>Copier
+          </button>
+        </div>
+        <div class="card-body">
+          <pre id="rapport-text-preview" style="white-space:pre-wrap;font-family:'Courier New',monospace;font-size:13px;line-height:1.75;background:var(--gray-bg);border-radius:8px;padding:18px;margin:0;color:var(--text)"></pre>
+        </div>
+      </div>
     </div>
 
     <div class="view" id="view-conformite">
@@ -2478,6 +2511,7 @@
     if (name === 'saisie')      _initSaisieView();
     if (name === 'bestseller')      renderBestseller(bestsellerPeriod);
     if (name === 'bestseller-sup')  renderBestsellerSup(bestsellerSupPeriod);
+    if (name === 'rapports')        renderRapports();
     if (name === 'equipes')   { loadUsers(); loadDemandes(); }
     if (name === 'superviseur') { loadDemandes(); _initSupSelector(); }
     if (name === 'dashboard') {
@@ -6971,6 +7005,386 @@
     _tryRestoreSession();
   } else {
     window.addEventListener('load', _tryRestoreSession);
+  }
+
+  // ================================================================
+  // MODULE RAPPORTS
+  // ================================================================
+
+  function _rapportTypeLabel(period) {
+    if (period === 'jour')    return 'JOURNALIER';
+    if (period === 'semaine') return 'HEBDOMADAIRE';
+    return 'MENSUEL';
+  }
+
+  function _rapportPeriodLabel(period, refDate) {
+    const d = refDate || today;
+    const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'][d.getMonth()];
+    if (period === 'jour') {
+      return `${d.getDate()} ${mois} ${d.getFullYear()}`;
+    }
+    if (period === 'semaine') {
+      // Trouver le lundi et le samedi de la semaine
+      const dow = d.getDay() === 0 ? 7 : d.getDay();
+      const lundi = new Date(d); lundi.setDate(d.getDate() - dow + 1);
+      const samedi = new Date(lundi); samedi.setDate(lundi.getDate() + 5);
+      const mL = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'][lundi.getMonth()];
+      const mS = ['jan','fév','mar','avr','mai','juin','juil','août','sep','oct','nov','déc'][samedi.getMonth()];
+      return `${lundi.getDate()} ${mL} — ${samedi.getDate()} ${mS} ${samedi.getFullYear()}`;
+    }
+    return `${mois} ${d.getFullYear()}`;
+  }
+
+  function _rapportRefDate() {
+    const inp = document.getElementById('rapport-date-input');
+    if (inp && inp.value) {
+      const p = inp.value.split('-');
+      return new Date(+p[0], +p[1]-1, +p[2]);
+    }
+    return today;
+  }
+
+  function _rapportPeriod() {
+    const sel = document.getElementById('rapport-type-select');
+    return sel ? sel.value : 'semaine';
+  }
+
+  // Filtre adaptatif selon la période et la date de référence
+  function _rapportFilter(saisies, period, refDate) {
+    const d = refDate || today;
+    const filterKey = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
+    return _filterPeriod(saisies, filterKey, d);
+  }
+
+  // Objectif calculé selon la période et le nombre d'agents/jours
+  function _rapportObjectif(period, nbAgents) {
+    const d = today;
+    const daysInM = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    const factor  = period === 'jour' ? 1 : period === 'semaine' ? 7 : daysInM;
+    return DFA_DAILY_TARGET * factor * (nbAgents || 1);
+  }
+
+  // Badge couleur selon taux d'atteinte
+  function _rapportBadge(pct) {
+    if (pct >= 100) return '<span style="background:#22c55e;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">' + pct + '%</span>';
+    if (pct >= 80)  return '<span style="background:#84cc16;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">' + pct + '%</span>';
+    if (pct >= 60)  return '<span style="background:#f59e0b;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">' + pct + '%</span>';
+    return '<span style="background:#ef4444;color:#fff;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700">' + pct + '%</span>';
+  }
+
+  // -------------------- RAPPORT DFA --------------------
+  function _buildRapportDFA(period, refDate) {
+    const user  = _agentUser();
+    const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.agentId === (user ? user.id : null)) : (agentPerfData || []);
+    const fil   = _rapportFilter(mine, period, refDate);
+    const ga    = _sumField(fil, 'grossAdd');
+    const momo  = _sumField(fil, 'momo');
+    const tgt   = _rapportObjectif(period, 1);
+    const pct   = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
+    const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
+
+    // Tendance vs période précédente
+    let tendLabel = '—';
+    if (period === 'semaine') {
+      const prev = _filterWeekOffset(mine, -1);
+      const gaP  = _sumField(prev, 'grossAdd');
+      if (gaP > 0) {
+        const t = Math.round((ga - gaP) / gaP * 100);
+        tendLabel = t > 0 ? '+' + t + '% vs S-1' : t < 0 ? t + '% vs S-1' : 'Stable vs S-1';
+      }
+    }
+
+    // Classement dans le réseau
+    let classementLabel = '—';
+    const bs = _computeBestsellerData(period, 0);
+    if (bs && bs.length) {
+      const idx = bs.findIndex(a => a.id === (user ? user.id : null));
+      if (idx >= 0) classementLabel = (idx + 1) + 'ᵉ sur ' + bs.length;
+    }
+
+    const kpiHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Gross Add</div>
+          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt} — ${_rapportBadge(pct)}</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Taux MoMo</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${momoP}%</div>
+          <div style="font-size:12px;color:var(--text-muted)">${momo} activations MoMo</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Tendance</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text)">${tendLabel}</div>
+          <div style="font-size:12px;color:var(--text-muted)">vs période précédente</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Classement</div>
+          <div style="font-size:26px;font-weight:800;color:var(--text)">🏅 ${classementLabel}</div>
+          <div style="font-size:12px;color:var(--text-muted)">dans le réseau</div>
+        </div>
+      </div>`;
+
+    const nom  = user ? user.nom : '—';
+    const zone = user ? (user.zone || '—') : '—';
+    const typeL = _rapportTypeLabel(period);
+    const perL  = _rapportPeriodLabel(period, refDate);
+    const text = [
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      `📊 RAPPORT ${typeL} — DFA`,
+      `📅 ${perL}`,
+      `👤 ${nom} | Zone : ${zone}`,
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      '',
+      `🎯 Gross Add     : *${ga}* / ${tgt} (${pct}%)`,
+      `💰 MoMo          : *${momo}* activations (${momoP}% du GA)`,
+      `📈 Tendance      : ${tendLabel}`,
+      `🏅 Classement    : ${classementLabel}`,
+      '',
+      `${pct >= 100 ? '✅ Objectif atteint !' : pct >= 80 ? '🟡 Bon rythme, continuons !' : '🔴 Renforcer le rythme de vente.'}`,
+      '',
+      '_Rapport généré automatiquement par InsightPanel_'
+    ].join('\n');
+
+    return { kpiHtml, text };
+  }
+
+  // -------------------- RAPPORT SUPERVISEUR --------------------
+  function _buildRapportSup(period, refDate) {
+    const supUser = currentUser;
+    const zone    = supUser ? supUser.zone : null;
+    const agents  = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(zone));
+    const nbA     = agents.length;
+    const agentIds = agents.map(a => a.id);
+
+    const allSaisies = SAISIES_DATA.length ? SAISIES_DATA : [];
+    const zoneSaisies = allSaisies.filter(s => agentIds.includes(s.agentId));
+    const fil  = _rapportFilter(zoneSaisies, period, refDate);
+    const ga   = _sumField(fil, 'grossAdd');
+    const momo = _sumField(fil, 'momo');
+    const tgt  = _rapportObjectif(period, nbA);
+    const pct  = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
+    const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
+
+    // Actifs ce jour (ayant au moins une saisie sur la période)
+    const agentsFil = agents.map(a => {
+      const aSaisies = fil.filter(s => s.agentId === a.id);
+      return { ...a, ga: _sumField(aSaisies, 'grossAdd'), momo: _sumField(aSaisies, 'momo') };
+    }).sort((a,b) => b.ga - a.ga);
+
+    const actifs  = agentsFil.filter(a => a.ga > 0).length;
+    const absents = nbA - actifs;
+    const top3    = agentsFil.slice(0, 3);
+    const souss50 = agentsFil.filter(a => {
+      const indivTgt = _rapportObjectif(period, 1);
+      return indivTgt > 0 && (a.ga / indivTgt * 100) < 50;
+    });
+
+    const top3Html = top3.map((a, i) => `<tr><td>${['🥇','🥈','🥉'][i]} ${a.nom}</td><td><b>${a.ga}</b></td><td>${a.momo}</td></tr>`).join('');
+    const souss50Html = souss50.length
+      ? souss50.map(a => `<tr style="color:#ef4444"><td>${a.nom}</td><td>${a.ga}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="color:#22c55e">Tous au-dessus de 50%</td></tr>';
+
+    const kpiHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Gross Add Zone</div>
+          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt} — ${_rapportBadge(pct)}</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Taux MoMo Zone</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${momoP}%</div>
+          <div style="font-size:12px;color:var(--text-muted)">${momo} activations</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Agents actifs</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${actifs} / ${nbA}</div>
+          <div style="font-size:12px;color:#ef4444">${absents > 0 ? absents + ' absent(s)' : 'Équipe complète'}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏆 Top 3 DFA</div></div>
+          <div class="card-body" style="padding:0">
+            <table class="table"><thead><tr><th>DFA</th><th>GA</th><th>MoMo</th></tr></thead><tbody>${top3Html}</tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title" style="color:#ef4444">⚠️ Agents &lt; 50%</div></div>
+          <div class="card-body" style="padding:0">
+            <table class="table"><thead><tr><th>DFA</th><th>GA</th></tr></thead><tbody>${souss50Html}</tbody></table>
+          </div>
+        </div>
+      </div>`;
+
+    const nom  = supUser ? supUser.nom : '—';
+    const typeL = _rapportTypeLabel(period);
+    const perL  = _rapportPeriodLabel(period, refDate);
+    const text = [
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      `📊 RAPPORT ${typeL} — SUPERVISEUR`,
+      `📅 ${perL}`,
+      `👤 ${nom} | Zone : ${zone || '—'}`,
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      '',
+      `🎯 Gross Add zone : *${ga}* / ${tgt} (${pct}%)`,
+      `💰 Taux MoMo      : *${momoP}%* (${momo} act.)`,
+      `👥 Actifs         : *${actifs} / ${nbA}* agents${absents > 0 ? ' — ' + absents + ' absent(s)' : ''}`,
+      '',
+      '🏆 *Top 3 :*',
+      ...top3.map((a, i) => `  ${['🥇','🥈','🥉'][i]} ${a.nom} — ${a.ga} GA`),
+      '',
+      souss50.length > 0
+        ? '⚠️ *À renforcer :*\n' + souss50.map(a => `  • ${a.nom} — ${a.ga} GA`).join('\n')
+        : '✅ Tous les agents dépassent 50% de leur objectif.',
+      '',
+      `${pct >= 100 ? '✅ Objectif zone atteint !' : pct >= 80 ? '🟡 Bon rythme général.' : '🔴 Zone à mobiliser davantage.'}`,
+      '',
+      '_Rapport généré automatiquement par InsightPanel_'
+    ].join('\n');
+
+    return { kpiHtml, text };
+  }
+
+  // -------------------- RAPPORT RA --------------------
+  function _buildRapportRA(period, refDate) {
+    const agents   = USERS.filter(u => u.role === 'agent' && u.statut === 'actif');
+    const sups     = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
+    const nbA      = agents.length;
+    const agentIds = agents.map(a => a.id);
+
+    const allSaisies = SAISIES_DATA.length ? SAISIES_DATA : [];
+    const fil   = _rapportFilter(allSaisies.filter(s => agentIds.includes(s.agentId)), period, refDate);
+    const ga    = _sumField(fil, 'grossAdd');
+    const momo  = _sumField(fil, 'momo');
+    const tgt   = _rapportObjectif(period, nbA);
+    const pct   = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
+    const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
+    const actifs = agents.filter(a => fil.some(s => s.agentId === a.id)).length;
+
+    // Agrégats par zone superviseur
+    const zones = sups.map(sup => {
+      const zAgents = agents.filter(u => _normZ(u.zone) === _normZ(sup.zone));
+      const zIds    = zAgents.map(u => u.id);
+      const zFil    = fil.filter(s => zIds.includes(s.agentId));
+      const zGa     = _sumField(zFil, 'grossAdd');
+      const zTgt    = _rapportObjectif(period, zAgents.length);
+      const zPct    = zTgt > 0 ? Math.round(zGa / zTgt * 100) : 0;
+      return { nom: sup.nom, zone: sup.zone, ga: zGa, tgt: zTgt, pct: zPct, nb: zAgents.length };
+    }).sort((a, b) => b.pct - a.pct);
+
+    const meilleureZone = zones[0];
+    const zoneRenforcer = zones[zones.length - 1];
+
+    const zonesHtml = zones.map(z => `
+      <tr>
+        <td>${z.zone || '—'}</td>
+        <td>${z.nom}</td>
+        <td><b>${z.ga}</b></td>
+        <td>${z.tgt}</td>
+        <td>${_rapportBadge(z.pct)}</td>
+      </tr>`).join('');
+
+    const kpiHtml = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Gross Add Réseau</div>
+          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt} — ${_rapportBadge(pct)}</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Taux MoMo</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${momoP}%</div>
+          <div style="font-size:12px;color:var(--text-muted)">${momo} activations</div>
+        </div>
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Agents actifs</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${actifs} / ${nbA}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${nbA - actifs} absent(s)</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header"><div class="card-title">📊 Performance par zone</div></div>
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr><th>Zone</th><th>Superviseur</th><th>GA</th><th>Objectif</th><th>Atteinte</th></tr></thead>
+            <tbody>${zonesHtml}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    const typeL = _rapportTypeLabel(period);
+    const perL  = _rapportPeriodLabel(period, refDate);
+    const nom   = currentUser ? currentUser.nom : '—';
+    const text = [
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      `📊 RAPPORT ${typeL} — RÉSEAU`,
+      `📅 ${perL}`,
+      `👤 Établi par : ${nom} (RA)`,
+      '━━━━━━━━━━━━━━━━━━━━━━━',
+      '',
+      `🎯 Gross Add réseau : *${ga}* / ${tgt} (${pct}%)`,
+      `💰 Taux MoMo        : *${momoP}%* (${momo} act.)`,
+      `👥 Agents actifs    : *${actifs} / ${nbA}*`,
+      '',
+      '📊 *Performance par zone :*',
+      ...zones.map(z => `  • Zone ${z.zone || '—'} (${z.nom}) : ${z.ga} GA — ${z.pct}%`),
+      '',
+      meilleureZone ? `🏆 Meilleure zone : *${meilleureZone.zone}* — ${meilleureZone.pct}%` : '',
+      zoneRenforcer && zoneRenforcer !== meilleureZone ? `⚠️ À renforcer    : *${zoneRenforcer.zone}* — ${zoneRenforcer.pct}%` : '',
+      '',
+      `${pct >= 100 ? '✅ Objectif réseau atteint !' : pct >= 80 ? '🟡 Bon rythme global.' : '🔴 Mobilisation nécessaire sur le réseau.'}`,
+      '',
+      '_Rapport généré automatiquement par InsightPanel_'
+    ].filter(l => l !== null && l !== undefined).join('\n');
+
+    return { kpiHtml, text };
+  }
+
+  // -------------------- ENTRY POINT --------------------
+  function renderRapports() {
+    if (!currentUser) return;
+    const period  = _rapportPeriod();
+    const refDate = _rapportRefDate();
+
+    // Initialiser la date si vide
+    const inp = document.getElementById('rapport-date-input');
+    if (inp && !inp.value) inp.value = today.toISOString().slice(0, 10);
+
+    const subtitle = document.getElementById('rapport-subtitle');
+    if (subtitle) subtitle.textContent = _rapportTypeLabel(period) + ' — ' + _rapportPeriodLabel(period, refDate);
+
+    let result;
+    const role = currentUser.role;
+    if (role === 'agent') {
+      result = _buildRapportDFA(period, refDate);
+    } else if (role === 'superviseur') {
+      result = _buildRapportSup(period, refDate);
+    } else {
+      // ra, dg, dga, dcc, dc
+      result = _buildRapportRA(period, refDate);
+    }
+
+    const kpiSec = document.getElementById('rapport-kpi-section');
+    if (kpiSec) kpiSec.innerHTML = result.kpiHtml;
+    const preview = document.getElementById('rapport-text-preview');
+    if (preview) preview.textContent = result.text;
+  }
+
+  function copyRapport() {
+    const preview = document.getElementById('rapport-text-preview');
+    if (!preview || !preview.textContent) return;
+    navigator.clipboard.writeText(preview.textContent).then(() => {
+      const btn = document.getElementById('rapport-copy-btn');
+      if (btn) {
+        const old = btn.innerHTML;
+        btn.innerHTML = '<i class="fa fa-check" style="margin-right:6px"></i>Copié !';
+        btn.style.background = '#22c55e';
+        setTimeout(() => { btn.innerHTML = old; btn.style.background = ''; }, 2000);
+      }
+    });
   }
 
 </script>
