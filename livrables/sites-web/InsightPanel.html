@@ -4001,10 +4001,12 @@
       }
     }
     if (confEl) {
+      const confLbl = confEl.closest('.mini-stat')?.querySelector('.lbl');
+      if (confLbl) confLbl.textContent = 'Conformité — ' + _supPeriodLabel();
       if (SAISIES_DATA.length && sup) {
-        const weekZone  = _filterWeekOffset(_filterZone(SAISIES_DATA, sup.zone), 0);
-        const activeIds = new Set(weekZone.map(s => s.dfaId));
-        const confPct   = Math.round(activeIds.size / Math.max(1, allZoneAgents.length) * 100);
+        const periodZone = _filterSupViewPeriod(_filterZone(SAISIES_DATA, sup.zone));
+        const activeIds  = new Set(periodZone.map(s => s.dfaId));
+        const confPct    = Math.round(activeIds.size / Math.max(1, allZoneAgents.length) * 100);
         confEl.textContent = confPct + '%';
         confEl.style.color = confPct >= 80 ? 'var(--green)' : confPct >= 60 ? 'var(--orange)' : 'var(--red)';
       } else {
@@ -4767,11 +4769,13 @@
       return;
     }
 
-    const isWeekend = today.getDay() === 0 || today.getDay() === 6;
-    const nbAgents  = Math.max(1, zoneAgents.length);
-    const zoneTgt   = _zoneTarget(sup.zone, 'semaine') || (DFA_DAILY_TARGET * 6 * nbAgents);
-    const agentTgt  = Math.round(zoneTgt / nbAgents);
-    const seuil70   = agentTgt * 0.7;
+    const isWeekend   = today.getDay() === 0 || today.getDay() === 6;
+    const nbAgents    = Math.max(1, zoneAgents.length);
+    const periodKey   = (supViewPeriod === 'annee' || supViewPeriod === 'custom') ? 'mois' : supViewPeriod;
+    const zoneTgt     = _zoneTarget(sup.zone, periodKey) || (DFA_DAILY_TARGET * 6 * nbAgents);
+    const agentTgt    = Math.round(zoneTgt / nbAgents);
+    const seuil70     = agentTgt * 0.7;
+    const periodLabel = _supPeriodLabel();
 
     const absents      = [];
     const sousObjectif = [];
@@ -4780,20 +4784,20 @@
     zoneAgents.forEach(agent => {
       const mine     = SAISIES_DATA.filter(s => s.dfaId === agent.id);
       const todayS   = _filterPeriod(mine, 'jour', today);
-      const weekS    = _filterWeekOffset(mine, 0);
-      const semGA    = _sumField(weekS, 'grossAdd');
-      const semMoMo  = _sumField(weekS, 'momoUser');
-      const pct      = agentTgt > 0 ? Math.round(semGA / agentTgt * 100) : 0;
-      const momoRate = semGA > 0 ? Math.round(semMoMo / semGA * 100) : null;
+      const periodS  = _filterSupViewPeriod(mine);
+      const periGA   = _sumField(periodS, 'grossAdd');
+      const periMoMo = _sumField(periodS, 'momoUser');
+      const pct      = agentTgt > 0 ? Math.round(periGA / agentTgt * 100) : 0;
+      const momoRate = periGA > 0 ? Math.round(periMoMo / periGA * 100) : null;
 
       if (!isWeekend && todayS.length === 0) {
-        absents.push({ agent, semGA, pct });
+        absents.push({ agent, periGA, pct });
       }
-      if (semGA < seuil70) {
-        sousObjectif.push({ agent, ga: semGA, pct });
+      if (periGA < seuil70) {
+        sousObjectif.push({ agent, ga: periGA, pct });
       }
       if (momoRate !== null && momoRate < 70) {
-        faibleMoMo.push({ agent, momoRate, semGA });
+        faibleMoMo.push({ agent, momoRate, periGA });
       }
     });
 
@@ -4841,21 +4845,21 @@
     let html = '';
     if (absents.length) {
       html += alertSection('fa-user-clock', 'var(--orange)', "Absents aujourd'hui", absents,
-        ({agent, pct}) => chip('var(--orange)', agent.nom, `${pct}% hebdo`)
+        ({agent, pct}) => chip('var(--orange)', agent.nom, `${pct}% ${periodLabel.toLowerCase()}`)
       );
     }
     if (sousObjectif.length) {
-      html += alertSection('fa-arrow-trend-down', 'var(--red)', 'Sous 70% objectif hebdo', sousObjectif,
+      html += alertSection('fa-arrow-trend-down', 'var(--red)', `Sous 70% objectif — ${periodLabel}`, sousObjectif,
         ({agent, ga, pct}) => chip('var(--red)', agent.nom, `${ga} GA · ${pct}%`)
       );
     }
     if (faibleMoMo.length) {
-      html += alertSection('fa-triangle-exclamation', '#e67e22', 'Taux MoMo insuffisant (< 70%)', faibleMoMo,
+      html += alertSection('fa-triangle-exclamation', '#e67e22', `Taux MoMo insuffisant (< 70%) — ${periodLabel}`, faibleMoMo,
         ({agent, momoRate}) => chip('#e67e22', agent.nom, `${momoRate}% MoMo`)
       );
     }
 
-    container.innerHTML = `<div style="overflow:hidden">${html}<div style="padding:8px 16px;font-size:11px;color:var(--gray-text)"><i class="fa fa-circle-info" style="margin-right:4px"></i>Objectif hebdo par DFA : ${agentTgt} GA · Seuil alerte : ${Math.round(seuil70)} GA</div></div>`;
+    container.innerHTML = `<div style="overflow:hidden">${html}<div style="padding:8px 16px;font-size:11px;color:var(--gray-text)"><i class="fa fa-circle-info" style="margin-right:4px"></i>Objectif ${periodLabel.toLowerCase()} par DFA : ${agentTgt} GA · Seuil alerte : ${Math.round(seuil70)} GA</div></div>`;
   }
 
   /* --- Fiche analytique DFA dans Vue Superviseur --- */
