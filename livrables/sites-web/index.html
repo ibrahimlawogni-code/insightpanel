@@ -969,7 +969,7 @@
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('agent', this)">
         <i class="fa fa-mobile-screen"></i> Vue Agent Terrain
       </div>
-      <div class="nav-item" data-roles="agent,superviseur" onclick="showView('evaluation', this)">
+      <div class="nav-item" data-roles="agent,superviseur,ra" onclick="showView('evaluation', this)">
         <i class="fa fa-chart-simple"></i> Mon évaluation de performance
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('bestseller', this)">
@@ -4546,8 +4546,9 @@
     const source = SAISIES_DATA.length ? _computeBestsellerData(period) : [...BESTSELLER_MOCK];
     const sorted = source.sort((a, b) => b[key] - a[key]);
 
-    /* Filtrage par zone de l'utilisateur connecté */
-    const teamSorted = sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
+    /* Filtrage par zone — RA et rôles supérieurs voient toute l'équipe */
+    const isAdmin = ['ra','dg','dga','dcc','dc'].includes(currentUser.role);
+    const teamSorted = isAdmin ? sorted : sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
 
     /* Seuils d'évaluation selon la période */
     const thresholds = (key === 'mois')
@@ -4591,7 +4592,7 @@
     const equipeBadge  = document.getElementById('bs-equipe-badge');
     const globalBadge  = document.getElementById('bs-global-badge');
 
-    if (equipeTitle) equipeTitle.textContent = `Mon équipe — ${userZone}`;
+    if (equipeTitle) equipeTitle.textContent = isAdmin ? 'Toute l\'équipe' : `Mon équipe — ${userZone}`;
     if (equipeBadge) equipeBadge.textContent = `${Math.min(teamSorted.length, 10)} agents · ${periodLabel}`;
     if (globalBadge) globalBadge.textContent = `${Math.min(sorted.length, 10)} agents · ${periodLabel}`;
 
@@ -5141,6 +5142,12 @@
     const container = document.getElementById('evaluation-body');
     if (!container || !currentUser) return;
 
+    /* Branche RA / rôles managériaux : évaluation d'équipe */
+    if (['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+      _renderEvaluationViewRA(container);
+      return;
+    }
+
     const mine    = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
     const moisFil = _filterPeriod(mine, 'mois', today);
     const semFil  = _filterPeriod(mine, 'semaine', today);
@@ -5236,6 +5243,105 @@
             <strong>New MoMo User :</strong> ${momoMois.toLocaleString('fr-FR')} (${atteintemomo} % du Gross Add)<br>
             <strong>Jours actifs cette semaine :</strong> ${daysActifs}/${joursOuv} — Régularité ${regLbl.toLowerCase()}<br>
             <strong>Classement équipe :</strong> ${rangLbl}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* --- Évaluation de performance — vue RA / rôles managériaux --- */
+  function _renderEvaluationViewRA(container) {
+    const moisFil = _filterPeriod(SAISIES_DATA, 'mois', today);
+    const semFil  = _filterPeriod(SAISIES_DATA, 'semaine', today);
+
+    const gsmMois  = _sumField(moisFil, 'grossAdd');
+    const momoMois = _sumField(moisFil, 'momoUser');
+    const gsmSem   = _sumField(semFil,  'grossAdd');
+    const momoSem  = _sumField(semFil,  'momoUser');
+
+    const mk = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+    const mc = MONTHLY_TARGETS[mk];
+    const tMois     = mc ? mc.gsm  : 0;
+    const tMoisMomo = mc ? mc.momo : 0;
+
+    const allAgentsActifs  = USERS.filter(u => u.role === 'agent' && u.statut === 'actif');
+    const activeSemIds     = new Set(semFil.map(s => s.dfaId).filter(Boolean));
+    const agentsActifsSem  = activeSemIds.size;
+    const totalAgents      = allAgentsActifs.length;
+    const zonesActives     = new Set(semFil.map(s => s.zone).filter(Boolean)).size;
+
+    const atteinteGSM  = tMois > 0 ? Math.min(100, Math.round(gsmMois  / tMois     * 100)) : 0;
+    const atteinteGSMs = tMois > 0 ? Math.min(100, Math.round(gsmSem   / (tMois/4) * 100)) : 0;
+    const atteintemomo = gsmMois > 0 ? Math.min(100, Math.round(momoMois / gsmMois  * 100)) : 0;
+    const activityPct  = totalAgents > 0 ? Math.round(agentsActifsSem / totalAgents * 100) : 0;
+
+    const avg = Math.round((atteinteGSM + atteintemomo + Math.min(100, activityPct)) / 3);
+    const [grade, gradeLbl, gradeColor] =
+      avg >= 85 ? ['A',  'Excellent',   'var(--green)']  :
+      avg >= 70 ? ['B+', 'Bon',         'var(--green)']  :
+      avg >= 55 ? ['B',  'Correct',     'var(--orange)'] :
+                  ['C',  'À améliorer', 'var(--red)'];
+
+    const badgeEl = document.querySelector('#view-evaluation .page-header .badge');
+    if (badgeEl) { badgeEl.textContent = `${grade}  ${gradeLbl}`; badgeEl.style.color = gradeColor; }
+
+    const tc = v => v>=80 ? 'var(--green)' : v>=65 ? 'var(--orange)' : 'var(--red)';
+    const evalRow = (icon, label, value, cls) =>
+      `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+        <span><i class="fa ${icon}" style="color:var(--yellow);margin-right:8px"></i>${label}</span>
+        <span class="badge ${cls}">${value}</span>
+      </div>`;
+
+    const gsmBdg  = atteinteGSMs >= 80 ? 'badge-green' : atteinteGSMs >= 65 ? 'badge-orange' : 'badge-red';
+    const momoBdg = atteintemomo >= 80 ? 'badge-green' : atteintemomo >= 65 ? 'badge-orange' : 'badge-red';
+    const actBdg  = activityPct  >= 80 ? 'badge-green' : activityPct  >= 60 ? 'badge-orange' : 'badge-red';
+    const tendBdg = avg          >= 70 ? 'badge-green' : avg          >= 55 ? 'badge-orange' : 'badge-red';
+    const tendLbl = avg          >= 70 ? 'En progression' : avg >= 55 ? 'Stable' : 'En baisse';
+
+    container.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi-card">
+          <div class="kpi-label">Atteinte objectifs</div>
+          <div class="kpi-value" style="color:${tc(atteinteGSM)}">${atteinteGSM} %</div>
+          <div class="kpi-sub">Gross Add — mois en cours</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Agents actifs</div>
+          <div class="kpi-value" style="color:${agentsActifsSem>=Math.round(totalAgents*0.8)?'var(--green)':'var(--orange)'}">${agentsActifsSem} / ${totalAgents}</div>
+          <div class="kpi-sub">Cette semaine</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Ratio MoMo</div>
+          <div class="kpi-value" style="color:${tc(atteintemomo)}">${atteintemomo} %</div>
+          <div class="kpi-sub">vs Gross Add ce mois</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Zones actives</div>
+          <div class="kpi-value" style="color:var(--green)">${zonesActives}</div>
+          <div class="kpi-sub">Zones avec saisies cette semaine</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><div class="card-title">Détail par indicateur</div></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${evalRow('fa-bullseye',      'Atteinte objectif Gross Add hebdomadaire',    atteinteGSMs + ' %',  gsmBdg)}
+            ${evalRow('fa-wallet',        'Ratio MoMo / Gross Add mensuel',              atteintemomo + ' %', momoBdg)}
+            ${evalRow('fa-users',         'Taux d\'activité agents (semaine)',            activityPct + ' %',  actBdg)}
+            ${evalRow('fa-chart-line',    'Tendance générale équipe',                    tendLbl,             tendBdg)}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Bilan du mois</div>
+          <span class="badge badge-yellow">${gsmSem} Gross Add · ${momoSem} MoMo cette semaine</span>
+        </div>
+        <div class="card-body">
+          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
+            <strong>Gross Add :</strong> ${gsmMois.toLocaleString('fr-FR')} / ${tMois.toLocaleString('fr-FR')} (${atteinteGSM} %)<br>
+            <strong>New MoMo User :</strong> ${momoMois.toLocaleString('fr-FR')} / ${tMoisMomo.toLocaleString('fr-FR')} (${atteintemomo} % du Gross Add)<br>
+            <strong>Agents actifs cette semaine :</strong> ${agentsActifsSem} / ${totalAgents}<br>
+            <strong>Zones actives :</strong> ${zonesActives}
           </div>
         </div>
       </div>`;
