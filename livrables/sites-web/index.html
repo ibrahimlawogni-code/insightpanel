@@ -2445,6 +2445,11 @@
     /* Charger les notifications personnelles indépendamment du flux demandes */
     loadNotifications();
 
+    /* Charger les demandes en attente dès la connexion pour mettre à jour le badge */
+    if (['superviseur','ra','dg','dga','dcc','dc'].includes(user.role)) {
+      setTimeout(loadDemandes, 0);
+    }
+
     /* Initialiser le badge saisies en attente */
     _updatePendingBadge();
 
