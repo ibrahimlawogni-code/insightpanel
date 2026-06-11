@@ -2949,7 +2949,7 @@
       if (APPS_SCRIPT_URL.startsWith('https')) {
         const r = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
         const j = await r.json();
-        ok = j.status === 'ok';
+        ok = j.success === true || j.status === 'ok';
       } else {
         /* Mode local de test : ajoute à la liste locale */
         DEMANDES.push({ ...payload, id: Date.now().toString(), statut: 'en_attente' });
@@ -2984,7 +2984,7 @@
         body: JSON.stringify({ action: 'getDemandes' })
       });
       const j = await r.json();
-      if (j.status === 'ok') {
+      if (j.success === true || j.status === 'ok') {
         DEMANDES = j.demandes || [];
         renderDemandesTable();
         renderDemandesSuperviseur();
@@ -3006,7 +3006,7 @@
         body: JSON.stringify({ action: 'getNotifications', userId: currentUser.id })
       });
       const j = await r.json();
-      if (j.status === 'ok') NOTIFICATIONS = j.notifications || [];
+      if (j.success === true || j.status === 'ok') NOTIFICATIONS = j.notifications || [];
     } catch {}
     updateDemandesBadge();
   }

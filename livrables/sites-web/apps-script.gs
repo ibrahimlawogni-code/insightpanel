@@ -24,9 +24,14 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
 
-    if (data.action === 'login')      return handleLogin(data);
-    if (data.action === 'saisie')     return handleSaisie(data);
-    if (data.action === 'getSaisies') return handleGetSaisies(data);
+    if (data.action === 'login')               return handleLogin(data);
+    if (data.action === 'saisie')              return handleSaisie(data);
+    if (data.action === 'getSaisies')          return handleGetSaisies(data);
+    if (data.action === 'submitDemande')       return handleSubmitDemande(data);
+    if (data.action === 'getDemandes')         return handleGetDemandes(data);
+    if (data.action === 'updateDemande')       return handleUpdateDemande(data);
+    if (data.action === 'getNotifications')    return handleGetNotifications(data);
+    if (data.action === 'markNotificationRead') return handleMarkNotificationRead(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -209,6 +214,157 @@ function handleGetSaisies(data) {
     });
   }
   return jsonResponse({ success: true, saisies });
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEMANDES D'ACCÈS
+// Feuille "Demandes" — colonnes :
+//   ID | Date | Nom | Zone | Superviseur ID | Superviseur Nom |
+//   Téléphone | Identifiant | Mot de passe | Message | Statut | Commentaire | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleSubmitDemande(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('Demandes');
+  if (!sheet) {
+    sheet = ss.insertSheet('Demandes');
+    _initDemandesSheet(sheet);
+  }
+
+  const id = 'DEM-' + Date.now();
+  sheet.appendRow([
+    id,
+    data.date           || new Date().toLocaleDateString('fr-FR'),
+    data.nom            || '',
+    data.zone           || '',
+    data.superviseurId  || '',
+    data.superviseurNom || '',
+    data.telephone      || '',
+    data.identifiant    || '',
+    data.pwd            || '',
+    data.message        || '',
+    'en_attente',
+    '',
+    new Date().toLocaleString('fr-FR')
+  ]);
+
+  return jsonResponse({ success: true, message: 'Demande enregistrée.', id });
+}
+
+function handleGetDemandes(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Demandes');
+  if (!sheet) return jsonResponse({ success: true, demandes: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, demandes: [] });
+
+  const demandes = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    demandes.push({
+      id:             r[0].toString().trim(),
+      date:           r[1].toString().trim(),
+      nom:            r[2].toString().trim(),
+      zone:           r[3].toString().trim(),
+      superviseurId:  r[4].toString().trim(),
+      superviseurNom: r[5].toString().trim(),
+      telephone:      r[6].toString().trim(),
+      identifiant:    r[7].toString().trim(),
+      message:        r[9].toString().trim(),
+      statut:         r[10].toString().trim() || 'en_attente',
+      commentaire:    r[11].toString().trim()
+    });
+  }
+  return jsonResponse({ success: true, demandes });
+}
+
+function handleUpdateDemande(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Demandes');
+  if (!sheet) return jsonResponse({ success: false, error: 'Feuille Demandes introuvable.' });
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0].toString().trim() === data.id) {
+      sheet.getRange(i + 1, 11).setValue(data.statut      || rows[i][10]);
+      sheet.getRange(i + 1, 12).setValue(data.commentaire || rows[i][11]);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Demande introuvable.' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// Feuille "Notifications" — colonnes :
+//   ID | Date | Destinataire ID | Expéditeur | Message | Lu | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleGetNotifications(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Notifications');
+  if (!sheet) return jsonResponse({ success: true, notifications: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, notifications: [] });
+
+  const notifications = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    if (data.userId && r[2].toString().trim() !== data.userId) continue;
+    notifications.push({
+      id:          r[0].toString().trim(),
+      date:        r[1].toString().trim(),
+      userId:      r[2].toString().trim(),
+      expediteur:  r[3].toString().trim(),
+      message:     r[4].toString().trim(),
+      lu:          r[5].toString().trim() || '0'
+    });
+  }
+  return jsonResponse({ success: true, notifications });
+}
+
+function handleMarkNotificationRead(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Notifications');
+  if (!sheet) return jsonResponse({ success: false });
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0].toString().trim() === data.id) {
+      sheet.getRange(i + 1, 6).setValue('1');
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Notification introuvable.' });
+}
+
+function _initDemandesSheet(sheet) {
+  const headers = [
+    'ID', 'Date', 'Nom', 'Zone', 'Superviseur ID', 'Superviseur Nom',
+    'Téléphone', 'Identifiant', 'Mot de passe', 'Message', 'Statut', 'Commentaire', 'Horodatage'
+  ];
+  sheet.appendRow(headers);
+  sheet.setFrozenRows(1);
+  const hr = sheet.getRange(1, 1, 1, headers.length);
+  hr.setBackground('#F6B924');
+  hr.setFontColor('#000000');
+  hr.setFontWeight('bold');
+  hr.setHorizontalAlignment('center');
+  sheet.setColumnWidth(1, 130);
+  sheet.setColumnWidth(2, 90);
+  sheet.setColumnWidth(3, 160);
+  sheet.setColumnWidth(4, 130);
+  sheet.setColumnWidth(5, 150);
+  sheet.setColumnWidth(6, 160);
+  sheet.setColumnWidth(7, 110);
+  sheet.setColumnWidth(8, 150);
+  sheet.setColumnWidth(9, 130);
+  sheet.setColumnWidth(10, 200);
+  sheet.setColumnWidth(11, 100);
+  sheet.setColumnWidth(12, 200);
+  sheet.setColumnWidth(13, 140);
 }
 
 // ─────────────────────────────────────────────────────────────
