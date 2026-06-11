@@ -2002,8 +2002,14 @@
             <option value="mois">Mensuel</option>
           </select>
           <input type="date" id="rapport-date-input" onchange="renderRapports()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
-          <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 16px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-            <i class="fa fa-copy" style="margin-right:6px"></i>Copier WhatsApp
+          <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+            <i class="fa fa-copy" style="margin-right:6px"></i>Copier
+          </button>
+          <button onclick="sendRapportWhatsApp()" id="rapport-wa-btn" style="padding:7px 14px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+            <i class="fa-brands fa-whatsapp" style="margin-right:6px"></i>WhatsApp
+          </button>
+          <button onclick="sendRapportEmail()" style="padding:7px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+            <i class="fa fa-envelope" style="margin-right:6px"></i>Email
           </button>
         </div>
       </div>
@@ -2015,11 +2021,19 @@
       <div class="card" style="margin-top:20px">
         <div class="card-header">
           <div class="card-title">
-            <i class="fa fa-comment-dots" style="color:#25D366;margin-right:8px"></i>Aperçu texte — WhatsApp
+            <i class="fa fa-comment-dots" style="color:#25D366;margin-right:8px"></i>Aperçu texte — WhatsApp / Email
           </div>
-          <button onclick="copyRapport()" style="padding:5px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
-            <i class="fa fa-copy" style="margin-right:4px"></i>Copier
-          </button>
+          <div style="display:flex;gap:8px">
+            <button onclick="copyRapport()" style="padding:5px 12px;background:var(--yellow);color:var(--black);border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
+              <i class="fa fa-copy" style="margin-right:4px"></i>Copier
+            </button>
+            <button onclick="sendRapportWhatsApp()" style="padding:5px 12px;background:#25D366;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
+              <i class="fa-brands fa-whatsapp"></i>
+            </button>
+            <button onclick="sendRapportEmail()" style="padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
+              <i class="fa fa-envelope"></i>
+            </button>
+          </div>
         </div>
         <div class="card-body">
           <pre id="rapport-text-preview" style="white-space:pre-wrap;font-family:'Courier New',monospace;font-size:13px;line-height:1.75;background:var(--gray-bg);border-radius:8px;padding:18px;margin:0;color:var(--text)"></pre>
@@ -7373,10 +7387,20 @@
     if (preview) preview.textContent = result.text;
   }
 
-  function copyRapport() {
+  function _rapportText() {
     const preview = document.getElementById('rapport-text-preview');
-    if (!preview || !preview.textContent) return;
-    navigator.clipboard.writeText(preview.textContent).then(() => {
+    return preview ? preview.textContent : '';
+  }
+
+  function _rapportSubject() {
+    const subtitle = document.getElementById('rapport-subtitle');
+    return 'Rapport MTN — ' + (subtitle ? subtitle.textContent : 'InsightPanel');
+  }
+
+  function copyRapport() {
+    const text = _rapportText();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
       const btn = document.getElementById('rapport-copy-btn');
       if (btn) {
         const old = btn.innerHTML;
@@ -7385,6 +7409,26 @@
         setTimeout(() => { btn.innerHTML = old; btn.style.background = ''; }, 2000);
       }
     });
+  }
+
+  function sendRapportWhatsApp() {
+    const text = _rapportText();
+    if (!text) return;
+    const btn = document.getElementById('rapport-wa-btn');
+    if (btn) {
+      const old = btn.innerHTML;
+      btn.innerHTML = '<i class="fa fa-circle-notch fa-spin" style="margin-right:6px"></i>Ouverture…';
+      setTimeout(() => { btn.innerHTML = old; }, 3000);
+    }
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
+
+  function sendRapportEmail() {
+    const text = _rapportText();
+    if (!text) return;
+    const subject = encodeURIComponent(_rapportSubject());
+    const body    = encodeURIComponent(text);
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
   }
 
 </script>
