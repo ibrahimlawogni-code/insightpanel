@@ -27,6 +27,7 @@ function doPost(e) {
     if (data.action === 'login')               return handleLogin(data);
     if (data.action === 'saisie')              return handleSaisie(data);
     if (data.action === 'getSaisies')          return handleGetSaisies(data);
+    if (data.action === 'getUsers')            return handleGetUsers(data);
     if (data.action === 'submitDemande')       return handleSubmitDemande(data);
     if (data.action === 'getDemandes')         return handleGetDemandes(data);
     if (data.action === 'updateDemande')       return handleUpdateDemande(data);
@@ -214,6 +215,43 @@ function handleGetSaisies(data) {
     });
   }
   return jsonResponse({ success: true, saisies });
+}
+
+// ─────────────────────────────────────────────────────────────
+// LISTE DES UTILISATEURS — sans mots de passe (pour les dashboards)
+// ─────────────────────────────────────────────────────────────
+function handleGetUsers(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Utilisateurs');
+  if (!sheet) return jsonResponse({ success: true, users: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, users: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    id:     headers.indexOf('id'),
+    nom:    headers.indexOf('nom'),
+    role:   headers.indexOf('role'),
+    zone:   headers.indexOf('zone'),
+    init:   headers.indexOf('initiales'),
+    statut: headers.indexOf('statut')
+  };
+
+  const users = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[COL.id] || r[COL.id].toString().trim() === '') continue;
+    users.push({
+      id:        r[COL.id].toString().trim(),
+      nom:       COL.nom    >= 0 ? r[COL.nom].toString().trim()                          : '',
+      role:      COL.role   >= 0 ? r[COL.role].toString().toLowerCase().trim()           : '',
+      zone:      COL.zone   >= 0 ? r[COL.zone].toString().trim()                         : '',
+      initiales: COL.init   >= 0 ? r[COL.init].toString().trim()                         : '',
+      statut:    COL.statut >= 0 ? r[COL.statut].toString().toLowerCase().trim()         : 'actif'
+    });
+  }
+  return jsonResponse({ success: true, users });
 }
 
 // ─────────────────────────────────────────────────────────────
