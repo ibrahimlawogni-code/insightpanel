@@ -1195,8 +1195,8 @@
       <div class="grid-2">
         <div class="card">
           <div class="card-header">
-            <div class="card-title" id="dash-top-agents-title">Top Agents — Semaine 23</div>
-            <span class="badge badge-black">5 sur 24</span>
+            <div class="card-title" id="dash-top-agents-title">Top Agents — Semaine en cours</div>
+            <span class="badge badge-black" id="dash-top-agents-badge">—</span>
           </div>
           <table>
             <thead>
@@ -1205,46 +1205,12 @@
                 <th>Agent</th>
                 <th>Zone</th>
                 <th>Gross Add</th>
-                <th>New MoMo User</th>
+                <th>New MoMo</th>
                 <th>Perf.</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><i class="fa fa-medal medal-1"></i></td>
-                <td><strong>Kossi ADJOVI</strong></td>
-                <td>Avrankou</td>
-                <td>143</td><td>87</td>
-                <td><span class="badge badge-green">96 %</span></td>
-              </tr>
-              <tr>
-                <td><i class="fa fa-medal medal-2"></i></td>
-                <td><strong>Aïssatou GNONA</strong></td>
-                <td>Missérété</td>
-                <td>128</td><td>79</td>
-                <td><span class="badge badge-green">91 %</span></td>
-              </tr>
-              <tr>
-                <td><i class="fa fa-medal medal-3"></i></td>
-                <td><strong>Mouftaou SABI</strong></td>
-                <td>Avrankou</td>
-                <td>117</td><td>65</td>
-                <td><span class="badge badge-green">88 %</span></td>
-              </tr>
-              <tr>
-                <td style="color:#bbb">4</td>
-                <td>Clarisse YOVO</td>
-                <td>Adjohoun</td>
-                <td>104</td><td>58</td>
-                <td><span class="badge badge-orange">79 %</span></td>
-              </tr>
-              <tr>
-                <td style="color:#bbb">5</td>
-                <td>Romuald AGBO</td>
-                <td>Dangbo</td>
-                <td>98</td><td>51</td>
-                <td><span class="badge badge-orange">74 %</span></td>
-              </tr>
+            <tbody id="dash-top-agents-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1252,31 +1218,11 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">Alertes &amp; Notifications</div>
-            <span class="badge badge-red">3 actives</span>
+            <span class="badge badge-red" id="dash-alertes-badge" style="display:none"></span>
           </div>
           <div class="card-body">
-            <div class="alert-stack">
-              <div class="alert-item danger">
-                <i class="fa fa-circle-exclamation"></i>
-                <div>
-                  <strong>Stock critique — Bonou</strong><br>
-                  SIM GSM : 45 unités restantes. Réapprovisionnement urgent requis avant mercredi.
-                </div>
-              </div>
-              <div class="alert-item warning">
-                <i class="fa fa-triangle-exclamation"></i>
-                <div>
-                  <strong>Conformité en baisse — Dangbo</strong><br>
-                  3 agents avec bases MoMo non conformes détectés ce mois.
-                </div>
-              </div>
-              <div class="alert-item info">
-                <i class="fa fa-circle-info"></i>
-                <div>
-                  <strong id="dash-rapport-semaine">Rapport Semaine 22 disponible</strong><br>
-                  La synthèse hebdomadaire est prête. Export PDF disponible.
-                </div>
-              </div>
+            <div class="alert-stack" id="dash-alertes-body">
+              <div style="text-align:center;padding:20px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
             </div>
           </div>
         </div>
@@ -2815,7 +2761,7 @@
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
-      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); loadUsers();
+      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
     }
   }
 
@@ -5285,11 +5231,9 @@
 
   /* ---- Objectifs périodiques ---- */
 
-  /* Cibles officielles fixées par MTN, par mois — { gsm: Gross Add, momo: New MoMo User (null = non défini) } */
-  /* Cibles mensuelles : 150 DFAs × 10 SIMs/jour × 30 jours = 45 000 Gross Add — MoMo : 90 % */
+  /* Cibles officielles MTN par mois — à mettre à jour chaque mois */
   const MONTHLY_TARGETS = {
-    '2026-06': { gsm: 45000, momo: 40500 },
-    '2026-05': { gsm: 45000, momo: 40500 },
+    '2026-06': { gsm: 18660, momo: 16794 },
   };
 
   const REALISE_DATA = {};
@@ -7515,7 +7459,63 @@
     _renderEvaluationView();
     _initPerfSupSection();
     renderRapports();
+    renderDashTopAgents();
+    renderDashAlertes();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
+  }
+
+  /* --- Top Agents dashboard (5 meilleurs de la semaine) --- */
+  function renderDashTopAgents() {
+    const tbody  = document.getElementById('dash-top-agents-tbody');
+    const badge  = document.getElementById('dash-top-agents-badge');
+    if (!tbody) return;
+    if (!SAISIES_DATA.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--gray-text)">Aucune saisie enregistrée</td></tr>';
+      if (badge) badge.textContent = '—';
+      return;
+    }
+    const bs = _computeBestsellerData('semaine', 0);
+    const top = (bs || []).slice(0, 5);
+    const total = (bs || []).length;
+    if (badge) badge.textContent = top.length + ' sur ' + total;
+    const medals = ['medal-1','medal-2','medal-3'];
+    const tgtSem = Math.round((MONTHLY_TARGETS[today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0')]?.gsm || DFA_DAILY_TARGET * 7) * 7 / 30);
+    tbody.innerHTML = top.map((a, i) => {
+      const rank = i < 3
+        ? `<i class="fa fa-medal ${medals[i]}"></i>`
+        : `<span style="color:#bbb">${i+1}</span>`;
+      const pct  = tgtSem > 0 ? Math.min(100, Math.round(a.semaine / tgtSem * 100)) : 0;
+      const cls  = pct >= 80 ? 'badge-green' : pct >= 60 ? 'badge-orange' : 'badge-red';
+      const user = USERS.find(u => u.id === a.id);
+      const zone = user ? (user.zone || '—') : '—';
+      return `<tr><td>${rank}</td><td><strong>${a.nom}</strong></td><td>${zone}</td><td style="font-weight:700">${a.semaine}</td><td>${a.momo ?? '—'}</td><td><span class="badge ${cls}">${pct} %</span></td></tr>`;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--gray-text)">Aucune donnée cette semaine</td></tr>';
+  }
+
+  /* --- Alertes dashboard (demandes en attente + notifications) --- */
+  function renderDashAlertes() {
+    const body  = document.getElementById('dash-alertes-body');
+    const badge = document.getElementById('dash-alertes-badge');
+    if (!body) return;
+    const items = [];
+    /* Demandes en attente */
+    const pending = (DEMANDES || []).filter(d => d.statut === 'en_attente' || d.statut === 'valide_superviseur');
+    if (pending.length) items.push({ cls:'warning', icon:'fa-triangle-exclamation', titre: pending.length + ' demande(s) en attente', detail: 'À traiter dans le menu Équipes.' });
+    /* Notifications */
+    (NOTIFICATIONS || []).slice(0, 5).forEach(n => {
+      items.push({ cls:'info', icon:'fa-circle-info', titre: n.titre || n.message || 'Notification', detail: n.detail || '' });
+    });
+    if (!items.length) {
+      body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-text)"><i class="fa fa-check-circle" style="color:var(--green)"></i> Aucune alerte active</div>';
+      if (badge) badge.style.display = 'none';
+      return;
+    }
+    if (badge) { badge.textContent = items.length + ' active' + (items.length > 1 ? 's' : ''); badge.style.display = ''; }
+    body.innerHTML = items.map(it => `
+      <div class="alert-item ${it.cls}">
+        <i class="fa ${it.icon}"></i>
+        <div><strong>${it.titre}</strong>${it.detail ? '<br>' + it.detail : ''}</div>
+      </div>`).join('');
   }
 
   /* --- Dernières saisies (table droite vue Saisie) --- */
