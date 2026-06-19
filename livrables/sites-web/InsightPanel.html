@@ -2563,9 +2563,9 @@
       });
       const json = await res.json();
       if (json.success && json.user) {
-        /* Enrichir les données Sheets avec nom/initiales du seed local */
+        /* Si le compte est dans USERS_SEED, le seed est prioritaire sur Sheets pour le rôle */
         const seed = USERS_SEED.find(u => u.id === json.user.id);
-        user = seed ? { ...json.user, nom: seed.nom, initiales: seed.initiales } : json.user;
+        user = seed ? { ...json.user, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
       }
     } catch (e) {
       /* Erreur réseau : fallback immédiat sur USERS_SEED */
