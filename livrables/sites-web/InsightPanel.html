@@ -2075,7 +2075,7 @@
           <div class="page-title">Stocks &amp; Ressources</div>
           <div class="page-subtitle">Suivi du stock SIM GSM reçu par zone</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="loadStockHistorique()">
+        <button class="btn btn-secondary btn-sm" onclick="_refreshStocksView()">
           <i class="fa fa-rotate-right"></i> Actualiser
         </button>
       </div>
@@ -4567,8 +4567,15 @@
     if (!currentUser) return;
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
-    loadStockHistorique();
-    _ensureSaisiesLoaded().then(_renderSimVendues);
+    _refreshStocksView();
+  }
+
+  async function _refreshStocksView() {
+    /* Force le rechargement des saisies depuis Sheets puis rafraîchit tout */
+    SAISIES_DATA = [];
+    await _ensureSaisiesLoaded();
+    loadStockHistorique();       /* charge STOCK_DATA → _renderStockGestionnaire */
+    _renderSimVendues();         /* table numéros SIM vendus */
   }
 
   let _simVenduesLimit = 100;
