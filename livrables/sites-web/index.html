@@ -1670,9 +1670,15 @@
       </div>
       <!-- ===== FIN SECTION SUPERVISEUR ===== -->
 
+      <!-- Bandeau lecture seule — DG, DGA, DC, DCC -->
+      <div data-roles="dg,dga,dc,dcc" style="background:var(--gray-bg);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:12px 18px;margin-bottom:20px;font-size:13px;color:var(--gray-text)">
+        <i class="fa fa-eye" style="color:var(--yellow);margin-right:8px"></i>
+        <strong>Mode consultation :</strong> vous avez accès aux données en lecture seule. La saisie est réservée aux agents et superviseurs.
+      </div>
+
       <div class="grid-2" style="align-items:start">
-        <!-- FORMULAIRE DE SAISIE + SCANNER INTÉGRÉ -->
-        <div class="card">
+        <!-- FORMULAIRE DE SAISIE + SCANNER INTÉGRÉ — masqué en lecture seule -->
+        <div class="card" data-roles="ra,admin,superviseur,agent">
           <div class="card-header">
             <div class="card-title">Saisie des activations</div>
             <span class="badge badge-yellow" id="saisie-sim-count" style="display:none">0 SIM</span>
@@ -2476,7 +2482,9 @@
     { id: 'Ibrahim.Lawogni',      pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',      role: 'ra',          zone: 'Toutes zones',        initiales: 'IL', statut: 'actif' },
     { id: 'Admin.zephir',           pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin', zone: 'Toutes zones', initiales: 'ADM', statut: 'actif' },
     { id: 'Dg.zephir',             pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',  zone: 'Toutes zones', initiales: 'DG',  statut: 'actif' },
-    { id: 'Dga.zephir',            pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga', zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
+    { id: 'Dga.zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga', zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
+    { id: 'Dc.zephir',            pwd: 'Admin@2026',  nom: 'Directeur Commercial',      role: 'dc',  zone: 'Toutes zones', initiales: 'DC',  statut: 'actif' },
+    { id: 'Dcc.zephir',           pwd: 'Admin@2026',  nom: 'Dir. Commercial Adjoint',   role: 'dcc', zone: 'Toutes zones', initiales: 'DCC', statut: 'actif' },
     /* Superviseurs */
     { id: 'Alphonse.Djokpe',      pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
     { id: 'Missimahou.Honkou',    pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
@@ -4034,8 +4042,17 @@
     }
   }
 
+  const READ_ONLY_ROLES = ['dg', 'dga', 'dc', 'dcc'];
+
   function _initSaisieView() {
     if (!currentUser) return;
+
+    /* Rôles lecture seule : carte historique en pleine largeur */
+    const saisieGrid = document.querySelector('#view-saisie .grid-2');
+    if (saisieGrid) {
+      saisieGrid.style.gridTemplateColumns = READ_ONLY_ROLES.includes(currentUser.role) ? '1fr' : '';
+    }
+
     const dfaEl = document.getElementById('saisie-field-dfa');
     if (dfaEl && !dfaEl.value) dfaEl.value = currentUser.nom || '';
     const eqEl = document.getElementById('saisie-field-equipe');
