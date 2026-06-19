@@ -1633,7 +1633,7 @@
                   <input class="input-field" type="number" id="perf-sup-jour" min="0" placeholder="Ex : 45" inputmode="numeric">
                 </div>
                 <div class="span-2">
-                  <label class="input-label">Ma performance globale ce mois <span style="color:var(--green);font-size:10px">(auto — cumul total équipe)</span></label>
+                  <label class="input-label">Ma performance globale ce mois <span style="color:var(--green);font-size:10px">(auto — cumul de mes déclarations)</span></label>
                   <input class="input-field" type="number" id="perf-sup-globale" readonly style="background:var(--gray-bg);cursor:default">
                 </div>
               </div>
@@ -4301,7 +4301,6 @@
       const ecartColor = ecart > 0 ? 'var(--orange)' : ecart < 0 ? 'var(--red)' : 'var(--green)';
       const ecartIcon  = ecart > 0 ? 'fa-arrow-up' : ecart < 0 ? 'fa-arrow-down' : 'fa-check';
       const sign    = ecart > 0 ? '+' : '';
-      /* Formater la date ISO en affichage court */
       const [y, m, d] = r.date.split('-');
       const dateLbl = d && m ? `${d}/${m}/${y}` : r.date;
       return `<tr>
@@ -4313,6 +4312,14 @@
         </td>
       </tr>`;
     }).join('');
+
+    /* Performance globale ce mois = cumul des propres déclarations du superviseur */
+    const moisKey   = todayISO.slice(0, 7);
+    const moisCumul = PERF_SUP_DATA
+      .filter(r => r.date && r.date.slice(0, 7) === moisKey)
+      .reduce((acc, r) => acc + (Number(r.perfJour) || 0), 0);
+    const gEl = document.getElementById('perf-sup-globale');
+    if (gEl) gEl.value = moisCumul;
   }
 
   async function submitPerfSup() {
