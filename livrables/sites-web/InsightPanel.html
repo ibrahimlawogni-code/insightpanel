@@ -2219,6 +2219,69 @@
           </table>
         </div>
       </div>
+
+      <!-- Numéros SIM vendus — RA, admin, superviseurs -->
+      <div class="card" data-roles="ra,admin,superviseur" id="sim-vendues-card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-sim-card" style="color:var(--yellow)"></i> Numéros SIM vendus</div>
+          <span class="badge badge-black" id="sim-vendues-badge">—</span>
+        </div>
+        <div class="card-body" style="padding-bottom:8px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div data-roles="ra,admin" style="flex:1;min-width:140px">
+              <label class="input-label">Zone</label>
+              <select class="input-field" id="sim-vendues-zone" onchange="_renderSimVendues()">
+                <option value="">Toutes les zones</option>
+                <option value="Avrankou-Missérété">Avrankou-Missérété</option>
+                <option value="Avrankou">Avrankou</option>
+                <option value="Missérété">Missérété</option>
+                <option value="Adjarra">Adjarra</option>
+                <option value="Aguégués - Dangbo">Aguégués - Dangbo</option>
+                <option value="Bonou - Adjohoun">Bonou - Adjohoun</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px">
+              <label class="input-label">DFA</label>
+              <input class="input-field" type="text" id="sim-vendues-dfa" placeholder="Nom du DFA…" oninput="_renderSimVendues()">
+            </div>
+            <div style="flex:1;min-width:140px">
+              <label class="input-label">Recherche N° SIM</label>
+              <input class="input-field" type="text" id="sim-vendues-search" placeholder="Ex : 22546…" inputmode="numeric" oninput="_renderSimVendues()" style="font-family:monospace">
+            </div>
+            <div style="flex:1;min-width:120px">
+              <label class="input-label">Date début</label>
+              <input class="input-field" type="date" id="sim-vendues-date-debut" onchange="_renderSimVendues()">
+            </div>
+            <div style="flex:1;min-width:120px">
+              <label class="input-label">Date fin</label>
+              <input class="input-field" type="date" id="sim-vendues-date-fin" onchange="_renderSimVendues()">
+            </div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="min-width:520px">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>DFA</th>
+                <th>Zone</th>
+                <th style="font-family:monospace">N° SIM</th>
+                <th style="font-family:monospace">N° MTN</th>
+              </tr>
+            </thead>
+            <tbody id="sim-vendues-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">
+                <i class="fa fa-spinner fa-spin"></i> Chargement…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="sim-vendues-more" style="display:none;padding:12px 20px;border-top:1px solid var(--gray-border)">
+          <button class="btn btn-secondary btn-sm" onclick="_renderSimVendues(true)">
+            <i class="fa fa-chevron-down"></i> Afficher plus
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="view" id="view-rapports">
@@ -4504,6 +4567,82 @@
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
     loadStockHistorique();
+    _ensureSaisiesLoaded().then(_renderSimVendues);
+  }
+
+  let _simVenduesLimit = 100;
+
+  function _renderSimVendues(showMore = false) {
+    const tbody   = document.getElementById('sim-vendues-tbody');
+    const badge   = document.getElementById('sim-vendues-badge');
+    const moreBtn = document.getElementById('sim-vendues-more');
+    if (!tbody || !currentUser) return;
+
+    if (showMore === true) _simVenduesLimit += 100;
+    else _simVenduesLimit = 100;
+
+    /* Filtres */
+    const zoneEl   = document.getElementById('sim-vendues-zone');
+    const dfaEl    = document.getElementById('sim-vendues-dfa');
+    const searchEl = document.getElementById('sim-vendues-search');
+    const dateDebEl= document.getElementById('sim-vendues-date-debut');
+    const dateFinEl= document.getElementById('sim-vendues-date-fin');
+
+    const zoneFilter   = currentUser.role === 'superviseur'
+      ? (currentUser.zone || '')
+      : (zoneEl?.value || '');
+    const dfaFilter    = (dfaEl?.value   || '').toLowerCase().trim();
+    const searchFilter = (searchEl?.value || '').trim();
+    const dateDebFilter= dateDebEl?.value || '';
+    const dateFinFilter= dateFinEl?.value || '';
+
+    /* Aplatir simList/mtnList de chaque saisie en entrées individuelles */
+    const rows = [];
+    for (const s of (SAISIES_DATA || [])) {
+      if (!s.simList) continue;
+
+      /* Filtre zone */
+      if (zoneFilter && !s.zone.toLowerCase().includes(zoneFilter.toLowerCase())) continue;
+
+      /* Filtre DFA */
+      if (dfaFilter && !s.dfaNom.toLowerCase().includes(dfaFilter)) continue;
+
+      /* Filtre date — convertir date FR en ISO pour comparaison */
+      const isoDate = _parseSaisieDate(s.date);
+      if (dateDebFilter && isoDate && isoDate < dateDebFilter) continue;
+      if (dateFinFilter && isoDate && isoDate > dateFinFilter) continue;
+
+      const sims = s.simList.split(',').map(x => x.trim()).filter(Boolean);
+      const mtns = (s.mtnList || '').split(',').map(x => x.trim());
+
+      sims.forEach((sim, i) => {
+        if (searchFilter && !sim.includes(searchFilter)) return;
+        rows.push({ date: s.date, dfaNom: s.dfaNom, zone: s.zone, sim, mtn: mtns[i] || '' });
+      });
+    }
+
+    /* Tri antéchronologique (les données sont déjà dans l'ordre d'insertion) */
+    rows.reverse();
+
+    if (badge) badge.textContent = rows.length + ' SIM';
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--gray-text)">Aucun numéro SIM trouvé.</td></tr>`;
+      if (moreBtn) moreBtn.style.display = 'none';
+      return;
+    }
+
+    const visible = rows.slice(0, _simVenduesLimit);
+    tbody.innerHTML = visible.map(r => `
+      <tr>
+        <td style="white-space:nowrap">${r.date}</td>
+        <td>${r.dfaNom}</td>
+        <td style="font-size:12px;color:var(--gray-text)">${r.zone}</td>
+        <td style="font-family:monospace;font-weight:700;letter-spacing:.5px">${r.sim}</td>
+        <td style="font-family:monospace;color:var(--gray-text)">${r.mtn || '—'}</td>
+      </tr>`).join('');
+
+    if (moreBtn) moreBtn.style.display = rows.length > _simVenduesLimit ? '' : 'none';
   }
 
   function _autoCalcStockQuantite() {
