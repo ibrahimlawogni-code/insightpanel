@@ -333,10 +333,66 @@ function handleUpdateDemande(data) {
     if (rows[i][0].toString().trim() === data.id) {
       sheet.getRange(i + 1, 11).setValue(data.statut      || rows[i][10]);
       sheet.getRange(i + 1, 12).setValue(data.commentaire || rows[i][11]);
+
+      /* Création automatique du compte DFA quand la demande est approuvée */
+      if (data.statut === 'approuve') {
+        const nom         = rows[i][2].toString().trim();
+        const zone        = rows[i][3].toString().trim();
+        const identifiant = rows[i][7].toString().trim();
+        const pwd         = rows[i][8].toString().trim();
+
+        if (identifiant && pwd) {
+          const result = _createUserFromDemande(ss, identifiant, pwd, nom, zone);
+          return jsonResponse({ success: true, userCreated: result });
+        }
+      }
+
       return jsonResponse({ success: true });
     }
   }
   return jsonResponse({ success: false, error: 'Demande introuvable.' });
+}
+
+function _createUserFromDemande(ss, id, pwd, nom, zone) {
+  const sheet = ss.getSheetByName('Utilisateurs');
+  if (!sheet) return false;
+
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+
+  /* Vérifier si le compte existe déjà */
+  const idCol = headers.indexOf('id');
+  if (idCol !== -1) {
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][idCol].toString().trim() === id) return false; // déjà existant
+    }
+  }
+
+  /* Générer les initiales depuis le nom */
+  const initiales = nom.split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 3);
+
+  /* Construire la nouvelle ligne dans l'ordre des colonnes de la feuille */
+  const COL = {
+    id:       headers.indexOf('id'),
+    pwd:      headers.indexOf('pwd'),
+    nom:      headers.indexOf('nom'),
+    role:     headers.indexOf('role'),
+    zone:     headers.indexOf('zone'),
+    initiales:headers.indexOf('initiales'),
+    statut:   headers.indexOf('statut')
+  };
+
+  const newRow = new Array(headers.length).fill('');
+  if (COL.id        !== -1) newRow[COL.id]        = id;
+  if (COL.pwd       !== -1) newRow[COL.pwd]       = pwd;
+  if (COL.nom       !== -1) newRow[COL.nom]       = nom;
+  if (COL.role      !== -1) newRow[COL.role]      = 'agent';
+  if (COL.zone      !== -1) newRow[COL.zone]      = zone;
+  if (COL.initiales !== -1) newRow[COL.initiales] = initiales;
+  if (COL.statut    !== -1) newRow[COL.statut]    = 'actif';
+
+  sheet.appendRow(newRow);
+  return true;
 }
 
 // ─────────────────────────────────────────────────────────────
