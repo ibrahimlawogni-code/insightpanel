@@ -1089,7 +1089,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Tableau de bord</div>
-          <div class="page-subtitle">Performance en temps réel &nbsp;·&nbsp; Lundi 08 juin 2026</div>
+          <div class="page-subtitle" id="dash-subtitle">Performance en temps réel</div>
         </div>
         <div class="tabs">
           <button class="tab active">Aujourd'hui</button>
@@ -1102,27 +1102,27 @@
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Gross Add du jour</div>
-          <div class="kpi-value">247</div>
-          <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +18 % vs hier</div>
+          <div class="kpi-value" id="kpi-ga-jour">—</div>
+          <div class="kpi-delta neutral" id="kpi-ga-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">New MoMo User</div>
-          <div class="kpi-value">134</div>
-          <div class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +9 % vs hier</div>
+          <div class="kpi-value" id="kpi-momo-jour">—</div>
+          <div class="kpi-delta neutral" id="kpi-momo-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-wallet"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Taux de conformité</div>
-          <div class="kpi-value">91 %</div>
-          <div class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> &minus;3 pts vs S. dern.</div>
-          <div class="kpi-bg-icon"><i class="fa fa-shield-halved"></i></div>
+          <div class="kpi-label">Agents actifs aujourd'hui</div>
+          <div class="kpi-value" id="kpi-agents-actifs">—</div>
+          <div class="kpi-delta neutral" id="kpi-agents-delta"><i class="fa fa-clock"></i> Chargement…</div>
+          <div class="kpi-bg-icon"><i class="fa fa-users"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Stock disponible (SIM)</div>
-          <div class="kpi-value">1 840</div>
-          <div class="kpi-delta neutral"><i class="fa fa-circle-check"></i> Niveau suffisant</div>
-          <div class="kpi-bg-icon"><i class="fa fa-boxes-stacked"></i></div>
+          <div class="kpi-label">Activations ce mois</div>
+          <div class="kpi-value" id="kpi-ga-mois">—</div>
+          <div class="kpi-delta neutral" id="kpi-ga-mois-delta"><i class="fa fa-clock"></i> Chargement…</div>
+          <div class="kpi-bg-icon"><i class="fa fa-chart-line"></i></div>
         </div>
       </div>
 
@@ -1548,53 +1548,10 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title">Mon évaluation de performance</div>
-          <span id="agent-eval-badge" class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">Bon</span>
+          <span id="agent-eval-badge" class="badge badge-yellow" style="font-size:13px;padding:5px 14px;font-weight:800">—</span>
         </div>
-        <div class="card-body">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:var(--orange)">80 %</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Atteinte objectifs</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:var(--green)">7 / 7</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Jours actifs (sem.)</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:var(--green)">83 %</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Conformité</div>
-            </div>
-            <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
-              <div style="font-size:26px;font-weight:900;color:var(--orange)">+2</div>
-              <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Places gagnées</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif Gross Add hebdo</span>
-              <span class="badge badge-green">93 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>Atteinte objectif New MoMo User hebdo</span>
-              <span class="badge badge-green">84 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-calendar-check" style="color:var(--yellow);margin-right:8px"></i>Régularité terrain</span>
-              <span class="badge badge-green">Excellent</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-shield-halved" style="color:var(--yellow);margin-right:8px"></i>Conformité des bases</span>
-              <span class="badge badge-orange">83 %</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
-              <span><i class="fa fa-chart-line" style="color:var(--yellow);margin-right:8px"></i>Tendance générale</span>
-              <span class="badge badge-green">En progression</span>
-            </div>
-          </div>
-          <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
-            <strong>Appréciation :</strong> Bonne performance globale avec une régularité exemplaire (7/7 jours actifs). L'objectif Gross Add hebdomadaire est quasi atteint (93 %). New MoMo User en bon rythme (84 %).<br>
-            <strong>Point de vigilance :</strong> Objectif journalier New MoMo User pas encore atteint systématiquement. Viser 12 New MoMo User/jour minimum pour tenir l'objectif mensuel de 180. Conformité à renforcer (objectif : 90 %+).
-          </div>
+        <div class="card-body" id="agent-eval-body">
+          <div style="text-align:center;padding:24px;color:var(--gray-text)"><i class="fa fa-spinner fa-spin"></i> Chargement…</div>
         </div>
       </div>
     </div>
@@ -2748,7 +2705,7 @@
     if (name === 'agent') {
       agentViewDfaId = null;
       _initAgentDfaSelector();
-      updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier();
+      updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); _renderAgentEvalCard();
     }
     if (name === 'evaluation')  _renderEvaluationView();
     if (name === 'saisie')      _initSaisieView();
@@ -2761,7 +2718,7 @@
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
-      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
+      renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashKPIs(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
     }
   }
 
@@ -7459,9 +7416,148 @@
     _renderEvaluationView();
     _initPerfSupSection();
     renderRapports();
+    renderDashKPIs();
     renderDashTopAgents();
     renderDashAlertes();
+    _renderAgentEvalCard();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
+  }
+
+  /* --- KPI cards dashboard (Gross Add, MoMo, agents actifs, mois) --- */
+  function renderDashKPIs() {
+    const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const sub = document.getElementById('dash-subtitle');
+    if (sub) sub.textContent = 'Performance en temps réel · ' + jours[today.getDay()] + ' ' + today.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+
+    const todayStr  = today.toLocaleDateString('fr-FR');
+    const keyMois   = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+    const fil_jour  = SAISIES_DATA.filter(s => s.date === todayStr);
+    const fil_hier  = SAISIES_DATA.filter(s => {
+      const h = new Date(today); h.setDate(h.getDate()-1);
+      return s.date === h.toLocaleDateString('fr-FR');
+    });
+    const fil_mois  = _filterPeriod(SAISIES_DATA, 'mois', today);
+
+    const gaJour    = _sumField(fil_jour, 'grossAdd');
+    const gaHier    = _sumField(fil_hier, 'grossAdd');
+    const momoJour  = _sumField(fil_jour, 'momoUser');
+    const momoHier  = _sumField(fil_hier, 'momoUser');
+    const gaMois    = _sumField(fil_mois, 'grossAdd');
+    const nbActifs  = new Set(fil_jour.map(s => s.dfaId)).size;
+    const nbTotal   = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
+
+    const pctMois   = (() => { const t = MONTHLY_TARGETS[keyMois]; return (t && t.gsm) ? Math.round(gaMois / t.gsm * 100) : null; })();
+
+    const delta = (val, ref, unit) => {
+      if (!ref) return '<i class="fa fa-minus"></i> Pas de données hier';
+      const diff = Math.round((val - ref) / Math.max(1, ref) * 100);
+      if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs hier`;
+      if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs hier`;
+      return '<i class="fa fa-minus"></i> Stable vs hier';
+    };
+    const setKPI = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const setDelta = (id, html, cls) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = html;
+      el.className = 'kpi-delta ' + (cls || 'neutral');
+    };
+
+    setKPI('kpi-ga-jour', gaJour || (SAISIES_DATA.length ? '0' : '—'));
+    setDelta('kpi-ga-delta', delta(gaJour, gaHier), gaJour > gaHier ? 'up' : gaJour < gaHier ? 'down' : 'neutral');
+
+    setKPI('kpi-momo-jour', momoJour || (SAISIES_DATA.length ? '0' : '—'));
+    setDelta('kpi-momo-delta', delta(momoJour, momoHier), momoJour > momoHier ? 'up' : momoJour < momoHier ? 'down' : 'neutral');
+
+    setKPI('kpi-agents-actifs', SAISIES_DATA.length ? nbActifs + (nbTotal ? ' / ' + nbTotal : '') : '—');
+    setDelta('kpi-agents-delta', nbTotal ? `<i class="fa fa-users"></i> ${Math.round(nbActifs/Math.max(1,nbTotal)*100)} % de l'équipe actifs` : '<i class="fa fa-clock"></i> Chargement…', nbActifs > 0 ? 'up' : 'neutral');
+
+    setKPI('kpi-ga-mois', gaMois || (SAISIES_DATA.length ? '0' : '—'));
+    setDelta('kpi-ga-mois-delta',
+      pctMois !== null
+        ? `<i class="fa fa-bullseye"></i> ${pctMois} % de l'objectif mensuel`
+        : `<i class="fa fa-clock"></i> Chargement…`,
+      pctMois >= 80 ? 'up' : pctMois >= 50 ? 'neutral' : (pctMois !== null ? 'down' : 'neutral'));
+  }
+
+  /* --- Carte évaluation embarquée dans Vue Agent --- */
+  function _renderAgentEvalCard() {
+    const body = document.getElementById('agent-eval-body');
+    if (!body || !currentUser) return;
+
+    const mine    = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+    const semaine = _filterPeriod(mine, 'semaine', today);
+    const gaS     = _sumField(semaine, 'grossAdd');
+    const momoS   = _sumField(semaine, 'momoUser');
+    const joursAct = new Set(semaine.map(s => s.date)).size;
+    const tgtSem  = DFA_DAILY_TARGET * 7;
+    const tgtMomo = Math.round(tgtSem * 0.9);
+    const pctGA   = tgtSem > 0 ? Math.min(100, Math.round(gaS / tgtSem * 100)) : 0;
+    const pctMomo = tgtMomo > 0 ? Math.min(100, Math.round(momoS / tgtMomo * 100)) : 0;
+    const reg     = Math.min(100, Math.round(joursAct / 7 * 100));
+
+    const bs = _computeBestsellerData('semaine', 0);
+    const rankNow  = bs ? bs.findIndex(a => a.id === currentUser.id) : -1;
+    const bsPrev   = _computeBestsellerData('semaine', 1);
+    const rankPrev = bsPrev ? bsPrev.findIndex(a => a.id === currentUser.id) : -1;
+    const rankDiff = (rankNow >= 0 && rankPrev >= 0) ? (rankPrev - rankNow) : null;
+
+    const mention = _getMention(pctGA, pctMomo);
+    const evalBadge = document.getElementById('agent-eval-badge');
+    if (evalBadge) { evalBadge.textContent = mention.label; evalBadge.className = `badge ${mention.cls}`; }
+
+    const pctColor = p => p >= 80 ? 'var(--green)' : p >= 60 ? 'var(--orange)' : 'var(--red)';
+    const bdgCls   = p => p >= 80 ? 'badge-green' : p >= 60 ? 'badge-orange' : 'badge-red';
+
+    if (!mine.length) {
+      body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-text)">Aucune saisie enregistrée pour le moment.</div>';
+      return;
+    }
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+        <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+          <div style="font-size:26px;font-weight:900;color:${pctColor(pctGA)}">${pctGA} %</div>
+          <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Atteinte objectifs</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+          <div style="font-size:26px;font-weight:900;color:${pctColor(reg)}">${joursAct} / 7</div>
+          <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Jours actifs (sem.)</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+          <div style="font-size:26px;font-weight:900;color:${pctColor(pctMomo)}">${pctMomo} %</div>
+          <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Ratio MoMo</div>
+        </div>
+        <div style="text-align:center;padding:16px;background:var(--gray-bg);border-radius:10px">
+          <div style="font-size:26px;font-weight:900;color:${rankDiff === null ? 'var(--gray-text)' : rankDiff > 0 ? 'var(--green)' : rankDiff < 0 ? 'var(--red)' : 'var(--gray-text)'}">
+            ${rankDiff === null ? '—' : rankDiff > 0 ? '+' + rankDiff : rankDiff === 0 ? '=' : rankDiff}
+          </div>
+          <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.4px;margin-top:5px">Places gagnées</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+          <span><i class="fa fa-bullseye" style="color:var(--yellow);margin-right:8px"></i>Gross Add hebdo (${gaS} / ${tgtSem})</span>
+          <span class="badge ${bdgCls(pctGA)}">${pctGA} %</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+          <span><i class="fa fa-wallet" style="color:var(--yellow);margin-right:8px"></i>New MoMo hebdo (${momoS} / ${tgtMomo})</span>
+          <span class="badge ${bdgCls(pctMomo)}">${pctMomo} %</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+          <span><i class="fa fa-calendar-check" style="color:var(--yellow);margin-right:8px"></i>Régularité terrain</span>
+          <span class="badge ${bdgCls(reg)}">${joursAct} j / 7</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-bg);border-radius:8px;font-size:13px">
+          <span><i class="fa fa-ranking-star" style="color:var(--yellow);margin-right:8px"></i>Classement réseau</span>
+          <span class="badge ${rankNow >= 0 ? (rankNow < 5 ? 'badge-green' : rankNow < 15 ? 'badge-orange' : 'badge-red') : 'badge-black'}">${rankNow >= 0 ? (rankNow+1) + 'ᵉ / ' + bs.length : '—'}</span>
+        </div>
+      </div>
+      <div style="background:var(--yellow-light);border-left:4px solid var(--yellow);border-radius:0 8px 8px 0;padding:14px 18px;font-size:13px;line-height:1.8">
+        <strong>Appréciation :</strong> ${mention.label} — ${gaS} Gross Add cette semaine (objectif ${tgtSem}).
+        ${pctGA >= 100 ? 'Objectif Gross Add atteint !' : pctGA >= 80 ? 'Objectif quasi atteint, bon rythme.' : 'Objectif à renforcer.'}
+        ${joursAct >= 5 ? ' Bonne régularité terrain.' : joursAct <= 2 ? ' Régularité insuffisante.' : ''}
+      </div>`;
   }
 
   /* --- Top Agents dashboard (5 meilleurs de la semaine) --- */
