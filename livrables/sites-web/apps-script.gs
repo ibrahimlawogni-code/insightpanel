@@ -36,6 +36,7 @@ function doPost(e) {
     if (data.action === 'markNotificationRead') return handleMarkNotificationRead(data);
     if (data.action === 'saveStockSIM')         return handleSaveStockSIM(data);
     if (data.action === 'getStockSIM')          return handleGetStockSIM(data);
+    if (data.action === 'resetPassword')        return handleResetPassword(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -485,6 +486,39 @@ function _initStockSIMSheet(sheet) {
   sheet.setColumnWidth(6, 160);  // Auteur Nom
   sheet.setColumnWidth(7, 90);   // Rôle
   sheet.setColumnWidth(8, 140);  // Horodatage
+}
+
+// ─────────────────────────────────────────────────────────────
+// RÉINITIALISATION MOT DE PASSE — ra et admin uniquement
+// ─────────────────────────────────────────────────────────────
+function handleResetPassword(data) {
+  const allowedRoles = ['ra', 'admin'];
+  if (!allowedRoles.includes(data.requesterRole)) {
+    return jsonResponse({ success: false, error: 'Accès non autorisé.' });
+  }
+  if (!data.targetId || !data.newPwd || data.newPwd.length < 6) {
+    return jsonResponse({ success: false, error: 'Paramètres invalides.' });
+  }
+
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Utilisateurs');
+  if (!sheet) return jsonResponse({ success: false, error: 'Feuille Utilisateurs introuvable.' });
+
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const colId   = headers.indexOf('id');
+  const colPwd  = headers.indexOf('mot de passe');
+  if (colId === -1 || colPwd === -1) {
+    return jsonResponse({ success: false, error: 'Colonnes ID ou Mot de passe introuvables.' });
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][colId] && rows[i][colId].toString().trim().toLowerCase() === data.targetId.toLowerCase()) {
+      sheet.getRange(i + 1, colPwd + 1).setValue(data.newPwd);
+      return jsonResponse({ success: true, message: 'Mot de passe mis à jour.' });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Utilisateur introuvable : ' + data.targetId });
 }
 
 // ─────────────────────────────────────────────────────────────

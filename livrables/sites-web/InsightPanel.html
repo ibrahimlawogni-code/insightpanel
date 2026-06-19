@@ -942,10 +942,10 @@
 
     <nav class="sidebar-nav">
       <div class="nav-label">Tableau de bord</div>
-      <div class="nav-item active" data-roles="dg,dga,dcc,dc,ra" onclick="showView('dashboard', this)">
+      <div class="nav-item active" data-roles="dg,dga,dcc,dc,ra,admin" onclick="showView('dashboard', this)">
         <i class="fa fa-chart-line"></i> Vue d'ensemble
       </div>
-      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,superviseur">
+      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,admin,superviseur">
         <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('superviseur', this)">
           <i class="fa fa-users"></i> Vue Superviseur
           <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-superviseur"></i>
@@ -954,26 +954,26 @@
           <!-- Items générés dynamiquement par _renderSupNavItems() -->
         </div>
       </div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('saisie', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('saisie', this)">
         <i class="fa fa-pen-to-square"></i> Saisie du jour
         <span class="nav-pending-badge" id="nav-pending-badge"></span>
       </div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('agent', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('agent', this)">
         <i class="fa fa-mobile-screen"></i> Vue Agent Terrain
       </div>
       <div class="nav-item" data-roles="agent,superviseur,ra" onclick="showView('evaluation', this)">
         <i class="fa fa-chart-simple"></i> Mon évaluation de performance
       </div>
-      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,superviseur">
+      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,admin,superviseur">
         <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('bestseller', this)">
           <i class="fa fa-trophy"></i> Best Seller
           <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-bestseller"></i>
         </div>
         <div class="nav-sub-items" id="nav-sub-bestseller" style="display:none">
-          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('bestseller', this)">
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showView('bestseller', this)">
             <i class="fa fa-circle-dot"></i> DFA
           </div>
-          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('bestseller-sup', this)">
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showView('bestseller-sup', this)">
             <i class="fa fa-circle-dot"></i> Superviseur MPOS
           </div>
         </div>
@@ -983,19 +983,19 @@
         <i class="fa fa-trophy"></i> Best Seller — DFA
       </div>
 
-      <div class="nav-label" style="margin-top:8px" data-roles="dg,dga,dcc,dc,ra,superviseur,agent">Opérations</div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('stocks', this)">
+      <div class="nav-label" style="margin-top:8px" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent">Opérations</div>
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('stocks', this)">
         <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
       </div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur,agent" onclick="showView('rapports', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('rapports', this)">
         <i class="fa fa-file-lines"></i> Rapports
       </div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,superviseur" onclick="showView('conformite', this)">
+      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showView('conformite', this)">
         <i class="fa fa-circle-check"></i> Conformité
       </div>
 
-      <div class="nav-label" style="margin-top:8px" data-roles="dg,dga">Administration</div>
-      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra">
+      <div class="nav-label" style="margin-top:8px" data-roles="ra,admin">Administration</div>
+      <div class="nav-group" data-roles="ra,admin">
         <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('equipes', this)">
           <i class="fa fa-user-gear"></i> Équipes
           <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-equipes"></i>
@@ -1022,7 +1022,7 @@
           </div>
         </div>
       </div>
-      <div class="nav-item" data-roles="dg,dga" onclick="showView('parametres', this)">
+      <div class="nav-item" data-roles="ra,admin" onclick="showView('parametres', this)">
         <i class="fa fa-gear"></i> Paramètres
       </div>
     </nav>
@@ -1995,7 +1995,7 @@
       </div>
 
       <!-- Recherche SIM — traçabilité en temps réel -->
-      <div class="card" data-roles="dg,dga,dcc,dc,ra,superviseur">
+      <div class="card" data-roles="dg,dga,dcc,dc,ra,admin,superviseur">
         <div class="card-header">
           <div class="card-title"><i class="fa fa-magnifying-glass" style="color:var(--yellow)"></i> Recherche SIM</div>
           <span class="badge badge-yellow">Traçabilité en temps réel</span>
@@ -2018,7 +2018,7 @@
       </div>
 
       <!-- Gestionnaire de stock — Vue RA / admin (global) -->
-      <div class="card" data-roles="dg,dga,dcc,dc,ra">
+      <div class="card" data-roles="dg,dga,dcc,dc,ra,admin">
         <div class="card-header">
           <div class="card-title"><i class="fa fa-chart-pie" style="color:var(--yellow)"></i> Gestionnaire de stock — Vue globale</div>
           <span class="badge badge-black" id="gestionnaire-badge">—</span>
@@ -2073,8 +2073,8 @@
         </div>
       </div>
 
-      <!-- Formulaire de saisie — RA et superviseurs uniquement -->
-      <div class="card" data-roles="dg,dga,dcc,dc,ra,superviseur">
+      <!-- Formulaire de saisie — RA, admin et superviseurs uniquement -->
+      <div class="card" data-roles="ra,admin,superviseur">
         <div class="card-header">
           <div class="card-title"><i class="fa fa-box-open" style="color:var(--yellow)"></i> Saisie — Stock SIM reçu</div>
           <span class="badge badge-yellow"><i class="fa fa-sim-card"></i> SIM GSM</span>
@@ -2487,6 +2487,7 @@
 
   /* ---- Login / Logout ---- */
   const roleLabels = {
+    admin:       'Administrateur',
     dg:          'Directeur Général',
     dga:         'Directeur Général Adjoint',
     dcc:         'DCC',
@@ -2553,7 +2554,7 @@
     /* Garantir nom/initiales même si Sheets renvoie des valeurs génériques ou si le sessionStorage est ancien */
     const seed = USERS_SEED.find(u => u.id === user.id);
     const nomBrut = (user.nom || '').toLowerCase().trim();
-    const nomGenerique = ['dfa','agent','superviseur','ra','dg','dga','dc','dcc',''].includes(nomBrut);
+    const nomGenerique = ['dfa','agent','superviseur','ra','dg','dga','dc','dcc','admin',''].includes(nomBrut);
     const nom = nomGenerique ? (seed?.nom || user.id.replace('.', ' ')) : user.nom;
     const initiales = user.initiales || seed?.initiales || '?';
     user = { ...user, nom, initiales };
@@ -2581,7 +2582,7 @@
 
     const defaultView = {
       dg: 'dashboard', dga: 'dashboard', dcc: 'dashboard',
-      dc: 'dashboard',  ra: 'dashboard',
+      dc: 'dashboard',  ra: 'dashboard', admin: 'dashboard',
       superviseur: 'superviseur',
       agent: 'agent'
     };
@@ -2591,7 +2592,7 @@
     /* Restaurer les périodes de la session précédente */
     _restorePeriods();
 
-    if (['dg','dga','dcc','dc','ra'].includes(user.role)) renderSalesChart();
+    if (['dg','dga','dcc','dc','ra','admin'].includes(user.role)) renderSalesChart();
 
     /* Menu superviseurs dynamique dès la connexion */
     _renderSupNavItems();
@@ -2600,7 +2601,7 @@
     loadNotifications();
 
     /* Charger les demandes en attente dès la connexion pour mettre à jour le badge */
-    if (['superviseur','ra','dg','dga','dcc','dc'].includes(user.role)) {
+    if (['superviseur','ra','dg','dga','dcc','dc','admin'].includes(user.role)) {
       setTimeout(loadDemandes, 0);
     }
 
@@ -2999,7 +3000,7 @@
     document.getElementById('notif-panel')?.classList.remove('open');
     if (!currentUser) return;
 
-    if (['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+    if (['ra','admin'].includes(currentUser.role)) {
       const demandesItem = document.getElementById('nav-sub-demandes-item');
       showEquipeDemandes(demandesItem);
     } else if (currentUser.role === 'superviseur') {
@@ -3043,7 +3044,7 @@
                       .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
     if (!sups.length) return;
     container.innerHTML = sups.map(sup => `
-      <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra" onclick="showSupView('${sup.id}', this)">
+      <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin" onclick="showSupView('${sup.id}', this)">
         <i class="fa fa-circle-dot"></i> ${sup.nom}
       </div>`).join('');
     /* Ré-appliquer la visibilité selon le rôle courant */
@@ -3308,7 +3309,7 @@
     const row    = document.getElementById('agent-dfa-selector-row');
     const sel    = document.getElementById('agent-dfa-select');
     const hint   = document.getElementById('agent-dfa-select-hint');
-    const canPick = currentUser && (currentUser.role === 'superviseur' || currentUser.role === 'ra' || currentUser.role === 'dg' || currentUser.role === 'dga');
+    const canPick = currentUser && (currentUser.role === 'superviseur' || currentUser.role === 'ra' || currentUser.role === 'admin' || currentUser.role === 'dg' || currentUser.role === 'dga');
     if (!row) return;
     row.style.display = canPick ? 'block' : 'none';
     if (!canPick || !sel) return;
@@ -3351,6 +3352,9 @@
     const chevron = document.getElementById('nav-chevron-equipes');
     if (sub) sub.style.display = 'block';
     if (chevron) chevron.classList.add('open');
+    /* Bouton "Nouveau compte" visible uniquement pour ra et admin */
+    const btnNouveau = document.getElementById('equipes-btn-nouveau-compte');
+    if (btnNouveau) btnNouveau.style.display = (currentUser && ['ra','admin'].includes(currentUser.role)) ? '' : 'none';
     loadUsers();
   }
 
@@ -3579,7 +3583,7 @@
     const tbody = document.getElementById('demandes-tbody');
     if (!tbody) return;
 
-    const canAdmin = currentUser && ['dg','dga','dcc','dc','ra'].includes(currentUser.role);
+    const canAdmin = currentUser && ['ra','admin'].includes(currentUser.role);
     const canSup   = currentUser && currentUser.role === 'superviseur';
     const statusMap = {
       en_attente:         ['badge-purple', 'En attente'],
@@ -3664,12 +3668,14 @@
   }
 
   async function approveDemande(id) {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) { alert('Accès non autorisé.'); return; }
     if (!confirm('Approuver définitivement cette demande et créer le compte ?')) return;
     await _updateDemande(id, 'approuve');
     loadUsers();
   }
 
   async function rejectDemande(id) {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) { alert('Accès non autorisé.'); return; }
     const motif = prompt('Motif du rejet (optionnel) :');
     if (motif === null) return;
     await _updateDemande(id, 'rejete', motif);
@@ -3721,6 +3727,7 @@
             <button class="btn ${u.statut === 'actif' ? 'btn-danger' : 'btn-secondary'} btn-sm" onclick="toggleUserStatus('${u.id}')">
               ${u.statut === 'actif' ? '<i class="fa fa-ban"></i>' : '<i class="fa fa-circle-check"></i>'}
             </button>
+            ${(currentUser && ['ra','admin'].includes(currentUser.role)) ? `<button class="btn btn-secondary btn-sm" title="Réinitialiser le mot de passe" onclick="openResetPwdModal('${u.id}','${u.nom.replace(/'/g,'\\'')}')" style="color:var(--orange);border-color:var(--orange)"><i class="fa fa-key"></i></button>` : ''}
           </div>
         </td>
       </tr>`).join('')
@@ -4407,7 +4414,7 @@
   async function _renderStockGestionnaire() {
     await _ensureSaisiesLoaded();
     const soldMap = _buildSoldMap();
-    if (currentUser && ['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+    if (currentUser && ['ra','admin','dg','dga','dcc','dc'].includes(currentUser.role)) {
       _renderGestionnaireRA(soldMap);
     } else if (currentUser && currentUser.role === 'superviseur') {
       _renderGestionnaireSuper(soldMap);
@@ -6302,6 +6309,9 @@
   }
 
   async function saveUser() {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) {
+      alert('Accès non autorisé.'); return;
+    }
     const nom    = document.getElementById('modal-nom').value.trim();
     const id     = document.getElementById('modal-id').value.trim().toLowerCase();
     const pwd    = document.getElementById('modal-pwd').value;
@@ -6356,6 +6366,7 @@
   }
 
   async function toggleUserStatus(id) {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) { alert('Accès non autorisé.'); return; }
     const u = USERS.find(u => u.id === id);
     if (!u) return;
     const newStatut = u.statut === 'actif' ? 'inactif' : 'actif';
@@ -6519,7 +6530,7 @@
     const evalInfo = val => thresholds.find(([t]) => val >= t) || thresholds[thresholds.length - 1];
 
     /* Filtrage par zone — RA/admin voient toute l'équipe */
-    const isAdmin    = ['ra','dg','dga','dcc','dc'].includes(currentUser.role);
+    const isAdmin    = ['ra','admin','dg','dga','dcc','dc'].includes(currentUser.role);
     const teamSorted = isAdmin ? sorted : sorted.filter(a => _normZ(a.zone) === _normZ(userZone));
 
     function rankCell(i) {
@@ -7398,7 +7409,7 @@
     if (!container || !currentUser) return;
 
     /* Branche managériale (superviseur inclus) */
-    if (['ra','superviseur','dg','dga','dcc','dc'].includes(currentUser.role)) {
+    if (['ra','admin','superviseur','dg','dga','dcc','dc'].includes(currentUser.role)) {
       _renderEvaluationViewRA(container);
       return;
     }
@@ -8100,6 +8111,59 @@
     window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
   }
 
+  /* ---- Reset mot de passe ---- */
+  let _resetPwdTargetId = null;
+
+  function openResetPwdModal(userId, userNom) {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) return;
+    _resetPwdTargetId = userId;
+    document.getElementById('reset-pwd-nom').textContent   = userNom;
+    document.getElementById('reset-pwd-input').value       = '';
+    document.getElementById('reset-pwd-feedback').style.display = 'none';
+    const m = document.getElementById('reset-pwd-modal');
+    m.style.display = 'flex';
+  }
+
+  function closeResetPwdModal() {
+    document.getElementById('reset-pwd-modal').style.display = 'none';
+    _resetPwdTargetId = null;
+  }
+
+  async function confirmResetPwd() {
+    if (!currentUser || !['ra','admin'].includes(currentUser.role)) return;
+    const newPwd = (document.getElementById('reset-pwd-input').value || '').trim();
+    const fb     = document.getElementById('reset-pwd-feedback');
+    const btn    = document.querySelector('#reset-pwd-modal .btn-primary');
+    const showErr = msg => {
+      fb.textContent  = msg;
+      fb.style.cssText = 'display:block;background:#f8d7da;color:#721c24;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+    };
+    const showOk = msg => {
+      fb.textContent  = msg;
+      fb.style.cssText = 'display:block;background:#d1e7dd;color:#0f5132;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+    };
+    if (!newPwd || newPwd.length < 6) { showErr('Le mot de passe doit faire au moins 6 caractères.'); return; }
+    btn.disabled = true; btn.textContent = '...';
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action:'resetPassword', targetId:_resetPwdTargetId, newPwd, requesterId:currentUser.id, requesterRole:currentUser.role })
+      });
+      const json = await res.json();
+      if (json.success) {
+        showOk('Mot de passe réinitialisé avec succès.');
+        setTimeout(closeResetPwdModal, 1500);
+        loadUsers();
+      } else {
+        showErr(json.error || 'Erreur lors de la réinitialisation.');
+      }
+    } catch(e) {
+      showErr('Erreur réseau. Vérifiez votre connexion.');
+    } finally {
+      btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Confirmer';
+    }
+  }
+
 </script>
 <!-- ================================================================
      MODAL : GESTION COMPTE
@@ -8129,6 +8193,7 @@
       <div>
         <label class="input-label">Rôle</label>
         <select class="input-field" id="modal-role">
+          <option value="admin">Administrateur</option>
           <option value="dg">Directeur Général (DG)</option>
           <option value="dga">Directeur Général Adjoint (DGA)</option>
           <option value="dcc">DCC</option>
@@ -8162,6 +8227,31 @@
     <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end">
       <button class="btn btn-secondary" onclick="closeUserModal()">Annuler</button>
       <button class="btn btn-primary" onclick="saveUser()"><i class="fa fa-floppy-disk"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL : RÉINITIALISATION MOT DE PASSE
+================================================================ -->
+<div id="reset-pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--white);border-radius:16px;padding:28px;width:420px;max-width:92vw;box-shadow:0 24px 80px rgba(0,0,0,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:800"><i class="fa fa-key" style="color:var(--orange);margin-right:8px"></i>Réinitialiser le mot de passe</div>
+      <button onclick="closeResetPwdModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-text);line-height:1"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div style="font-size:13px;color:var(--gray-text);margin-bottom:16px">Compte : <strong id="reset-pwd-nom">—</strong></div>
+    <div style="margin-bottom:14px">
+      <label class="input-label">Nouveau mot de passe</label>
+      <div style="position:relative">
+        <input class="input-field" type="password" id="reset-pwd-input" placeholder="Nouveau mot de passe" style="padding-right:38px">
+        <span onclick="this.previousElementSibling.type=this.previousElementSibling.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-text);font-size:14px"><i class="fa fa-eye"></i></span>
+      </div>
+    </div>
+    <div id="reset-pwd-feedback" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeResetPwdModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmResetPwd()" style="background:var(--orange);border-color:var(--orange)"><i class="fa fa-floppy-disk"></i> Confirmer</button>
     </div>
   </div>
 </div>
