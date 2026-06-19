@@ -2085,10 +2085,13 @@
         <div class="card-body">
           <div class="form-grid">
             <div>
+              <label class="input-label">Type de SIM</label>
+              <div id="stock-field-type-badge" style="display:inline-block;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:700;background:var(--yellow);color:#000;letter-spacing:1px">P100</div>
+            </div>
+            <div>
               <label class="input-label">Date de réception</label>
               <input class="input-field" type="date" id="stock-field-date">
             </div>
-            <div></div>
             <div>
               <label class="input-label">N° SIM Début <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
               <input class="input-field" type="text" id="stock-field-sim-debut" placeholder="22546000001" maxlength="11" inputmode="numeric" oninput="_autoCalcStockQuantite()">
@@ -4308,6 +4311,14 @@
     stockCards.forEach(c => { if (!c.closest('#stocks-ressources-placeholder')) c.style.display = ''; });
     if (placeholder) placeholder.style.display = 'none';
 
+    /* Badge de type dans le formulaire */
+    const typeBadge = document.getElementById('stock-field-type-badge');
+    if (typeBadge) {
+      typeBadge.textContent = _stockViewType.toUpperCase();
+      typeBadge.style.background = _stockViewType === 'swap' ? '#4f8ef7' : 'var(--yellow)';
+      typeBadge.style.color      = _stockViewType === 'swap' ? '#fff'    : '#000';
+    }
+
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
 
@@ -4458,7 +4469,9 @@
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         STOCK_DATA = json.data;
-        _renderStockHistorique(STOCK_DATA);
+        /* Filtrer par type actif (p100 par défaut pour les anciennes lignes sans type) */
+        const filtered = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
+        _renderStockHistorique(filtered);
         _renderStockGestionnaire();
       } else {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible.</td></tr>';
@@ -4529,7 +4542,8 @@
       quantite,
       auteurId:   currentUser.id,
       auteurNom:  currentUser.nom,
-      auteurRole: currentUser.role
+      auteurRole: currentUser.role,
+      type:       _stockViewType
     };
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…'; }

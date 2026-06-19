@@ -488,7 +488,8 @@ function handleSaveStockSIM(data) {
     data.auteurId   || '',
     data.auteurNom  || '',
     data.auteurRole || '',
-    new Date().toLocaleString('fr-FR')
+    new Date().toLocaleString('fr-FR'),
+    (data.type || 'p100').toLowerCase()
   ]);
 
   return jsonResponse({ success: true, message: 'Stock enregistré avec succès.' });
@@ -517,7 +518,8 @@ function handleGetStockSIM(data) {
       auteurId:   r[4] ? r[4].toString().trim() : '',
       auteurNom:  r[5] ? r[5].toString().trim() : '',
       auteurRole: r[6] ? r[6].toString().trim() : '',
-      horodatage: r[7] ? r[7].toString().trim() : ''
+      horodatage: r[7] ? r[7].toString().trim() : '',
+      type:       r[8] ? r[8].toString().trim().toLowerCase() : 'p100'
     });
   }
   return jsonResponse({ success: true, data: result });
@@ -525,7 +527,7 @@ function handleGetStockSIM(data) {
 
 function _initStockSIMSheet(sheet) {
   const headers = [
-    'Date', 'N° SIM Début', 'N° SIM Fin', 'Quantité', 'Auteur ID', 'Auteur Nom', 'Rôle', 'Horodatage'
+    'Date', 'N° SIM Début', 'N° SIM Fin', 'Quantité', 'Auteur ID', 'Auteur Nom', 'Rôle', 'Horodatage', 'Type'
   ];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
