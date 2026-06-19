@@ -591,8 +591,11 @@ function handleGetPerfSup(data) {
     if (!r[0] && !r[1]) continue;
     const supId = r[1] ? r[1].toString().trim() : '';
     if (data.supId && supId.toLowerCase() !== data.supId.toLowerCase()) continue;
+    const dateVal = r[0] instanceof Date
+      ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : (r[0] ? r[0].toString().trim() : '');
     result.push({
-      date:        r[0] ? r[0].toString().trim() : '',
+      date:        dateVal,
       supId,
       supNom:      r[2] ? r[2].toString().trim() : '',
       zone:        r[3] ? r[3].toString().trim() : '',

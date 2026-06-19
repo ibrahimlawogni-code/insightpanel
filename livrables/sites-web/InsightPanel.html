@@ -4204,11 +4204,20 @@
 
   function _parseSaisieDate(dateStr) {
     if (!dateStr) return null;
-    if (dateStr.includes('/')) {
-      const [d, m, y] = dateStr.split('/');
-      return y && m && d ? `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}` : null;
+    const s = dateStr.toString().trim();
+    /* Format DD/MM/YYYY */
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+      const [d, m, y] = s.split('/');
+      return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
     }
-    return dateStr.slice(0, 10);
+    /* Format ISO YYYY-MM-DD */
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    /* Fallback : Apps Script Date.toString() → "Fri Jun 19 2026 00:00:00 GMT+..." */
+    try {
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    } catch (e) { /* ignore */ }
+    return null;
   }
 
   function _calcDFASumZone(isoDateStart, isoDateEnd) {
