@@ -4289,6 +4289,15 @@
 
   function _renderPerfSupHistorique() {
     const tbody = document.getElementById('perf-sup-tbody');
+
+    /* Calcul du cumul mensuel — toujours exécuté, même si la table est vide */
+    const moisKey   = todayISO.slice(0, 7);
+    const moisCumul = (PERF_SUP_DATA || [])
+      .filter(r => r.date && r.date.slice(0, 7) === moisKey)
+      .reduce((acc, r) => acc + (Number(r.perfJour) || 0), 0);
+    const gEl = document.getElementById('perf-sup-globale');
+    if (gEl) gEl.value = moisCumul;
+
     if (!tbody) return;
     if (!PERF_SUP_DATA.length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray-text)">Aucune saisie pour le moment.</td></tr>';
@@ -4312,14 +4321,6 @@
         </td>
       </tr>`;
     }).join('');
-
-    /* Performance globale ce mois = cumul des propres déclarations du superviseur */
-    const moisKey   = todayISO.slice(0, 7);
-    const moisCumul = PERF_SUP_DATA
-      .filter(r => r.date && r.date.slice(0, 7) === moisKey)
-      .reduce((acc, r) => acc + (Number(r.perfJour) || 0), 0);
-    const gEl = document.getElementById('perf-sup-globale');
-    if (gEl) gEl.value = moisCumul;
   }
 
   async function submitPerfSup() {
