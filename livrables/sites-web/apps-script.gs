@@ -39,6 +39,8 @@ function doPost(e) {
     if (data.action === 'resetPassword')        return handleResetPassword(data);
     if (data.action === 'savePerfSup')          return handleSavePerfSup(data);
     if (data.action === 'getPerfSup')           return handleGetPerfSup(data);
+    if (data.action === 'saveTransfert')        return handleSaveTransfert(data);
+    if (data.action === 'getTransferts')        return handleGetTransferts(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -657,6 +659,85 @@ function handleResetPassword(data) {
 // ─────────────────────────────────────────────────────────────
 // UTILITAIRE
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// TRANSFERTS INTER-SUPERVISEURS — ENREGISTREMENT
+// Colonnes : ID | Date | Source ID | Source Nom | Dest ID | Dest Nom | SIM List | Quantité | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleSaveTransfert(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('Transferts');
+  if (!sheet) {
+    sheet = ss.insertSheet('Transferts');
+    const headers = ['ID','Date','Source ID','Source Nom','Dest ID','Dest Nom','N° SIM Début','N° SIM Fin','Quantité','Horodatage'];
+    sheet.appendRow(headers);
+    sheet.setFrozenRows(1);
+    const hr = sheet.getRange(1, 1, 1, headers.length);
+    hr.setBackground('#F6B924'); hr.setFontColor('#000000');
+    hr.setFontWeight('bold'); hr.setHorizontalAlignment('center');
+    [130,90,150,160,150,160,130,130,80,140].forEach((w,i) => sheet.setColumnWidth(i+1,w));
+  }
+
+  const id = 'TRF-' + Date.now();
+  sheet.appendRow([
+    id,
+    data.date      || new Date().toLocaleDateString('fr-FR'),
+    data.sourceId  || '',
+    data.sourceNom || '',
+    data.destId    || '',
+    data.destNom   || '',
+    data.simDebut  || '',
+    data.simFin    || '',
+    Number(data.quantite) || 0,
+    new Date().toLocaleString('fr-FR')
+  ]);
+
+  return jsonResponse({ success: true, message: 'Transfert enregistré.', id });
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSFERTS INTER-SUPERVISEURS — LECTURE
+// Superviseur : voit seulement ses transferts (source ou dest)
+// RA / Admin / DG / DGA / DC / DCC : voient tout
+// ─────────────────────────────────────────────────────────────
+function handleGetTransferts(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Transferts');
+  if (!sheet) return jsonResponse({ success: true, data: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const globalRoles = ['ra','admin','dg','dga','dc','dcc'];
+  const isGlobal    = globalRoles.includes((data.role || '').toLowerCase());
+
+  const result = [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    const sourceId = r[2] ? r[2].toString().trim() : '';
+    const destId   = r[4] ? r[4].toString().trim() : '';
+
+    if (!isGlobal && data.userId) {
+      if (sourceId.toLowerCase() !== data.userId.toLowerCase() &&
+          destId.toLowerCase()   !== data.userId.toLowerCase()) continue;
+    }
+
+    result.push({
+      id:        r[0] ? r[0].toString().trim() : '',
+      date:      r[1] ? r[1].toString().trim() : '',
+      sourceId,
+      sourceNom: r[3] ? r[3].toString().trim() : '',
+      destId,
+      destNom:   r[5] ? r[5].toString().trim() : '',
+      simDebut:  r[6] ? r[6].toString().trim() : '',
+      simFin:    r[7] ? r[7].toString().trim() : '',
+      quantite:  Number(r[8]) || 0,
+      horodatage: r[9] ? r[9].toString().trim() : ''
+    });
+  }
+  return jsonResponse({ success: true, data: result });
+}
+
 function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))

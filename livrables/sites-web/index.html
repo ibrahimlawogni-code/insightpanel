@@ -1009,6 +1009,12 @@
           <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('ressources', this)">
             <i class="fa fa-circle-dot"></i> Ressources
           </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('detection', this)">
+            <i class="fa fa-circle-dot"></i> Détection SIMs
+          </div>
+          <div class="nav-sub-item" data-roles="ra,admin,superviseur" onclick="showStocksView('transferts', this)">
+            <i class="fa fa-circle-dot"></i> Transferts
+          </div>
         </div>
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('rapports', this)">
@@ -2210,13 +2216,115 @@
         </div>
       </div>
 
-      <!-- Placeholder Ressources — affiché uniquement quand stockViewType === 'ressources' -->
+      <!-- Placeholder Ressources -->
       <div id="stocks-ressources-placeholder" style="display:none">
         <div class="card">
           <div class="card-body" style="text-align:center;padding:48px 20px;color:var(--gray-text)">
             <i class="fa fa-toolbox" style="font-size:40px;margin-bottom:16px;opacity:.4"></i>
             <div style="font-size:16px;font-weight:600;margin-bottom:8px">Module Ressources</div>
             <div style="font-size:13px">Ce module sera disponible prochainement.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Détection SIMs — identifie les SIMs hors stock officiel -->
+      <div id="stocks-detection-placeholder" style="display:none">
+        <div class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <h3 style="margin:0;font-size:15px">Détection des SIMs externes</h3>
+            <button class="btn btn-secondary btn-sm" onclick="_initDetectionView()"><i class="fa fa-rotate-right"></i> Actualiser</button>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+              <select id="detection-filter-sup" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
+                <option value="">Tous superviseurs</option>
+              </select>
+              <input type="date" id="detection-filter-debut" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
+              <input type="date" id="detection-filter-fin" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+              <div class="card" style="flex:1;min-width:140px;background:var(--gray-bg)">
+                <div class="card-body" style="padding:14px 18px">
+                  <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">SIMs officielles</div>
+                  <div id="detection-count-off" style="font-size:22px;font-weight:800;color:var(--success)">0</div>
+                </div>
+              </div>
+              <div class="card" style="flex:1;min-width:140px;background:var(--gray-bg)">
+                <div class="card-body" style="padding:14px 18px">
+                  <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">SIMs externes</div>
+                  <div id="detection-count-ext" style="font-size:22px;font-weight:800;color:var(--danger)">0</div>
+                </div>
+              </div>
+              <div class="card" style="flex:1;min-width:140px;background:var(--gray-bg)">
+                <div class="card-body" style="padding:14px 18px">
+                  <div style="font-size:11px;color:var(--gray-text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Non renseignées</div>
+                  <div id="detection-count-nr" style="font-size:22px;font-weight:800;color:var(--gray-text)">0</div>
+                </div>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Date</th><th>DFA</th><th>Zone</th><th>N° SIM</th><th>Statut</th>
+                </tr></thead>
+                <tbody id="detection-tbody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Chargement…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transferts inter-superviseurs -->
+      <div id="stocks-transferts-placeholder" style="display:none">
+        <!-- Formulaire déclaration (superviseurs uniquement) -->
+        <div class="card" id="transfert-form-card" data-roles="superviseur">
+          <div class="card-header"><h3 style="margin:0;font-size:15px">Déclarer un transfert SIM</h3></div>
+          <div class="card-body">
+            <div class="grid-2" style="margin-bottom:14px">
+              <div>
+                <label class="input-label">Date du transfert</label>
+                <input class="input-field" type="date" id="transfert-date">
+              </div>
+              <div>
+                <label class="input-label">Superviseur destinataire</label>
+                <select class="input-field" id="transfert-dest">
+                  <option value="">Sélectionner…</option>
+                </select>
+              </div>
+              <div>
+                <label class="input-label">N° SIM Début <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+                <input class="input-field" type="text" id="transfert-sim-debut" placeholder="22546000001" maxlength="11" inputmode="numeric" oninput="_autoCalcTransfertQuantite()">
+              </div>
+              <div>
+                <label class="input-label">N° SIM Fin <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+                <input class="input-field" type="text" id="transfert-sim-fin" placeholder="22546000200" maxlength="11" inputmode="numeric" oninput="_autoCalcTransfertQuantite()">
+              </div>
+              <div class="span-2">
+                <label class="input-label">Quantité <span style="color:var(--green);font-size:10px">(auto)</span></label>
+                <input class="input-field" type="text" id="transfert-quantite" readonly placeholder="—" style="background:var(--gray-bg);cursor:default;font-weight:700;color:var(--green)">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="submitTransfert()"><i class="fa fa-paper-plane"></i> Enregistrer le transfert</button>
+            <div id="transfert-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:6px;font-size:13px"></div>
+          </div>
+        </div>
+        <!-- Historique -->
+        <div class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3 style="margin:0;font-size:15px">Historique des transferts</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadTransferts()"><i class="fa fa-rotate-right"></i> Actualiser</button>
+          </div>
+          <div class="card-body" style="overflow-x:auto">
+            <table class="data-table">
+              <thead><tr>
+                <th>Date</th><th>De</th><th>Vers</th><th>N° Début</th><th>N° Fin</th><th>Qté</th><th>Sens</th>
+              </tr></thead>
+              <tbody id="transferts-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2564,8 +2672,8 @@
       const json = await res.json();
       if (json.success && json.user) {
         /* Si le compte est dans USERS_SEED, le seed est prioritaire sur Sheets pour le rôle */
-        const seed = USERS_SEED.find(u => u.id === json.user.id);
-        user = seed ? { ...json.user, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
+        const seed = USERS_SEED.find(u => u.id.toLowerCase() === json.user.id.toLowerCase());
+        user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
       }
     } catch (e) {
       /* Erreur réseau : fallback immédiat sur USERS_SEED */
@@ -2591,12 +2699,13 @@
 
   function startSession(user) {
     /* Garantir nom/initiales même si Sheets renvoie des valeurs génériques ou si le sessionStorage est ancien */
-    const seed = USERS_SEED.find(u => u.id === user.id);
+    const seed = USERS_SEED.find(u => u.id.toLowerCase() === user.id.toLowerCase());
     const nomBrut = (user.nom || '').toLowerCase().trim();
     const nomGenerique = ['dfa','agent','superviseur','ra','dg','dga','dc','dcc','admin',''].includes(nomBrut);
-    const nom = nomGenerique ? (seed?.nom || user.id.replace('.', ' ')) : user.nom;
+    const nom      = nomGenerique ? (seed?.nom || user.id.replace('.', ' ')) : user.nom;
     const initiales = user.initiales || seed?.initiales || '?';
-    user = { ...user, nom, initiales };
+    const role      = seed?.role || user.role;
+    user = { ...user, nom, initiales, role };
 
     currentUser = user;
     _saveSession(user);
@@ -4315,23 +4424,41 @@
     if (!currentUser) return;
 
     /* Titres selon le type */
-    const titles = { p100: 'Stocks P100', swap: 'Stocks SWAP', ressources: 'Ressources' };
-    const subs   = { p100: 'Suivi du stock SIM GSM — carte P100', swap: 'Suivi du stock SIM GSM — SWAP', ressources: '' };
+    const titles = {
+      p100: 'Stocks P100', swap: 'Stocks SWAP', ressources: 'Ressources',
+      detection: 'Détection SIMs', transferts: 'Transferts inter-superviseurs'
+    };
+    const subs = {
+      p100: 'Suivi du stock SIM GSM — carte P100',
+      swap: 'Suivi du stock SIM GSM — SWAP',
+      ressources: '', detection: 'Identification des SIMs hors stock officiel',
+      transferts: 'Mouvements de SIMs entre superviseurs'
+    };
     const titleEl = document.getElementById('stocks-page-title');
     const subEl   = document.getElementById('stocks-page-subtitle');
     if (titleEl) titleEl.textContent = titles[_stockViewType] || 'Stocks & Ressources';
     if (subEl)   subEl.textContent   = subs[_stockViewType]   || '';
 
+    /* Placeholders spéciaux */
+    const specialIds = ['stocks-ressources-placeholder','stocks-detection-placeholder','stocks-transferts-placeholder'];
+    const specialMap = { ressources: 'stocks-ressources-placeholder', detection: 'stocks-detection-placeholder', transferts: 'stocks-transferts-placeholder' };
+    specialIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+
     /* Masquer/afficher les sections selon le type */
-    const placeholder = document.getElementById('stocks-ressources-placeholder');
-    const stockCards  = document.querySelectorAll('#view-stocks .card:not(#stocks-ressources-placeholder .card)');
-    if (_stockViewType === 'ressources') {
-      stockCards.forEach(c => { if (!c.closest('#stocks-ressources-placeholder')) c.style.display = 'none'; });
-      if (placeholder) placeholder.style.display = '';
+    const stockCards = document.querySelectorAll('#view-stocks .card:not([id^="stocks-"] .card)');
+    if (specialMap[_stockViewType]) {
+      stockCards.forEach(c => {
+        if (!specialIds.some(id => c.closest('#' + id))) c.style.display = 'none';
+      });
+      const target = document.getElementById(specialMap[_stockViewType]);
+      if (target) target.style.display = '';
+      if (_stockViewType === 'detection')  _initDetectionView();
+      if (_stockViewType === 'transferts') _initTransfertsView();
       return;
     }
-    stockCards.forEach(c => { if (!c.closest('#stocks-ressources-placeholder')) c.style.display = ''; });
-    if (placeholder) placeholder.style.display = 'none';
+    stockCards.forEach(c => {
+      if (!specialIds.some(id => c.closest('#' + id))) c.style.display = '';
+    });
 
     /* Badge de type dans le formulaire */
     const typeBadge = document.getElementById('stock-field-type-badge');
@@ -4601,6 +4728,248 @@
 
     const fb = document.getElementById('stock-form-feedback');
     if (fb) fb.style.display = 'none';
+  }
+
+  /* ============================================================
+     DÉTECTION SIMS EXTERNES
+  ============================================================ */
+
+  let _detectionData = []; // cache des lignes analysées
+
+  function _isSimInRange(simNum, debut, fin) {
+    const clean = s => s.toString().replace(/\D/g, '').padStart(20, '0');
+    try { return clean(simNum) >= clean(debut) && clean(simNum) <= clean(fin); }
+    catch(e) { return false; }
+  }
+
+  function _parseSimList(raw) {
+    if (!raw || !raw.toString().trim()) return [];
+    return raw.toString().split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+  }
+
+  function _initDetectionView() {
+    if (!currentUser) return;
+
+    /* Alimenter le filtre superviseurs */
+    const supSel = document.getElementById('detection-filter-sup');
+    if (supSel && supSel.options.length <= 1) {
+      const sups = (USERS_DATA || []).filter(u => u.role === 'superviseur');
+      sups.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = s.nom;
+        supSel.appendChild(o);
+      });
+    }
+
+    /* Date par défaut : mois courant */
+    const deb = document.getElementById('detection-filter-debut');
+    const fin = document.getElementById('detection-filter-fin');
+    if (deb && !deb.value) {
+      const now = new Date();
+      deb.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+      fin.value = todayISO;
+    }
+
+    /* Construire les plages SIM officielles depuis STOCK_DATA (p100 uniquement) */
+    const ranges = (STOCK_DATA || [])
+      .filter(r => (r.type || 'p100') === 'p100' && r.simDebut && r.simFin)
+      .map(r => ({ debut: r.simDebut.toString().trim(), fin: r.simFin.toString().trim() }));
+
+    /* Analyser chaque saisie qui a des numéros SIM */
+    _detectionData = [];
+    (SAISIES_DATA || []).forEach(s => {
+      const sims = _parseSimList(s.simList);
+      if (!sims.length) {
+        _detectionData.push({ date: s.date, dfaNom: s.dfaNom || s.dfaId, zone: s.zone, simNum: '—', statut: 'nr', supId: '' });
+        return;
+      }
+      sims.forEach(simNum => {
+        const inRange = ranges.some(r => _isSimInRange(simNum, r.debut, r.fin));
+        _detectionData.push({
+          date: s.date, dfaNom: s.dfaNom || s.dfaId, zone: s.zone,
+          simNum, statut: inRange ? 'off' : 'ext',
+          supId: s.superviseurId || ''
+        });
+      });
+    });
+
+    _renderDetection();
+  }
+
+  function _renderDetection() {
+    const supFilter  = (document.getElementById('detection-filter-sup')   || {}).value || '';
+    const debFilter  = (document.getElementById('detection-filter-debut')  || {}).value || '';
+    const finFilter  = (document.getElementById('detection-filter-fin')    || {}).value || '';
+
+    const filtered = _detectionData.filter(r => {
+      if (supFilter && r.supId !== supFilter) return false;
+      if (debFilter && r.date < debFilter) return false;
+      if (finFilter && r.date > finFilter)  return false;
+      return true;
+    });
+
+    const countOff = filtered.filter(r => r.statut === 'off').length;
+    const countExt = filtered.filter(r => r.statut === 'ext').length;
+    const countNr  = filtered.filter(r => r.statut === 'nr').length;
+
+    const el = id => document.getElementById(id);
+    if (el('detection-count-off')) el('detection-count-off').textContent = countOff;
+    if (el('detection-count-ext')) el('detection-count-ext').textContent = countExt;
+    if (el('detection-count-nr'))  el('detection-count-nr').textContent  = countNr;
+
+    const tbody = el('detection-tbody');
+    if (!tbody) return;
+
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune saisie sur cette période</td></tr>';
+      return;
+    }
+
+    const badgeOff = `<span class="badge" style="background:#22c55e20;color:#16a34a;font-size:11px">Officielle</span>`;
+    const badgeExt = `<span class="badge" style="background:#ef444420;color:#dc2626;font-size:11px">Externe</span>`;
+    const badgeNr  = `<span class="badge" style="background:var(--gray-bg);color:var(--gray-text);font-size:11px">Non renseignée</span>`;
+
+    tbody.innerHTML = filtered.map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.dfaNom}</td>
+        <td>${r.zone || '—'}</td>
+        <td style="font-family:monospace">${r.simNum}</td>
+        <td>${r.statut === 'off' ? badgeOff : r.statut === 'ext' ? badgeExt : badgeNr}</td>
+      </tr>`).join('');
+  }
+
+  /* ============================================================
+     TRANSFERTS INTER-SUPERVISEURS
+  ============================================================ */
+
+  let TRANSFERT_DATA = [];
+
+  function _initTransfertsView() {
+    if (!currentUser) return;
+
+    /* Réappliquer data-roles dans le placeholder (filtrage post-login) */
+    document.querySelectorAll('#stocks-transferts-placeholder [data-roles]').forEach(el => {
+      const allowed = el.getAttribute('data-roles').split(',');
+      el.style.display = allowed.includes(currentUser.role) ? '' : 'none';
+    });
+
+    /* Remplir le sélecteur de superviseurs destinataires */
+    const destSel = document.getElementById('transfert-dest');
+    if (destSel) {
+      destSel.innerHTML = '<option value="">Sélectionner…</option>';
+      (USERS_DATA || [])
+        .filter(u => u.role === 'superviseur' && u.id !== currentUser.id)
+        .forEach(s => {
+          const o = document.createElement('option');
+          o.value = s.id; o.textContent = s.nom;
+          destSel.appendChild(o);
+        });
+    }
+
+    /* Date par défaut */
+    const dateEl = document.getElementById('transfert-date');
+    if (dateEl && !dateEl.value) dateEl.value = todayISO;
+
+    loadTransferts();
+  }
+
+  async function loadTransferts() {
+    if (!currentUser || !APPS_SCRIPT_URL.startsWith('https')) return;
+    const tbody = document.getElementById('transferts-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px"><i class="fa fa-spinner fa-spin"></i></td></tr>';
+
+    try {
+      const payload = { action: 'getTransferts', userId: currentUser.id, role: currentUser.role };
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.success) {
+        TRANSFERT_DATA = json.data || [];
+        _renderTransferts();
+      }
+    } catch(e) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:20px">Erreur de chargement</td></tr>';
+    }
+  }
+
+  function _autoCalcTransfertQuantite() {
+    const debut = document.getElementById('transfert-sim-debut')?.value.trim();
+    const fin   = document.getElementById('transfert-sim-fin')?.value.trim();
+    const qEl   = document.getElementById('transfert-quantite');
+    if (!qEl) return;
+    if (debut && fin && debut.length === 11 && fin.length === 11) {
+      const q = Number(fin) - Number(debut) + 1;
+      qEl.value = q > 0 ? q : '—';
+    } else {
+      qEl.value = '—';
+    }
+  }
+
+  function _renderTransferts() {
+    const tbody = document.getElementById('transferts-tbody');
+    if (!tbody) return;
+    if (!TRANSFERT_DATA.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = TRANSFERT_DATA.map(t => {
+      const isSend = t.sourceId === currentUser.id;
+      const sens = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role) ? '' :
+        isSend
+          ? `<span style="color:var(--danger);font-weight:600"><i class="fa fa-arrow-right"></i> Envoyé</span>`
+          : `<span style="color:var(--success);font-weight:600"><i class="fa fa-arrow-left"></i> Reçu</span>`;
+      return `<tr>
+        <td>${t.date}</td>
+        <td>${t.sourceNom}</td>
+        <td>${t.destNom}</td>
+        <td style="font-family:monospace">${t.simDebut || '—'}</td>
+        <td style="font-family:monospace">${t.simFin || '—'}</td>
+        <td style="font-weight:700">${t.quantite}</td>
+        <td>${sens}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function submitTransfert() {
+    if (!currentUser || currentUser.role !== 'superviseur') return;
+    const msg    = document.getElementById('transfert-msg');
+    const date   = document.getElementById('transfert-date')?.value;
+    const dest   = document.getElementById('transfert-dest');
+    const debut  = document.getElementById('transfert-sim-debut')?.value.trim();
+    const fin    = document.getElementById('transfert-sim-fin')?.value.trim();
+    const qEl    = document.getElementById('transfert-quantite');
+
+    const showErr = txt => { if (msg) { msg.style.display=''; msg.style.background='#fee2e2'; msg.style.color='#dc2626'; msg.textContent=txt; } };
+
+    if (!date || !dest?.value) { showErr('Veuillez remplir la date et le superviseur destinataire.'); return; }
+    if (!debut || debut.length !== 11) { showErr('N° SIM Début invalide (11 chiffres requis).'); return; }
+    if (!fin   || fin.length   !== 11) { showErr('N° SIM Fin invalide (11 chiffres requis).'); return; }
+    const quantite = Number(fin) - Number(debut) + 1;
+    if (quantite <= 0) { showErr('Le N° SIM Fin doit être supérieur au N° SIM Début.'); return; }
+
+    const destUser = (USERS_DATA || []).find(u => u.id === dest.value);
+    const payload  = {
+      action: 'saveTransfert',
+      date, sourceId: currentUser.id, sourceNom: currentUser.nom,
+      destId: dest.value, destNom: destUser?.nom || dest.value,
+      simDebut: debut, simFin: fin, quantite
+    };
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.success) {
+        if (msg) { msg.style.display=''; msg.style.background='#dcfce7'; msg.style.color='#16a34a'; msg.textContent='Transfert enregistré avec succès.'; }
+        ['transfert-sim-debut','transfert-sim-fin','transfert-quantite'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        dest.value = '';
+        loadTransferts();
+      } else {
+        showErr('Erreur : ' + (json.error || 'inconnue'));
+      }
+    } catch(e) {
+      showErr('Erreur réseau.');
+    }
   }
 
   /* ============================================================
