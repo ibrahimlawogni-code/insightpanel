@@ -2479,12 +2479,12 @@
   /* Données de secours (offline). Les vraies données viennent de Google Sheets via loadUsers().
      Structure réelle : 5 superviseurs, 30 DFAs/zone = 150 DFAs — target individuel : 10 SIMs/jour */
   const USERS_SEED = [
-    { id: 'Ibrahim.Lawogni',      pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',      role: 'ra',          zone: 'Toutes zones',        initiales: 'IL', statut: 'actif' },
-    { id: 'Admin.zephir',           pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin', zone: 'Toutes zones', initiales: 'ADM', statut: 'actif' },
-    { id: 'Dg.zephir',             pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',  zone: 'Toutes zones', initiales: 'DG',  statut: 'actif' },
-    { id: 'Dga.zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga', zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
-    { id: 'Dc.zephir',            pwd: 'Admin@2026',  nom: 'Directeur Commercial',      role: 'dc',  zone: 'Toutes zones', initiales: 'DC',  statut: 'actif' },
-    { id: 'Dcc.zephir',           pwd: 'Admin@2026',  nom: 'Dir. Commercial Adjoint',   role: 'dcc', zone: 'Toutes zones', initiales: 'DCC', statut: 'actif' },
+    { id: 'Ibrahim.Lawogni',  pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',    zone: 'Toutes zones', initiales: 'IL',  statut: 'actif' },
+    { id: 'Admin.Zephir',    pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin', zone: 'Toutes zones', initiales: 'ADM', statut: 'actif' },
+    { id: 'Dg.Zephir',      pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',    zone: 'Toutes zones', initiales: 'DG',  statut: 'actif' },
+    { id: 'Dga.Zephir',     pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga',   zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
+    { id: 'Dc.Zephir',      pwd: 'Admin@2026',  nom: 'Directeur Commercial',      role: 'dc',    zone: 'Toutes zones', initiales: 'DC',  statut: 'actif' },
+    { id: 'Dcc.Zephir',     pwd: 'Admin@2026',  nom: 'Dir. Commercial Adjoint',   role: 'dcc',   zone: 'Toutes zones', initiales: 'DCC', statut: 'actif' },
     /* Superviseurs */
     { id: 'Alphonse.Djokpe',      pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
     { id: 'Missimahou.Honkou',    pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
@@ -2986,8 +2986,9 @@
       }
 
       /* ---- Nouvelles demandes à valider ---- */
+      const _isGlobal = currentUser && ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
       const pendingDem = DEMANDES.filter(d =>
-        (d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
+        (_isGlobal || d.superviseurId === currentUser.id || d.zone === currentUser.zone) &&
         d.statut === 'en_attente'
       );
       if (pendingDem.length) {
@@ -3344,7 +3345,7 @@
     const row    = document.getElementById('agent-dfa-selector-row');
     const sel    = document.getElementById('agent-dfa-select');
     const hint   = document.getElementById('agent-dfa-select-hint');
-    const canPick = currentUser && (currentUser.role === 'superviseur' || currentUser.role === 'ra' || currentUser.role === 'admin' || currentUser.role === 'dg' || currentUser.role === 'dga');
+    const canPick = currentUser && ['superviseur','ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
     if (!row) return;
     row.style.display = canPick ? 'block' : 'none';
     if (!canPick || !sel) return;

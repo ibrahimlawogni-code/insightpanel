@@ -100,7 +100,7 @@ function handleLogin(data) {
     const rowPwd    = row[COL.pwd].toString().trim();
     const rowStatut = row[COL.statut].toString().toLowerCase().trim();
 
-    if (rowId === data.id && rowPwd === data.pwd && rowStatut === 'actif') {
+    if (rowId.toLowerCase() === data.id.toLowerCase() && rowPwd === data.pwd && rowStatut === 'actif') {
       return jsonResponse({
         success: true,
         user: {
