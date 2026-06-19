@@ -7,6 +7,42 @@
 
 ---
 
+## 2026-06-19 — Session 2
+
+### InsightPanel — Nettoyage données fictives + automatisation complète
+
+- Correction labels formulaire perf superviseur : "DFA" → "Total équipe / Ma zone"
+- Bouton Actualiser Stocks : `_refreshStocksView()` recharge tout (saisies + gestionnaire + SIM vendues)
+- Audit automatisation : bug `s.agentId` → `s.dfaId` dans `_buildRapportDFA` corrigé (rapports toujours à 0)
+- `_onSaisiesLoaded()` complété : `renderRapports()` et `_initPerfSupSection()` ajoutés
+- Compte admin ajouté : `Admin.zephir` / `Admin@2026`
+- Suppression de toutes les données fictives (550+ lignes supprimées) :
+  - 50 agents DFA fictifs retirés de `USERS_SEED` (comptes structurels conservés)
+  - `SUP_PERF_DATA`, `ZONE_PERF_DATA`, `ZONE_PERF`, `BESTSELLER_MOCK`, `AGENT_PERF_DATA`, `REALISE_DATA`, `agentPerfData` vidés
+  - Table "Top Agents" et carte "Alertes" du dashboard : statique → dynamique depuis Sheets
+  - `MONTHLY_TARGETS` corrigé : 45 000 fictif → 18 660 (cible MTN officielle juin 2026)
+  - 4 KPI cards dashboard : valeurs hardcodées → calculées depuis `SAISIES_DATA`
+  - Carte évaluation Vue Agent : données fictives → `_renderAgentEvalCard()` dynamique
+- Application prête pour insertion de données réelles dans Google Sheets
+
+---
+
+## 2026-06-19
+
+### InsightPanel — Rôle Admin, formulaire perf superviseur, bug page blanche corrigé
+
+- Nouveau rôle `admin` : accès complet à toutes les fonctions de modification (équivalent RA hors données terrain)
+- Restriction modifications : seuls `ra` et `admin` peuvent créer/modifier comptes, approuver/rejeter demandes, réinitialiser mots de passe
+- `dg`, `dga`, `dcc`, `dc` passent en lecture seule (dashboards visibles, pas de modifications)
+- Modal réinitialisation mot de passe : bouton clé (ra/admin), nouveau mot de passe, endpoint `resetPassword` dans Apps Script
+- Formulaire "Ma performance du jour" dans Saisie du jour (rôle superviseur) : date, performance déclarée, performance globale auto (cumul DFA du mois), historique avec écart DFA
+- Sheet `PerfSup` créée automatiquement dans Google Sheets si absente
+- Endpoints Apps Script ajoutés : `resetPassword`, `savePerfSup`, `getPerfSup`
+- Bug critique corrigé : SyntaxError dans `renderUsersTable` (template literal imbriqué avec `'\\'')`) bloquait tout le script et causait une page blanche au rafraîchissement
+- Filet de sécurité ajouté : timeout 4s + `window.addEventListener('error')` retirent `restoring-session` si le script principal échoue
+
+---
+
 ## 2026-06-09 / 2026-06-10
 
 ### InsightPanel — Vue Superviseur complète, filtres DFA, menus RA
