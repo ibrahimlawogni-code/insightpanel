@@ -4212,10 +4212,17 @@
   }
 
   function _calcDFASumZone(isoDateStart, isoDateEnd) {
-    const supZone = _normZone(currentUser?.zone);
+    const supZone = _normZ(currentUser?.zone);
+    /* Préférer la liste des DFAs connus dans la zone (plus fiable que la comparaison de chaînes) */
+    const myDfaIds = new Set(
+      (USERS || []).filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === supZone)
+                   .map(u => u.id.toLowerCase())
+    );
     return (SAISIES_DATA || []).filter(s => {
       const d = _parseSaisieDate(s.date);
-      return d && d >= isoDateStart && d <= isoDateEnd && _normZone(s.zone) === supZone;
+      if (!d || d < isoDateStart || d > isoDateEnd) return false;
+      if (myDfaIds.size > 0) return myDfaIds.has((s.dfaId || '').toLowerCase());
+      return _normZ(s.zone) === supZone;
     }).reduce((acc, s) => acc + (Number(s.grossAdd) || 0), 0);
   }
 
@@ -4228,8 +4235,8 @@
     const badge = document.getElementById('perf-sup-date-badge');
     if (badge) badge.textContent = todayLabel;
 
-    /* Charger SAISIES_DATA si besoin puis mettre à jour les compteurs */
-    await _ensureSaisiesLoaded();
+    /* Charger USERS et SAISIES_DATA si besoin, puis mettre à jour les compteurs */
+    await Promise.all([_ensureUsersLoaded(), _ensureSaisiesLoaded()]);
     _updatePerfSupCounters();
 
     /* Charger historique */
@@ -4975,6 +4982,16 @@
   /* ============================================================
      GESTIONNAIRE DE STOCK — Traçabilité SIM en temps réel
   ============================================================ */
+
+  async function _ensureUsersLoaded() {
+    if (Array.isArray(USERS) && USERS.length > 0) return;
+    if (!APPS_SCRIPT_URL.startsWith('https')) return;
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.users)) USERS = json.users;
+    } catch { }
+  }
 
   async function _ensureSaisiesLoaded() {
     if (Array.isArray(SAISIES_DATA) && SAISIES_DATA.length > 0) return;
