@@ -800,8 +800,18 @@
         const _d = JSON.parse(_ls);
         if (_d && _d.expiresAt && Date.now() < _d.expiresAt) _valid = true;
       }
-      if (_valid) document.documentElement.classList.add('restoring-session');
+      if (_valid) {
+        document.documentElement.classList.add('restoring-session');
+        /* Filet de sécurité : retire la classe après 4s si le script principal n'a pas pris la main */
+        setTimeout(function() {
+          document.documentElement.classList.remove('restoring-session');
+        }, 4000);
+      }
     } catch(e) {}
+    /* Si une erreur JS non capturée survient, on retire la classe pour afficher le login */
+    window.addEventListener('error', function() {
+      document.documentElement.classList.remove('restoring-session');
+    });
   </script>
 </head>
 <body>
@@ -3802,7 +3812,7 @@
             <button class="btn ${u.statut === 'actif' ? 'btn-danger' : 'btn-secondary'} btn-sm" onclick="toggleUserStatus('${u.id}')">
               ${u.statut === 'actif' ? '<i class="fa fa-ban"></i>' : '<i class="fa fa-circle-check"></i>'}
             </button>
-            ${(currentUser && ['ra','admin'].includes(currentUser.role)) ? `<button class="btn btn-secondary btn-sm" title="Réinitialiser le mot de passe" onclick="openResetPwdModal('${u.id}','${u.nom.replace(/'/g,'\\'')}')" style="color:var(--orange);border-color:var(--orange)"><i class="fa fa-key"></i></button>` : ''}
+            ${(currentUser && ['ra','admin'].includes(currentUser.role)) ? `<button class="btn btn-secondary btn-sm" title="Réinitialiser le mot de passe" onclick="openResetPwdModal('${u.id}','${u.nom.replace(/'/g,"\\'")}')"><i class="fa fa-key"></i></button>` : ''}
           </div>
         </td>
       </tr>`).join('')
