@@ -4310,7 +4310,39 @@
 
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
+
+    if (_stockViewType === 'swap') {
+      /* SWAP : interface vide, aucune donnée chargée (données séparées du P100) */
+      _resetStockViewTables();
+      _resetStockForm();
+      return;
+    }
+
+    /* P100 : chargement normal depuis Sheets */
     _refreshStocksView();
+  }
+
+  function _resetStockViewTables() {
+    const empty = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée enregistrée</td></tr>';
+    const hist  = document.getElementById('stock-history-tbody');
+    const badge = document.getElementById('stock-history-badge');
+    if (hist)  hist.innerHTML  = empty;
+    if (badge) badge.textContent = '0';
+    /* Gestionnaire */
+    const gest = document.getElementById('stock-gestionnaire-body');
+    if (gest) gest.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-text)">Aucune donnée enregistrée</div>';
+    /* SIM vendues */
+    const simTbody = document.getElementById('sim-vendues-tbody');
+    const simBadge = document.getElementById('sim-vendues-badge');
+    const simMore  = document.getElementById('sim-vendues-more');
+    if (simTbody) simTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée enregistrée</td></tr>';
+    if (simBadge) simBadge.textContent = '0 numéros';
+    if (simMore)  simMore.style.display = 'none';
+    /* Recherche SIM */
+    const srchInput = document.getElementById('stock-search-sim');
+    const srchRes   = document.getElementById('stock-search-result');
+    if (srchInput) srchInput.value = '';
+    if (srchRes)   srchRes.innerHTML = '';
   }
 
   async function _refreshStocksView() {
