@@ -2568,7 +2568,11 @@
         user = seed ? { ...json.user, nom: seed.nom, initiales: seed.initiales } : json.user;
       }
     } catch (e) {
-      /* Fallback local si Sheets inaccessible */
+      /* Erreur réseau : fallback immédiat sur USERS_SEED */
+    }
+
+    /* Si Sheets n'a pas trouvé le compte (ou erreur réseau), tenter USERS_SEED */
+    if (!user) {
       user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password && u.statut === 'actif') || null;
     }
 
