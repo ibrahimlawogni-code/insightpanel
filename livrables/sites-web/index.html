@@ -994,8 +994,22 @@
       </div>
 
       <div class="nav-label" style="margin-top:8px" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent">Opérations</div>
-      <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showView('stocks', this)">
-        <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
+      <div class="nav-group" data-roles="dg,dga,dcc,dc,ra,admin,superviseur">
+        <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('stocks', this)">
+          <i class="fa fa-boxes-stacked"></i> Stocks &amp; Ressources
+          <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-stocks"></i>
+        </div>
+        <div class="nav-sub-items" id="nav-sub-stocks" style="display:none">
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('p100', this)">
+            <i class="fa fa-circle-dot"></i> P100
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('swap', this)">
+            <i class="fa fa-circle-dot"></i> SWAP
+          </div>
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('ressources', this)">
+            <i class="fa fa-circle-dot"></i> Ressources
+          </div>
+        </div>
       </div>
       <div class="nav-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur,agent" onclick="showView('rapports', this)">
         <i class="fa fa-file-lines"></i> Rapports
@@ -1975,8 +1989,8 @@
     <div class="view" id="view-stocks">
       <div class="page-header">
         <div>
-          <div class="page-title">Stocks &amp; Ressources</div>
-          <div class="page-subtitle">Suivi du stock SIM GSM reçu par zone</div>
+          <div class="page-title" id="stocks-page-title">Stocks &amp; Ressources</div>
+          <div class="page-subtitle" id="stocks-page-subtitle">Suivi du stock SIM GSM reçu par zone</div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="_refreshStocksView()">
           <i class="fa fa-rotate-right"></i> Actualiser
@@ -2184,6 +2198,17 @@
           <button class="btn btn-secondary btn-sm" onclick="_renderSimVendues(true)">
             <i class="fa fa-chevron-down"></i> Afficher plus
           </button>
+        </div>
+      </div>
+
+      <!-- Placeholder Ressources — affiché uniquement quand stockViewType === 'ressources' -->
+      <div id="stocks-ressources-placeholder" style="display:none">
+        <div class="card">
+          <div class="card-body" style="text-align:center;padding:48px 20px;color:var(--gray-text)">
+            <i class="fa fa-toolbox" style="font-size:40px;margin-bottom:16px;opacity:.4"></i>
+            <div style="font-size:16px;font-weight:600;margin-bottom:8px">Module Ressources</div>
+            <div style="font-size:13px">Ce module sera disponible prochainement.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -4247,9 +4272,42 @@
   ============================================================ */
 
   let STOCK_DATA = [];
+  let _stockViewType = 'p100'; // 'p100' | 'swap' | 'ressources'
+
+  function showStocksView(type, el) {
+    _stockViewType = type || 'p100';
+    /* Activer l'item nav */
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+    /* Afficher la vue */
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const view = document.getElementById('view-stocks');
+    if (view) view.classList.add('active');
+    _initStocksView();
+  }
 
   function _initStocksView() {
     if (!currentUser) return;
+
+    /* Titres selon le type */
+    const titles = { p100: 'Stocks P100', swap: 'Stocks SWAP', ressources: 'Ressources' };
+    const subs   = { p100: 'Suivi du stock SIM GSM — carte P100', swap: 'Suivi du stock SIM GSM — SWAP', ressources: '' };
+    const titleEl = document.getElementById('stocks-page-title');
+    const subEl   = document.getElementById('stocks-page-subtitle');
+    if (titleEl) titleEl.textContent = titles[_stockViewType] || 'Stocks & Ressources';
+    if (subEl)   subEl.textContent   = subs[_stockViewType]   || '';
+
+    /* Masquer/afficher les sections selon le type */
+    const placeholder = document.getElementById('stocks-ressources-placeholder');
+    const stockCards  = document.querySelectorAll('#view-stocks .card:not(#stocks-ressources-placeholder .card)');
+    if (_stockViewType === 'ressources') {
+      stockCards.forEach(c => { if (!c.closest('#stocks-ressources-placeholder')) c.style.display = 'none'; });
+      if (placeholder) placeholder.style.display = '';
+      return;
+    }
+    stockCards.forEach(c => { if (!c.closest('#stocks-ressources-placeholder')) c.style.display = ''; });
+    if (placeholder) placeholder.style.display = 'none';
+
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
     _refreshStocksView();
