@@ -2058,12 +2058,14 @@
             <thead>
               <tr>
                 <th>DFA</th>
+                <th>Zone</th>
                 <th>SIM vendues</th>
-                <th>% de ma plage</th>
+                <th>Dernière vente</th>
+                <th>% contribution</th>
               </tr>
             </thead>
             <tbody id="gestionnaire-sup-tbody">
-              <tr><td colspan="3" style="text-align:center;color:var(--gray-text);padding:20px">
+              <tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">
                 <i class="fa fa-spinner fa-spin"></i> Calcul en cours…
               </td></tr>
             </tbody>
@@ -4281,14 +4283,19 @@
     const badge = document.getElementById('stock-history-badge');
     if (!tbody) return;
 
-    if (badge) badge.textContent = `${rows.length} entrée${rows.length !== 1 ? 's' : ''}`;
+    /* Le superviseur ne voit que ses propres entrées */
+    const filtered = (currentUser && currentUser.role === 'superviseur')
+      ? rows.filter(r => r.auteurId === currentUser.id)
+      : rows;
 
-    if (!rows.length) {
+    if (badge) badge.textContent = `${filtered.length} entrée${filtered.length !== 1 ? 's' : ''}`;
+
+    if (!filtered.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune réception enregistrée.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = [...rows].reverse().map(r => `
+    tbody.innerHTML = [...filtered].reverse().map(r => `
       <tr>
         <td>${r.date || '—'}</td>
         <td style="font-family:monospace">${r.simDebut || '—'}</td>
@@ -4490,8 +4497,12 @@
       const inRange = supRanges.some(r => r.simDebut && r.simFin && n >= Number(r.simDebut) && n <= Number(r.simFin));
       if (!inRange) continue;
       totalVendu++;
-      if (!dfaMap.has(meta.dfaId)) dfaMap.set(meta.dfaId, { nom: meta.dfaNom, count: 0 });
-      dfaMap.get(meta.dfaId).count++;
+      if (!dfaMap.has(meta.dfaId)) {
+        dfaMap.set(meta.dfaId, { nom: meta.dfaNom, zone: meta.zone, count: 0, lastDate: meta.date });
+      }
+      const entry = dfaMap.get(meta.dfaId);
+      entry.count++;
+      if (meta.date > entry.lastDate) entry.lastDate = meta.date;
     }
 
     const solde = totalRecu - totalVendu;
@@ -4522,7 +4533,7 @@
     if (badge) badge.textContent = `${dfaMap.size} DFA`;
 
     if (!dfaMap.size) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-text);padding:20px">Aucune vente enregistrée dans votre plage.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune vente enregistrée dans votre plage.</td></tr>';
       return;
     }
 
@@ -4530,10 +4541,13 @@
       .sort((a, b) => b[1].count - a[1].count)
       .map(([dfaId, info]) => {
         const pct = totalRecu > 0 ? Math.round(info.count / totalRecu * 100) : 0;
+        const taux = totalVendu > 0 ? Math.round(info.count / totalVendu * 100) : 0;
         return `<tr>
           <td><strong>${info.nom || dfaId}</strong></td>
+          <td style="font-size:12px;color:var(--gray-text)">${info.zone || '—'}</td>
           <td>${info.count.toLocaleString('fr-FR')}</td>
-          <td><span class="badge ${pct >= 20 ? 'badge-green' : 'badge-gray'}">${pct} %</span></td>
+          <td style="font-size:12px;color:var(--gray-text)">${info.lastDate || '—'}</td>
+          <td><span class="badge ${taux >= 30 ? 'badge-green' : taux >= 15 ? 'badge-yellow' : 'badge-gray'}">${taux} %</span></td>
         </tr>`;
       }).join('');
   }
