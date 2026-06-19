@@ -13,6 +13,7 @@
 // FEUILLES REQUISES dans ce Google Sheets :
 //   - "Utilisateurs"  : gestion des comptes (voir colonnes ci-dessous)
 //   - "Saisies"       : créée automatiquement au premier envoi
+//   - "StockSIM"      : créée automatiquement au premier envoi de stock
 // ─────────────────────────────────────────────────────────────
 
 const SHEET_ID = '1heK1_Gfv7BaaZ4k3I5oae7MQ8ueMG336-akYHUMLtgw';
@@ -33,6 +34,8 @@ function doPost(e) {
     if (data.action === 'updateDemande')       return handleUpdateDemande(data);
     if (data.action === 'getNotifications')    return handleGetNotifications(data);
     if (data.action === 'markNotificationRead') return handleMarkNotificationRead(data);
+    if (data.action === 'saveStockSIM')         return handleSaveStockSIM(data);
+    if (data.action === 'getStockSIM')          return handleGetStockSIM(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -403,6 +406,86 @@ function _initDemandesSheet(sheet) {
   sheet.setColumnWidth(11, 100);
   sheet.setColumnWidth(12, 200);
   sheet.setColumnWidth(13, 140);
+}
+
+// ─────────────────────────────────────────────────────────────
+// STOCK SIM GSM — ENREGISTREMENT
+// Feuille "StockSIM" — colonnes :
+//   Date | Zone | SIM Reçues | Auteur ID | Auteur Nom | Rôle | Observation | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleSaveStockSIM(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('StockSIM');
+  if (!sheet) {
+    sheet = ss.insertSheet('StockSIM');
+    _initStockSIMSheet(sheet);
+  }
+
+  sheet.appendRow([
+    data.date        || new Date().toLocaleDateString('fr-FR'),
+    data.zone        || '',
+    Number(data.simRecues) || 0,
+    data.auteurId    || '',
+    data.auteurNom   || '',
+    data.auteurRole  || '',
+    data.observation || '',
+    new Date().toLocaleString('fr-FR')
+  ]);
+
+  return jsonResponse({ success: true, message: 'Stock enregistré avec succès.' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// STOCK SIM GSM — LECTURE
+// Retourne toutes les lignes de la feuille "StockSIM" en JSON
+// ─────────────────────────────────────────────────────────────
+function handleGetStockSIM(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('StockSIM');
+  if (!sheet) return jsonResponse({ success: true, data: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0] && !r[1]) continue; // ligne vide
+    result.push({
+      date:        r[0] ? r[0].toString().trim() : '',
+      zone:        r[1] ? r[1].toString().trim() : '',
+      simRecues:   Number(r[2]) || 0,
+      auteurId:    r[3] ? r[3].toString().trim() : '',
+      auteurNom:   r[4] ? r[4].toString().trim() : '',
+      auteurRole:  r[5] ? r[5].toString().trim() : '',
+      observation: r[6] ? r[6].toString().trim() : '',
+      horodatage:  r[7] ? r[7].toString().trim() : ''
+    });
+  }
+  return jsonResponse({ success: true, data: result });
+}
+
+function _initStockSIMSheet(sheet) {
+  const headers = [
+    'Date', 'Zone', 'SIM Reçues', 'Auteur ID', 'Auteur Nom', 'Rôle', 'Observation', 'Horodatage'
+  ];
+  sheet.appendRow(headers);
+  sheet.setFrozenRows(1);
+
+  const hr = sheet.getRange(1, 1, 1, headers.length);
+  hr.setBackground('#F6B924');
+  hr.setFontColor('#000000');
+  hr.setFontWeight('bold');
+  hr.setHorizontalAlignment('center');
+
+  sheet.setColumnWidth(1, 90);   // Date
+  sheet.setColumnWidth(2, 160);  // Zone
+  sheet.setColumnWidth(3, 90);   // SIM Reçues
+  sheet.setColumnWidth(4, 150);  // Auteur ID
+  sheet.setColumnWidth(5, 160);  // Auteur Nom
+  sheet.setColumnWidth(6, 90);   // Rôle
+  sheet.setColumnWidth(7, 220);  // Observation
+  sheet.setColumnWidth(8, 140);  // Horodatage
 }
 
 // ─────────────────────────────────────────────────────────────
