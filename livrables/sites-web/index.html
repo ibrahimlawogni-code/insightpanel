@@ -4293,7 +4293,10 @@
     /* Calcul du cumul mensuel — toujours exécuté, même si la table est vide */
     const moisKey   = todayISO.slice(0, 7);
     const moisCumul = (PERF_SUP_DATA || [])
-      .filter(r => r.date && r.date.slice(0, 7) === moisKey)
+      .filter(r => {
+        const iso = _parseSaisieDate(r.date);  /* normalise DD/MM/YYYY et YYYY-MM-DD */
+        return iso && iso.slice(0, 7) === moisKey;
+      })
       .reduce((acc, r) => acc + (Number(r.perfJour) || 0), 0);
     const gEl = document.getElementById('perf-sup-globale');
     if (gEl) gEl.value = moisCumul;
@@ -4310,7 +4313,8 @@
       const ecartColor = ecart > 0 ? 'var(--orange)' : ecart < 0 ? 'var(--red)' : 'var(--green)';
       const ecartIcon  = ecart > 0 ? 'fa-arrow-up' : ecart < 0 ? 'fa-arrow-down' : 'fa-check';
       const sign    = ecart > 0 ? '+' : '';
-      const [y, m, d] = r.date.split('-');
+      const iso     = _parseSaisieDate(r.date) || r.date;
+      const [y, m, d] = iso.split('-');
       const dateLbl = d && m ? `${d}/${m}/${y}` : r.date;
       return `<tr>
         <td>${dateLbl}</td>
