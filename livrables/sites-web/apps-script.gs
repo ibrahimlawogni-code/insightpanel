@@ -37,6 +37,8 @@ function doPost(e) {
     if (data.action === 'saveStockSIM')         return handleSaveStockSIM(data);
     if (data.action === 'getStockSIM')          return handleGetStockSIM(data);
     if (data.action === 'resetPassword')        return handleResetPassword(data);
+    if (data.action === 'savePerfSup')          return handleSavePerfSup(data);
+    if (data.action === 'getPerfSup')           return handleGetPerfSup(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -486,6 +488,79 @@ function _initStockSIMSheet(sheet) {
   sheet.setColumnWidth(6, 160);  // Auteur Nom
   sheet.setColumnWidth(7, 90);   // Rôle
   sheet.setColumnWidth(8, 140);  // Horodatage
+}
+
+// ─────────────────────────────────────────────────────────────
+// PERFORMANCE SUPERVISEUR — ENREGISTREMENT
+// Feuille "PerfSup" — colonnes :
+//   Date | Sup ID | Sup Nom | Zone | Perf Jour | Perf Globale | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleSavePerfSup(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName('PerfSup');
+  if (!sheet) {
+    sheet = ss.insertSheet('PerfSup');
+    _initPerfSupSheet(sheet);
+  }
+  sheet.appendRow([
+    data.date       || new Date().toISOString().slice(0, 10),
+    data.supId      || '',
+    data.supNom     || '',
+    data.zone       || '',
+    Number(data.perfJour)    || 0,
+    Number(data.perfGlobale) || 0,
+    new Date().toLocaleString('fr-FR')
+  ]);
+  return jsonResponse({ success: true, message: 'Performance enregistrée.' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// PERFORMANCE SUPERVISEUR — LECTURE (filtré par supId)
+// ─────────────────────────────────────────────────────────────
+function handleGetPerfSup(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('PerfSup');
+  if (!sheet) return jsonResponse({ success: true, data: [] });
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const result = [];
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const r = rows[i];
+    if (!r[0] && !r[1]) continue;
+    const supId = r[1] ? r[1].toString().trim() : '';
+    if (data.supId && supId.toLowerCase() !== data.supId.toLowerCase()) continue;
+    result.push({
+      date:        r[0] ? r[0].toString().trim() : '',
+      supId,
+      supNom:      r[2] ? r[2].toString().trim() : '',
+      zone:        r[3] ? r[3].toString().trim() : '',
+      perfJour:    Number(r[4]) || 0,
+      perfGlobale: Number(r[5]) || 0,
+      horodatage:  r[6] ? r[6].toString().trim() : ''
+    });
+    if (result.length >= 30) break;
+  }
+  return jsonResponse({ success: true, data: result });
+}
+
+function _initPerfSupSheet(sheet) {
+  const headers = ['Date', 'Sup ID', 'Sup Nom', 'Zone', 'Perf Jour', 'Perf Globale', 'Horodatage'];
+  sheet.appendRow(headers);
+  sheet.setFrozenRows(1);
+  const hr = sheet.getRange(1, 1, 1, headers.length);
+  hr.setBackground('#F6B924');
+  hr.setFontColor('#000000');
+  hr.setFontWeight('bold');
+  hr.setHorizontalAlignment('center');
+  sheet.setColumnWidth(1, 100);
+  sheet.setColumnWidth(2, 160);
+  sheet.setColumnWidth(3, 180);
+  sheet.setColumnWidth(4, 160);
+  sheet.setColumnWidth(5, 90);
+  sheet.setColumnWidth(6, 100);
+  sheet.setColumnWidth(7, 150);
 }
 
 // ─────────────────────────────────────────────────────────────
