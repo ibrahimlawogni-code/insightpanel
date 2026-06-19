@@ -4753,7 +4753,7 @@
     /* Alimenter le filtre superviseurs */
     const supSel = document.getElementById('detection-filter-sup');
     if (supSel && supSel.options.length <= 1) {
-      const sups = (USERS_DATA || []).filter(u => u.role === 'superviseur');
+      const sups = (USERS || []).filter(u => u.role === 'superviseur');
       sups.forEach(s => {
         const o = document.createElement('option');
         o.value = s.id; o.textContent = s.nom;
@@ -4858,7 +4858,7 @@
     const destSel = document.getElementById('transfert-dest');
     if (destSel) {
       destSel.innerHTML = '<option value="">Sélectionner…</option>';
-      (USERS_DATA || [])
+      (USERS || [])
         .filter(u => u.role === 'superviseur' && u.id !== currentUser.id)
         .forEach(s => {
           const o = document.createElement('option');
@@ -4948,7 +4948,7 @@
     const quantite = Number(fin) - Number(debut) + 1;
     if (quantite <= 0) { showErr('Le N° SIM Fin doit être supérieur au N° SIM Début.'); return; }
 
-    const destUser = (USERS_DATA || []).find(u => u.id === dest.value);
+    const destUser = (USERS || []).find(u => u.id === dest.value);
     const payload  = {
       action: 'saveTransfert',
       date, sourceId: currentUser.id, sourceNom: currentUser.nom,
