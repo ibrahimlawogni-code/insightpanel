@@ -7779,6 +7779,8 @@
     _renderAgentCalendrier();
     _renderDernieresSaisies();
     _renderEvaluationView();
+    _initPerfSupSection();
+    renderRapports();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
   }
 
@@ -8177,7 +8179,7 @@
   // -------------------- RAPPORT DFA --------------------
   function _buildRapportDFA(period, refDate) {
     const user  = _agentUser();
-    const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.agentId === (user ? user.id : null)) : (agentPerfData || []);
+    const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.dfaId === (user ? user.id : null)) : (agentPerfData || []);
     const fil   = _rapportFilter(mine, period, refDate);
     const ga    = _sumField(fil, 'grossAdd');
     const momo  = _sumField(fil, 'momo');
