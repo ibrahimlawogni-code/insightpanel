@@ -1994,6 +1994,83 @@
         </button>
       </div>
 
+      <!-- Recherche SIM — traçabilité en temps réel -->
+      <div class="card" data-roles="dg,dga,dcc,dc,ra,superviseur">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-magnifying-glass" style="color:var(--yellow)"></i> Recherche SIM</div>
+          <span class="badge badge-yellow">Traçabilité en temps réel</span>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:180px">
+              <label class="input-label">N° SIM à rechercher <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+              <input class="input-field" type="text" id="stock-search-input"
+                     placeholder="22546000145" maxlength="11" inputmode="numeric"
+                     onkeydown="if(event.key==='Enter')_searchSIM()"
+                     style="font-family:monospace;letter-spacing:1px">
+            </div>
+            <button class="btn btn-primary" onclick="_searchSIM()" style="white-space:nowrap">
+              <i class="fa fa-magnifying-glass"></i> Rechercher
+            </button>
+          </div>
+          <div id="stock-search-result" style="display:none;margin-top:16px"></div>
+        </div>
+      </div>
+
+      <!-- Gestionnaire de stock — Vue RA / admin (global) -->
+      <div class="card" data-roles="dg,dga,dcc,dc,ra">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-chart-pie" style="color:var(--yellow)"></i> Gestionnaire de stock — Vue globale</div>
+          <span class="badge badge-black" id="gestionnaire-badge">—</span>
+        </div>
+        <div id="gestionnaire-kpi-row" style="display:flex;gap:12px;padding:16px 20px;flex-wrap:wrap"></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Superviseur</th>
+                <th>Date</th>
+                <th>Plage SIM</th>
+                <th>Reçues</th>
+                <th>Vendues</th>
+                <th>Solde</th>
+                <th>Taux</th>
+              </tr>
+            </thead>
+            <tbody id="gestionnaire-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">
+                <i class="fa fa-spinner fa-spin"></i> Calcul en cours…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Gestionnaire de stock — Vue superviseur (sa zone) -->
+      <div class="card" data-roles="superviseur">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-chart-pie" style="color:var(--yellow)"></i> Gestionnaire de stock — Ma zone</div>
+          <span class="badge badge-black" id="gestionnaire-sup-badge">—</span>
+        </div>
+        <div id="gestionnaire-sup-kpi-row" style="display:flex;gap:12px;padding:16px 20px;flex-wrap:wrap"></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>DFA</th>
+                <th>SIM vendues</th>
+                <th>% de ma plage</th>
+              </tr>
+            </thead>
+            <tbody id="gestionnaire-sup-tbody">
+              <tr><td colspan="3" style="text-align:center;color:var(--gray-text);padding:20px">
+                <i class="fa fa-spinner fa-spin"></i> Calcul en cours…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Formulaire de saisie — RA et superviseurs uniquement -->
       <div class="card" data-roles="dg,dga,dcc,dc,ra,superviseur">
         <div class="card-header">
@@ -4190,6 +4267,7 @@
       if (json.success && Array.isArray(json.data)) {
         STOCK_DATA = json.data;
         _renderStockHistorique(STOCK_DATA);
+        _renderStockGestionnaire();
       } else {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible.</td></tr>';
       }
@@ -4290,6 +4368,242 @@
 
     const fb = document.getElementById('stock-form-feedback');
     if (fb) fb.style.display = 'none';
+  }
+
+  /* ============================================================
+     GESTIONNAIRE DE STOCK — Traçabilité SIM en temps réel
+  ============================================================ */
+
+  async function _ensureSaisiesLoaded() {
+    if (Array.isArray(SAISIES_DATA) && SAISIES_DATA.length > 0) return;
+    if (!APPS_SCRIPT_URL.startsWith('https')) return;
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisies' }) });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.saisies)) SAISIES_DATA = json.saisies;
+    } catch { }
+  }
+
+  /* Construit une Map { simNumber -> { dfaId, dfaNom, date, zone } } depuis SAISIES_DATA */
+  function _buildSoldMap() {
+    const soldMap = new Map();
+    for (const s of (SAISIES_DATA || [])) {
+      if (!s.simList) continue;
+      s.simList.split(',').forEach(sim => {
+        sim = sim.trim();
+        if (sim) soldMap.set(sim, { dfaId: s.dfaId, dfaNom: s.dfaNom, date: s.date, zone: s.zone });
+      });
+    }
+    return soldMap;
+  }
+
+  async function _renderStockGestionnaire() {
+    await _ensureSaisiesLoaded();
+    const soldMap = _buildSoldMap();
+    if (currentUser && ['ra','dg','dga','dcc','dc'].includes(currentUser.role)) {
+      _renderGestionnaireRA(soldMap);
+    } else if (currentUser && currentUser.role === 'superviseur') {
+      _renderGestionnaireSuper(soldMap);
+    }
+  }
+
+  function _renderGestionnaireRA(soldMap) {
+    const tbody  = document.getElementById('gestionnaire-tbody');
+    const badge  = document.getElementById('gestionnaire-badge');
+    const kpiRow = document.getElementById('gestionnaire-kpi-row');
+    if (!tbody) return;
+
+    const totalRecu  = STOCK_DATA.filter(r => r.auteurRole === 'ra').reduce((s, r) => s + (r.quantite || 0), 0);
+    const totalVendu = soldMap.size;
+    const soldeGlobal = totalRecu - totalVendu;
+    const tauxGlobal  = totalRecu > 0 ? Math.round(totalVendu / totalRecu * 100) : 0;
+
+    if (kpiRow) kpiRow.innerHTML = `
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Stock global reçu</div>
+        <div class="kpi-value">${totalRecu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta neutral"><i class="fa fa-boxes-stacked"></i> Entrée RA</div>
+        <div class="kpi-bg-icon"><i class="fa fa-boxes-stacked"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">SIM vendues</div>
+        <div class="kpi-value">${totalVendu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> Activées</div>
+        <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Solde disponible</div>
+        <div class="kpi-value">${Math.max(0, soldeGlobal).toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta ${soldeGlobal < 100 ? 'negative' : 'neutral'}">
+          <i class="fa fa-${soldeGlobal < 100 ? 'triangle-exclamation' : 'circle-check'}"></i>
+          ${tauxGlobal} % écoulé
+        </div>
+        <div class="kpi-bg-icon"><i class="fa fa-layer-group"></i></div>
+      </div>`;
+
+    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur');
+    if (badge) badge.textContent = `${supEntries.length} superviseur${supEntries.length > 1 ? 's' : ''}`;
+
+    if (!supEntries.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucune entrée superviseur enregistrée.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = supEntries.map(entry => {
+      let vendu = 0;
+      if (entry.simDebut && entry.simFin) {
+        const debut = Number(entry.simDebut);
+        const fin   = Number(entry.simFin);
+        for (const sim of soldMap.keys()) {
+          const n = Number(sim);
+          if (n >= debut && n <= fin) vendu++;
+        }
+      }
+      const solde = (entry.quantite || 0) - vendu;
+      const taux  = entry.quantite > 0 ? Math.round(vendu / entry.quantite * 100) : 0;
+      const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
+      return `<tr>
+        <td><strong>${entry.auteurNom || '—'}</strong></td>
+        <td>${entry.date || '—'}</td>
+        <td style="font-family:monospace;font-size:11px;white-space:nowrap">${entry.simDebut} → ${entry.simFin}</td>
+        <td>${(entry.quantite || 0).toLocaleString('fr-FR')}</td>
+        <td>${vendu.toLocaleString('fr-FR')}</td>
+        <td><strong style="color:${solde < 20 ? '#721c24' : 'inherit'}">${solde.toLocaleString('fr-FR')}</strong></td>
+        <td><span class="badge ${tauxBadge}">${taux} %</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function _renderGestionnaireSuper(soldMap) {
+    const tbody  = document.getElementById('gestionnaire-sup-tbody');
+    const badge  = document.getElementById('gestionnaire-sup-badge');
+    const kpiRow = document.getElementById('gestionnaire-sup-kpi-row');
+    if (!tbody) return;
+
+    const supRanges  = STOCK_DATA.filter(r => r.auteurId === currentUser.id);
+    const totalRecu  = supRanges.reduce((s, r) => s + (r.quantite || 0), 0);
+
+    const dfaMap = new Map();
+    let totalVendu = 0;
+    for (const [sim, meta] of soldMap.entries()) {
+      const n = Number(sim);
+      const inRange = supRanges.some(r => r.simDebut && r.simFin && n >= Number(r.simDebut) && n <= Number(r.simFin));
+      if (!inRange) continue;
+      totalVendu++;
+      if (!dfaMap.has(meta.dfaId)) dfaMap.set(meta.dfaId, { nom: meta.dfaNom, count: 0 });
+      dfaMap.get(meta.dfaId).count++;
+    }
+
+    const solde = totalRecu - totalVendu;
+    const taux  = totalRecu > 0 ? Math.round(totalVendu / totalRecu * 100) : 0;
+
+    if (kpiRow) kpiRow.innerHTML = `
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Mon stock reçu</div>
+        <div class="kpi-value">${totalRecu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta neutral"><i class="fa fa-boxes-stacked"></i> Ma plage</div>
+        <div class="kpi-bg-icon"><i class="fa fa-boxes-stacked"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">SIM vendues</div>
+        <div class="kpi-value">${totalVendu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> Par mes DFA</div>
+        <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Solde</div>
+        <div class="kpi-value">${Math.max(0, solde).toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta ${solde < 20 ? 'negative' : 'neutral'}">
+          <i class="fa fa-${solde < 20 ? 'triangle-exclamation' : 'circle-check'}"></i> ${taux} % écoulé
+        </div>
+        <div class="kpi-bg-icon"><i class="fa fa-layer-group"></i></div>
+      </div>`;
+
+    if (badge) badge.textContent = `${dfaMap.size} DFA`;
+
+    if (!dfaMap.size) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-text);padding:20px">Aucune vente enregistrée dans votre plage.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = [...dfaMap.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([dfaId, info]) => {
+        const pct = totalRecu > 0 ? Math.round(info.count / totalRecu * 100) : 0;
+        return `<tr>
+          <td><strong>${info.nom || dfaId}</strong></td>
+          <td>${info.count.toLocaleString('fr-FR')}</td>
+          <td><span class="badge ${pct >= 20 ? 'badge-green' : 'badge-gray'}">${pct} %</span></td>
+        </tr>`;
+      }).join('');
+  }
+
+  function _searchSIM() {
+    const sim = (document.getElementById('stock-search-input')?.value || '').trim();
+    const resultEl = document.getElementById('stock-search-result');
+    if (!resultEl) return;
+
+    if (!sim || sim.length !== 11 || !/^\d+$/.test(sim)) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">
+        <i class="fa fa-circle-exclamation"></i> Veuillez saisir un numéro SIM valide (11 chiffres).
+      </div>`;
+      return;
+    }
+
+    /* Chercher la plage superviseur qui couvre ce numéro */
+    const range = STOCK_DATA.find(r =>
+      r.simDebut && r.simFin &&
+      Number(r.simDebut) <= Number(sim) && Number(sim) <= Number(r.simFin)
+    );
+
+    /* Chercher si la SIM est dans une simList de saisie */
+    let soldBy = null;
+    for (const s of (SAISIES_DATA || [])) {
+      if (!s.simList) continue;
+      if (s.simList.split(',').map(x => x.trim()).includes(sim)) { soldBy = s; break; }
+    }
+
+    resultEl.style.display = 'block';
+
+    if (!range && !soldBy) {
+      resultEl.innerHTML = `<div style="padding:14px 16px;background:var(--gray-bg);border-radius:8px;border:1px solid var(--border);font-size:13px">
+        <i class="fa fa-circle-question" style="color:var(--gray-text)"></i>
+        <strong> SIM ${sim}</strong> — non répertoriée dans les stocks enregistrés.
+        <div style="color:var(--gray-text);margin-top:4px;font-size:12px">Aucune plage de stock ne couvre ce numéro.</div>
+      </div>`;
+      return;
+    }
+
+    const statutBadge = soldBy
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#d4edda;color:#155724;padding:4px 12px;border-radius:20px;font-weight:700;font-size:12px"><i class="fa fa-check-circle"></i> VENDUE</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:6px;background:#fff3cd;color:#7d5200;padding:4px 12px;border-radius:20px;font-weight:700;font-size:12px"><i class="fa fa-clock"></i> NON VENDUE</span>`;
+
+    const supHtml = range
+      ? `<div style="margin-top:10px;font-size:13px">
+           <span style="color:var(--gray-text)">Superviseur :</span>
+           <strong> ${range.auteurNom}</strong>
+           <span style="color:var(--gray-text);font-size:11px"> · plage ${range.simDebut} → ${range.simFin} · reçu le ${range.date}</span>
+         </div>`
+      : `<div style="margin-top:10px;font-size:12px;color:var(--gray-text)">Superviseur non identifié (plage non déclarée dans le stock).</div>`;
+
+    const dfaHtml = soldBy
+      ? `<div style="margin-top:8px;font-size:13px">
+           <span style="color:var(--gray-text)">Vendue par :</span>
+           <strong> ${soldBy.dfaNom || soldBy.dfaId}</strong>
+           <span style="color:var(--gray-text);font-size:11px"> · ${soldBy.zone || ''} · ${soldBy.date}</span>
+         </div>`
+      : '';
+
+    resultEl.innerHTML = `
+      <div style="padding:16px;background:var(--card-bg);border-radius:10px;border:1.5px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-family:monospace;font-size:16px;font-weight:800;letter-spacing:2px">${sim}</span>
+          ${statutBadge}
+        </div>
+        ${supHtml}
+        ${dfaHtml}
+      </div>`;
   }
 
   /* ---- Scanner plaquette SIM (OCR via Tesseract.js) ---- */
