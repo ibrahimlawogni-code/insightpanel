@@ -2006,24 +2006,18 @@
               <label class="input-label">Date de réception</label>
               <input class="input-field" type="date" id="stock-field-date">
             </div>
+            <div></div>
             <div>
-              <label class="input-label">Zone</label>
-              <select class="input-field" id="stock-field-zone">
-                <option value="">-- Sélectionner une zone --</option>
-                <option>Avrankou</option>
-                <option>Akpro - Missérété</option>
-                <option>Aguégués - Dangbo</option>
-                <option>Adjarra</option>
-                <option>Bonou - Adjohoun</option>
-              </select>
+              <label class="input-label">N° SIM Début <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+              <input class="input-field" type="text" id="stock-field-sim-debut" placeholder="22546000001" maxlength="11" inputmode="numeric" oninput="_autoCalcStockQuantite()">
             </div>
             <div>
-              <label class="input-label">Nombre de SIM reçues</label>
-              <input class="input-field" type="number" id="stock-field-sim-recues" placeholder="Ex : 200" min="0" inputmode="numeric">
+              <label class="input-label">N° SIM Fin <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+              <input class="input-field" type="text" id="stock-field-sim-fin" placeholder="22546000200" maxlength="11" inputmode="numeric" oninput="_autoCalcStockQuantite()">
             </div>
             <div class="span-2">
-              <label class="input-label">Observation <span style="color:var(--gray-text);font-weight:400">(optionnel)</span></label>
-              <textarea class="input-field" id="stock-field-obs" placeholder="Remarques sur la livraison, état du stock, manques..."></textarea>
+              <label class="input-label">Quantité <span style="color:var(--green);font-size:10px">(auto)</span></label>
+              <input class="input-field" type="text" id="stock-field-quantite" readonly placeholder="—" style="background:var(--gray-bg);cursor:default;font-weight:700;color:var(--green)">
             </div>
           </div>
           <div id="stock-form-feedback" style="display:none;margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
@@ -2047,10 +2041,10 @@
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Zone</th>
-                <th>SIM reçues</th>
+                <th>N° SIM Début</th>
+                <th>N° SIM Fin</th>
+                <th>Quantité</th>
                 <th>Saisi par</th>
-                <th>Observation</th>
               </tr>
             </thead>
             <tbody id="stock-history-tbody">
@@ -4162,23 +4156,21 @@
     if (!currentUser) return;
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
-
-    const zoneEl = document.getElementById('stock-field-zone');
-    if (zoneEl) {
-      if (currentUser.role === 'superviseur' && currentUser.zone) {
-        /* Zone verrouillée sur la zone du superviseur */
-        [...zoneEl.options].forEach(o => { if (o.value === currentUser.zone) zoneEl.value = currentUser.zone; });
-        zoneEl.disabled = true;
-        zoneEl.style.background = 'var(--gray-bg)';
-        zoneEl.style.cursor = 'default';
-      } else {
-        zoneEl.disabled = false;
-        zoneEl.style.background = '';
-        zoneEl.style.cursor = '';
-      }
-    }
-
     loadStockHistorique();
+  }
+
+  function _autoCalcStockQuantite() {
+    const debut = document.getElementById('stock-field-sim-debut')?.value.trim();
+    const fin   = document.getElementById('stock-field-sim-fin')?.value.trim();
+    const qEl   = document.getElementById('stock-field-quantite');
+    if (!qEl) return;
+    if (debut && fin && debut.length === 11 && fin.length === 11) {
+      const q = Number(fin) - Number(debut) + 1;
+      qEl.value = q > 0 ? q + ' SIM' : 'Fin < Début';
+      qEl.style.color = q > 0 ? 'var(--green)' : '#721c24';
+    } else {
+      qEl.value = '';
+    }
   }
 
   async function loadStockHistorique() {
@@ -4211,35 +4203,28 @@
     const badge = document.getElementById('stock-history-badge');
     if (!tbody) return;
 
-    let filtered = rows;
-    if (currentUser && currentUser.role === 'superviseur') {
-      filtered = rows.filter(r => _normZ(r.zone) === _normZ(currentUser.zone));
-    }
+    if (badge) badge.textContent = `${rows.length} entrée${rows.length !== 1 ? 's' : ''}`;
 
-    if (badge) badge.textContent = `${filtered.length} entrée${filtered.length !== 1 ? 's' : ''}`;
-
-    if (!filtered.length) {
+    if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune réception enregistrée.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = [...filtered].reverse().map(r => `
+    tbody.innerHTML = [...rows].reverse().map(r => `
       <tr>
         <td>${r.date || '—'}</td>
-        <td>${r.zone || '—'}</td>
-        <td><strong>${r.simRecues ?? '—'}</strong></td>
+        <td style="font-family:monospace">${r.simDebut || '—'}</td>
+        <td style="font-family:monospace">${r.simFin || '—'}</td>
+        <td><strong>${r.quantite ?? '—'}</strong></td>
         <td style="font-size:11px">${r.auteurNom || '—'}<br><span style="color:var(--gray-text)">${r.auteurRole || ''}</span></td>
-        <td style="max-width:200px;white-space:normal;font-size:12px;color:var(--gray-text)">${r.observation || '—'}</td>
       </tr>
     `).join('');
   }
 
   async function submitStockSIM() {
-    const date      = document.getElementById('stock-field-date')?.value;
-    const zoneEl    = document.getElementById('stock-field-zone');
-    const zone      = zoneEl?.value;
-    const simRecues = Number(document.getElementById('stock-field-sim-recues')?.value) || 0;
-    const obs       = (document.getElementById('stock-field-obs')?.value || '').trim();
+    const date     = document.getElementById('stock-field-date')?.value;
+    const simDebut = document.getElementById('stock-field-sim-debut')?.value.trim();
+    const simFin   = document.getElementById('stock-field-sim-fin')?.value.trim();
 
     const fb  = document.getElementById('stock-form-feedback');
     const btn = document.getElementById('btn-stock-submit');
@@ -4253,20 +4238,23 @@
       if (ok) setTimeout(() => { fb.style.display = 'none'; }, 4000);
     }
 
-    if (!date)          { showFb('Veuillez renseigner la date.', false); return; }
-    if (!zone)          { showFb('Veuillez sélectionner une zone.', false); return; }
-    if (simRecues <= 0) { showFb('Le nombre de SIM reçues doit être supérieur à 0.', false); return; }
-    if (!currentUser)   { showFb('Session invalide. Veuillez vous reconnecter.', false); return; }
+    if (!date)                        { showFb('Veuillez renseigner la date.', false); return; }
+    if (!simDebut || simDebut.length !== 11) { showFb('N° SIM Début invalide (11 chiffres requis).', false); return; }
+    if (!simFin   || simFin.length   !== 11) { showFb('N° SIM Fin invalide (11 chiffres requis).', false); return; }
+    if (Number(simFin) < Number(simDebut))   { showFb('Le N° SIM Fin doit être supérieur ou égal au N° SIM Début.', false); return; }
+    if (!currentUser)                        { showFb('Session invalide. Veuillez vous reconnecter.', false); return; }
+
+    const quantite = Number(simFin) - Number(simDebut) + 1;
 
     const payload = {
-      action:      'saveStockSIM',
-      date:        new Date(date).toLocaleDateString('fr-FR'),
-      zone,
-      simRecues,
-      auteurId:    currentUser.id,
-      auteurNom:   currentUser.nom,
-      auteurRole:  currentUser.role,
-      observation: obs
+      action:     'saveStockSIM',
+      date:       new Date(date).toLocaleDateString('fr-FR'),
+      simDebut,
+      simFin,
+      quantite,
+      auteurId:   currentUser.id,
+      auteurNom:  currentUser.nom,
+      auteurRole: currentUser.role
     };
 
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Envoi…'; }
@@ -4276,7 +4264,7 @@
       const json = await res.json();
       if (json.success) {
         showToast(
-          `${simRecues} SIM enregistrées — ${zone}`,
+          `${quantite} SIM enregistrées (${simDebut} → ${simFin})`,
           `Saisie de ${currentUser.nom} sauvegardée dans Google Sheets`
         );
         _resetStockForm();
@@ -4295,14 +4283,10 @@
     const dateEl = document.getElementById('stock-field-date');
     if (dateEl) dateEl.value = todayISO;
 
-    const zoneEl = document.getElementById('stock-field-zone');
-    if (zoneEl && !zoneEl.disabled) zoneEl.value = '';
-
-    const simEl = document.getElementById('stock-field-sim-recues');
-    if (simEl) simEl.value = '';
-
-    const obsEl = document.getElementById('stock-field-obs');
-    if (obsEl) obsEl.value = '';
+    ['stock-field-sim-debut', 'stock-field-sim-fin', 'stock-field-quantite'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
 
     const fb = document.getElementById('stock-form-feedback');
     if (fb) fb.style.display = 'none';

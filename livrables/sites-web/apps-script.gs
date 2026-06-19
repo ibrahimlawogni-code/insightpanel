@@ -411,7 +411,7 @@ function _initDemandesSheet(sheet) {
 // ─────────────────────────────────────────────────────────────
 // STOCK SIM GSM — ENREGISTREMENT
 // Feuille "StockSIM" — colonnes :
-//   Date | Zone | SIM Reçues | Auteur ID | Auteur Nom | Rôle | Observation | Horodatage
+//   Date | N° SIM Début | N° SIM Fin | Quantité | Auteur ID | Auteur Nom | Rôle | Horodatage
 // ─────────────────────────────────────────────────────────────
 function handleSaveStockSIM(data) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -422,13 +422,13 @@ function handleSaveStockSIM(data) {
   }
 
   sheet.appendRow([
-    data.date        || new Date().toLocaleDateString('fr-FR'),
-    data.zone        || '',
-    Number(data.simRecues) || 0,
-    data.auteurId    || '',
-    data.auteurNom   || '',
-    data.auteurRole  || '',
-    data.observation || '',
+    data.date       || new Date().toLocaleDateString('fr-FR'),
+    data.simDebut   || '',
+    data.simFin     || '',
+    Number(data.quantite) || 0,
+    data.auteurId   || '',
+    data.auteurNom  || '',
+    data.auteurRole || '',
     new Date().toLocaleString('fr-FR')
   ]);
 
@@ -437,7 +437,6 @@ function handleSaveStockSIM(data) {
 
 // ─────────────────────────────────────────────────────────────
 // STOCK SIM GSM — LECTURE
-// Retourne toutes les lignes de la feuille "StockSIM" en JSON
 // ─────────────────────────────────────────────────────────────
 function handleGetStockSIM(data) {
   const ss    = SpreadsheetApp.openById(SHEET_ID);
@@ -450,16 +449,16 @@ function handleGetStockSIM(data) {
   const result = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    if (!r[0] && !r[1]) continue; // ligne vide
+    if (!r[0] && !r[1]) continue;
     result.push({
-      date:        r[0] ? r[0].toString().trim() : '',
-      zone:        r[1] ? r[1].toString().trim() : '',
-      simRecues:   Number(r[2]) || 0,
-      auteurId:    r[3] ? r[3].toString().trim() : '',
-      auteurNom:   r[4] ? r[4].toString().trim() : '',
-      auteurRole:  r[5] ? r[5].toString().trim() : '',
-      observation: r[6] ? r[6].toString().trim() : '',
-      horodatage:  r[7] ? r[7].toString().trim() : ''
+      date:       r[0] ? r[0].toString().trim() : '',
+      simDebut:   r[1] ? r[1].toString().trim() : '',
+      simFin:     r[2] ? r[2].toString().trim() : '',
+      quantite:   Number(r[3]) || 0,
+      auteurId:   r[4] ? r[4].toString().trim() : '',
+      auteurNom:  r[5] ? r[5].toString().trim() : '',
+      auteurRole: r[6] ? r[6].toString().trim() : '',
+      horodatage: r[7] ? r[7].toString().trim() : ''
     });
   }
   return jsonResponse({ success: true, data: result });
@@ -467,7 +466,7 @@ function handleGetStockSIM(data) {
 
 function _initStockSIMSheet(sheet) {
   const headers = [
-    'Date', 'Zone', 'SIM Reçues', 'Auteur ID', 'Auteur Nom', 'Rôle', 'Observation', 'Horodatage'
+    'Date', 'N° SIM Début', 'N° SIM Fin', 'Quantité', 'Auteur ID', 'Auteur Nom', 'Rôle', 'Horodatage'
   ];
   sheet.appendRow(headers);
   sheet.setFrozenRows(1);
@@ -479,12 +478,12 @@ function _initStockSIMSheet(sheet) {
   hr.setHorizontalAlignment('center');
 
   sheet.setColumnWidth(1, 90);   // Date
-  sheet.setColumnWidth(2, 160);  // Zone
-  sheet.setColumnWidth(3, 90);   // SIM Reçues
-  sheet.setColumnWidth(4, 150);  // Auteur ID
-  sheet.setColumnWidth(5, 160);  // Auteur Nom
-  sheet.setColumnWidth(6, 90);   // Rôle
-  sheet.setColumnWidth(7, 220);  // Observation
+  sheet.setColumnWidth(2, 130);  // N° SIM Début
+  sheet.setColumnWidth(3, 130);  // N° SIM Fin
+  sheet.setColumnWidth(4, 80);   // Quantité
+  sheet.setColumnWidth(5, 150);  // Auteur ID
+  sheet.setColumnWidth(6, 160);  // Auteur Nom
+  sheet.setColumnWidth(7, 90);   // Rôle
   sheet.setColumnWidth(8, 140);  // Horodatage
 }
 
