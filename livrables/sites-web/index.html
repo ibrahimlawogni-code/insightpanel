@@ -1472,6 +1472,7 @@
           <span id="agent-dfa-select-hint" style="font-size:11px;color:var(--gray-text);display:none">
             <i class="fa fa-circle-info" style="margin-right:3px"></i>Vue en lecture seule
           </span>
+          <span id="agent-sync-info" style="font-size:11px;color:var(--gray-text);margin-left:8px"></span>
         </div>
       </div>
 
@@ -2625,8 +2626,8 @@
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
 
-  /* Pré-remplir la date du jour dans les formulaires */
-  const todayISO = today.toISOString().split('T')[0];
+  /* Pré-remplir la date du jour dans les formulaires — utiliser l'heure locale, pas UTC */
+  const todayISO = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   const todayLabel = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const dateField = document.getElementById('field-date');
@@ -3513,6 +3514,18 @@
         : `${currentUser.nom} · ${currentUser.role} · Zone ${currentUser.zone}`;
     }
     updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier();
+    _renderAgentSyncInfo();
+  }
+
+  function _renderAgentSyncInfo() {
+    const el = document.getElementById('agent-sync-info');
+    if (!el) return;
+    const id = agentViewDfaId;
+    if (!id) { el.textContent = ''; return; }
+    const total     = SAISIES_DATA.filter(s => s.dfaId === id).length;
+    const todaySais = SAISIES_DATA.filter(s => s.dfaId === id && _parseSaisieDate(s.date) === todayISO).length;
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    el.textContent = `Sync ${now} · ${total} saisie(s) en mémoire · ${todaySais} aujourd'hui`;
   }
 
   function _activateEquipesView() {
@@ -8071,6 +8084,7 @@
     renderDashAlertes();
     _renderAgentEvalCard();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
+    _renderAgentSyncInfo();
   }
 
   /* --- Période active des KPI cards dashboard --- */
