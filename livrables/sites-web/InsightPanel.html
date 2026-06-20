@@ -7528,11 +7528,13 @@
   function _filterPeriod(saisies, period, refDate) {
     const ref = (refDate instanceof Date) ? refDate : today;
     return saisies.filter(s => {
-      const d = _parseFrDate(s.date);
-      if (!d) return false;
-      if (period === 'jour')    return _sameDay(d, ref);
-      if (period === 'semaine') return _sameWeek(d, ref);
-      if (period === 'mois')    return _sameMonth(d, ref);
+      const iso = _parseSaisieDate(s.date);
+      if (!iso) return false;
+      const [y, m, d] = iso.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (period === 'jour')    return _sameDay(dt, ref);
+      if (period === 'semaine') return _sameWeek(dt, ref);
+      if (period === 'mois')    return _sameMonth(dt, ref);
       return true;
     });
   }
@@ -8048,7 +8050,6 @@
     const p       = dashKpiPeriod;
     const jours   = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
     const keyMois = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
-    const daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
 
     /* Sous-titre selon la période */
     const sub = document.getElementById('dash-subtitle');
