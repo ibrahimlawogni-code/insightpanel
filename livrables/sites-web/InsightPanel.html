@@ -5017,7 +5017,16 @@
     if (_usersInFlight) return _usersInFlight;
     _usersInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) })
       .then(r => r.json())
-      .then(json => { if (json.success && Array.isArray(json.users)) { USERS = json.users; try { localStorage.setItem('ip_users_v1', JSON.stringify({ data: USERS, ts: Date.now() })); } catch {} } })
+      .then(json => {
+        if (json.success && Array.isArray(json.users)) {
+          USERS = json.users;
+          try { localStorage.setItem('ip_users_v1', JSON.stringify({ data: USERS, ts: Date.now() })); } catch {}
+          /* Mettre à jour le menu et la vue superviseur si elle est active */
+          _renderSupNavItems();
+          if (currentSupSelected) _renderSupView(currentSupSelected);
+          else if (currentUser?.role === 'superviseur') { currentSupSelected = currentUser.id; _renderSupView(currentSupSelected); }
+        }
+      })
       .catch(() => {})
       .finally(() => { _usersInFlight = null; });
     return _usersInFlight;
@@ -5398,10 +5407,13 @@
     _renderSupView(currentSupSelected);
   }
 
-  function _initSupSelector() {
+  async function _initSupSelector() {
+    /* Attendre que USERS soit chargé avant de rendre la vue */
+    await _ensureUsersLoaded();
     if (currentUser && currentUser.role === 'superviseur') {
       currentSupSelected = currentUser.id;
     }
+    _renderSupNavItems();
     _renderSupView(currentSupSelected);
   }
 
