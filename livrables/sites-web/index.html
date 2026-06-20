@@ -4072,7 +4072,13 @@
     const stockEl  = document.getElementById('saisie-field-stock');
     if (!stockEl) return;
     if (simRecu === null) { stockEl.value = ''; return; }
-    const reste = simRecu - saisieSIMs.length;
+    /* Soustraire les SIMs déjà soumises ce jour par ce DFA (soumissions précédentes) */
+    const dejaSoumis = (currentUser && SAISIES_DATA.length)
+      ? SAISIES_DATA
+          .filter(s => s.dfaId === currentUser.id && _parseSaisieDate(s.date) === todayISO)
+          .reduce((sum, s) => sum + (Number(s.grossAdd) || 0), 0)
+      : 0;
+    const reste = simRecu - dejaSoumis - saisieSIMs.length;
     stockEl.value = reste >= 0 ? reste : 0;
   }
 
@@ -4131,6 +4137,9 @@
     if (!navigator.onLine) {
       _addToPendingQueue(payload);
       if (simRecu !== null) _markSimRecuFait(simRecu);
+      SAISIES_DATA.push({ date: new Date(date).toLocaleDateString('fr-FR'), dfaId, dfaNom, zone: equipe, grossAdd, momoUser: momoCount, stockSIM: Number(stock) || 0, simList: saisieSIMs.map(s => s.sim).join(',') });
+      try { localStorage.setItem('ip_saisies_v1', JSON.stringify({ data: SAISIES_DATA, ts: Date.now() })); } catch {}
+      _onSaisiesLoaded();
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer vers Sheets'; }
       showToast(
         `${grossAdd} activation${grossAdd > 1 ? 's' : ''} sauvegardée${grossAdd > 1 ? 's' : ''} localement`,
@@ -4145,6 +4154,19 @@
       const json = await res.json();
       if (json.success) {
         if (simRecu !== null) _markSimRecuFait(simRecu);
+        /* Injection optimiste dans SAISIES_DATA pour mise à jour immédiate du cumul */
+        SAISIES_DATA.push({
+          date:     new Date(date).toLocaleDateString('fr-FR'),
+          dfaId,
+          dfaNom,
+          zone:     equipe,
+          grossAdd,
+          momoUser: momoCount,
+          stockSIM: Number(stock) || 0,
+          simList:  saisieSIMs.map(s => s.sim).join(','),
+        });
+        try { localStorage.setItem('ip_saisies_v1', JSON.stringify({ data: SAISIES_DATA, ts: Date.now() })); } catch {}
+        _onSaisiesLoaded();
         showToast(
           `${grossAdd} activation${grossAdd > 1 ? 's' : ''} enregistrée${grossAdd > 1 ? 's' : ''} !`,
           `${dfaNom} · ${momoCount} New MoMo User · Données sauvegardées dans Google Sheets`
