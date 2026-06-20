@@ -7,6 +7,19 @@
 
 ---
 
+## 2026-06-20 — Session 2
+
+### InsightPanel — Tabs Vue d'ensemble + audit intégrité données
+
+- Tabs Aujourd'hui / Semaine / Mois câblés sur les 4 KPI cards du dashboard (labels et deltas dynamiques selon la période)
+- `setDashPeriod(period, el)` : bascule la période active et relance `renderDashKPIs()`
+- `renderDashKPIs()` rendu period-aware : filtre filCurr / filPrev, delta vs hier/S-1/M-1, label dynamique
+- Audit intégrité post-modifications : bug critique découvert dans `_filterPeriod`
+- Fix `_filterPeriod` : remplace `_parseFrDate` (DD/MM/YYYY uniquement) par `_parseSaisieDate` (tous formats). Les vues Semaine et Mois affichaient 0 sur toute la base car Apps Script peut renvoyer des dates ISO ou Date.toString()
+- Ce bug touchait silencieusement tous les dashboards utilisant `_filterPeriod` (rapports, perf superviseur, bestseller, agent)
+
+---
+
 ## 2026-06-20
 
 ### InsightPanel — Fix vue superviseur + audit complet + corrections rapports
