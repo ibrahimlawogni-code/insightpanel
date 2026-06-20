@@ -1452,7 +1452,12 @@
           <div class="page-title">Mon espace — Agent DFA</div>
           <div class="page-subtitle" id="agent-page-subtitle">—</div>
         </div>
-        <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge badge-green"><i class="fa fa-circle" style="font-size:7px"></i> En ligne</span>
+          <button class="btn btn-secondary btn-sm" onclick="loadSaisiesData().then(()=>{ const id=agentViewDfaId; if(id) setAgentViewDfa(id); })" title="Synchroniser les données">
+            <i class="fa fa-rotate-right"></i> Actualiser
+          </button>
+        </div>
       </div>
 
       <!-- SÉLECTEUR DFA (superviseur / ra uniquement) -->
@@ -2872,6 +2877,8 @@
       agentViewDfaId = null;
       _initAgentDfaSelector();
       updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); _renderAgentEvalCard();
+      /* Rafraîchir les données depuis Sheets à chaque ouverture de la vue */
+      loadSaisiesData();
     }
     if (name === 'evaluation')  _renderEvaluationView();
     if (name === 'saisie')      _initSaisieView();
