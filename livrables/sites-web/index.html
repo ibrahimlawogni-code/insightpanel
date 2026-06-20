@@ -18,6 +18,14 @@
       --orange: #FD7E14;
       --red: #DC3545;
       --sidebar-w: 224px;
+      /* Alias utilisés dans les rapports et cartes KPI */
+      --text: #1A1A1A;
+      --text-muted: #6c757d;
+      --border: #E0E0E0;
+      --card-bg: #FFFFFF;
+      --bg: #F5F5F5;
+      --success: #28A745;
+      --danger: #DC3545;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -8006,13 +8014,11 @@
     const sub = document.getElementById('dash-subtitle');
     if (sub) sub.textContent = 'Performance en temps réel · ' + jours[today.getDay()] + ' ' + today.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
 
-    const todayStr  = today.toLocaleDateString('fr-FR');
     const keyMois   = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
-    const fil_jour  = SAISIES_DATA.filter(s => s.date === todayStr);
-    const fil_hier  = SAISIES_DATA.filter(s => {
-      const h = new Date(today); h.setDate(h.getDate()-1);
-      return s.date === h.toLocaleDateString('fr-FR');
-    });
+    const hierDate  = new Date(today); hierDate.setDate(hierDate.getDate() - 1);
+    const hierISO   = hierDate.toISOString().slice(0, 10);
+    const fil_jour  = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === todayISO);
+    const fil_hier  = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === hierISO);
     const fil_mois  = _filterPeriod(SAISIES_DATA, 'mois', today);
 
     const gaJour    = _sumField(fil_jour, 'grossAdd');
@@ -8589,7 +8595,7 @@
     const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.dfaId === (user ? user.id : null)) : (agentPerfData || []);
     const fil   = _rapportFilter(mine, period, refDate);
     const ga    = _sumField(fil, 'grossAdd');
-    const momo  = _sumField(fil, 'momo');
+    const momo  = _sumField(fil, 'momoUser');
     const tgt   = _rapportObjectif(period, 1);
     const pct   = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
     const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
@@ -8670,18 +8676,18 @@
     const agentIds = agents.map(a => a.id);
 
     const allSaisies = SAISIES_DATA.length ? SAISIES_DATA : [];
-    const zoneSaisies = allSaisies.filter(s => agentIds.includes(s.agentId));
+    const zoneSaisies = allSaisies.filter(s => agentIds.includes(s.dfaId));
     const fil  = _rapportFilter(zoneSaisies, period, refDate);
     const ga   = _sumField(fil, 'grossAdd');
-    const momo = _sumField(fil, 'momo');
+    const momo = _sumField(fil, 'momoUser');
     const tgt  = _rapportObjectif(period, nbA);
     const pct  = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
     const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
 
     // Actifs ce jour (ayant au moins une saisie sur la période)
     const agentsFil = agents.map(a => {
-      const aSaisies = fil.filter(s => s.agentId === a.id);
-      return { ...a, ga: _sumField(aSaisies, 'grossAdd'), momo: _sumField(aSaisies, 'momo') };
+      const aSaisies = fil.filter(s => s.dfaId === a.id);
+      return { ...a, ga: _sumField(aSaisies, 'grossAdd'), momo: _sumField(aSaisies, 'momoUser') };
     }).sort((a,b) => b.ga - a.ga);
 
     const actifs  = agentsFil.filter(a => a.ga > 0).length;
@@ -8767,19 +8773,19 @@
     const agentIds = agents.map(a => a.id);
 
     const allSaisies = SAISIES_DATA.length ? SAISIES_DATA : [];
-    const fil   = _rapportFilter(allSaisies.filter(s => agentIds.includes(s.agentId)), period, refDate);
+    const fil   = _rapportFilter(allSaisies.filter(s => agentIds.includes(s.dfaId)), period, refDate);
     const ga    = _sumField(fil, 'grossAdd');
-    const momo  = _sumField(fil, 'momo');
+    const momo  = _sumField(fil, 'momoUser');
     const tgt   = _rapportObjectif(period, nbA);
     const pct   = tgt > 0 ? Math.round(ga / tgt * 100) : 0;
     const momoP = ga > 0 ? Math.round(momo / ga * 100) : 0;
-    const actifs = agents.filter(a => fil.some(s => s.agentId === a.id)).length;
+    const actifs = agents.filter(a => fil.some(s => s.dfaId === a.id)).length;
 
     // Agrégats par zone superviseur
     const zones = sups.map(sup => {
       const zAgents = agents.filter(u => _normZ(u.zone) === _normZ(sup.zone));
       const zIds    = zAgents.map(u => u.id);
-      const zFil    = fil.filter(s => zIds.includes(s.agentId));
+      const zFil    = fil.filter(s => zIds.includes(s.dfaId));
       const zGa     = _sumField(zFil, 'grossAdd');
       const zTgt    = _rapportObjectif(period, zAgents.length);
       const zPct    = zTgt > 0 ? Math.round(zGa / zTgt * 100) : 0;
