@@ -2769,6 +2769,12 @@
 
     /* 2. Rafraîchir saisies + users en parallèle depuis Sheets */
     setTimeout(() => { Promise.all([loadSaisiesData(), _ensureUsersLoaded()]); }, 0);
+
+    /* 3. Auto-refresh toutes les 3 minutes pour récupérer les saisies des autres DFAs */
+    if (window._autoRefreshInterval) clearInterval(window._autoRefreshInterval);
+    window._autoRefreshInterval = setInterval(() => {
+      if (navigator.onLine) loadSaisiesData();
+    }, 3 * 60 * 1000);
   }
 
   function toggleLoginPwd() {
@@ -5057,6 +5063,8 @@
   let _saisiesInFlight     = null;
   /* Flag distinct du seed USERS_SEED : true seulement quand les vrais comptes Sheets sont chargés */
   let _usersFromSheets     = false;
+  /* Flag saisies : true après le premier chargement réel depuis Sheets ou cache valide */
+  let _saisiesFromSheets   = false;
 
   async function _ensureUsersLoaded() {
     /* USERS démarre avec USERS_SEED (6 comptes), donc length > 0 n'est pas suffisant.
@@ -5084,12 +5092,12 @@
   }
 
   async function _ensureSaisiesLoaded() {
-    if (Array.isArray(SAISIES_DATA) && SAISIES_DATA.length > 0) return;
+    if (_saisiesFromSheets) return;
     if (!APPS_SCRIPT_URL.startsWith('https')) return;
     if (_saisiesInFlight) return _saisiesInFlight;
     _saisiesInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisies' }) })
       .then(r => r.json())
-      .then(json => { if (json.success && Array.isArray(json.saisies)) SAISIES_DATA = json.saisies; })
+      .then(json => { if (json.success && Array.isArray(json.saisies)) { SAISIES_DATA = json.saisies; _saisiesFromSheets = true; } })
       .catch(() => {})
       .finally(() => { _saisiesInFlight = null; });
     return _saisiesInFlight;
@@ -7653,7 +7661,7 @@
   function _loadCache() {
     try {
       const sc = localStorage.getItem(_SAISIES_CACHE_KEY);
-      if (sc) { const { data, ts } = JSON.parse(sc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { SAISIES_DATA = data; _onSaisiesLoaded(); } }
+      if (sc) { const { data, ts } = JSON.parse(sc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { SAISIES_DATA = data; _saisiesFromSheets = true; _onSaisiesLoaded(); } }
     } catch {}
     try {
       const uc = localStorage.getItem(_USERS_CACHE_KEY);
@@ -7675,6 +7683,7 @@
       const json = await res.json();
       if (json.success) {
         SAISIES_DATA = json.saisies || [];
+        _saisiesFromSheets = true;
         try { localStorage.setItem(_SAISIES_CACHE_KEY, JSON.stringify({ data: SAISIES_DATA, ts: Date.now() })); } catch {}
         _onSaisiesLoaded();
       }
