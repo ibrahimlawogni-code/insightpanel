@@ -7,6 +7,23 @@
 
 ---
 
+## 2026-06-20
+
+### InsightPanel — Fix vue superviseur + audit complet + corrections rapports
+
+- Fix critique : vue superviseur toujours vide pour BAH Ghislain et autres superviseurs. Cause racine : USERS démarrait avec USERS_SEED (6 comptes), `_ensureUsersLoaded()` voyait `USERS.length > 0` et ne fetchait jamais Sheets. Les superviseurs, absents du seed, étaient introuvables → "Sélectionnez un superviseur" permanent.
+- Fix : ajout du flag `_usersFromSheets` (true uniquement après réponse Sheets ou cache valide)
+- `_initSupSelector()` rendue async, attend `_ensureUsersLoaded()` avant de rendre la vue
+- `_ensureUsersLoaded()` : après chargement, relance `_renderSupNavItems()` et `_renderSupView()`
+- Audit complet de tous les dashboards (agent, superviseur, RA, rapports, stocks, KPIs)
+- Fix rapports Superviseur et RA : `s.agentId` → `s.dfaId` (GA et MoMo toujours à 0)
+- Fix taux MoMo dans les 3 fonctions de rapport : `'momo'` → `'momoUser'`
+- Fix `renderDashKPIs` : comparaison de date par string → `_parseSaisieDate()` + `todayISO` (KPIs du jour affichaient 0 si format Sheets différent)
+- Fix CSS : ajout de `--text`, `--text-muted`, `--border`, `--card-bg`, `--bg`, `--success`, `--danger` dans `:root` (textes invisibles dans les cartes KPI des rapports)
+- Les DFA ont commencé à saisir des données réelles dans Google Sheets
+
+---
+
 ## 2026-06-19 — Session 2
 
 ### InsightPanel — Nettoyage données fictives + automatisation complète

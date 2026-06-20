@@ -1119,35 +1119,35 @@
           <div class="page-title">Tableau de bord</div>
           <div class="page-subtitle" id="dash-subtitle">Performance en temps réel</div>
         </div>
-        <div class="tabs">
-          <button class="tab active">Aujourd'hui</button>
-          <button class="tab">Semaine</button>
-          <button class="tab">Mois</button>
+        <div class="tabs" id="dash-kpi-tabs">
+          <button class="tab active" onclick="setDashPeriod('jour',this)">Aujourd'hui</button>
+          <button class="tab" onclick="setDashPeriod('semaine',this)">Semaine</button>
+          <button class="tab" onclick="setDashPeriod('mois',this)">Mois</button>
         </div>
       </div>
 
       <!-- KPI CARDS -->
       <div class="kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-label">Gross Add du jour</div>
+          <div class="kpi-label" id="kpi-label-ga">Gross Add du jour</div>
           <div class="kpi-value" id="kpi-ga-jour">—</div>
           <div class="kpi-delta neutral" id="kpi-ga-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">New MoMo User</div>
+          <div class="kpi-label" id="kpi-label-momo">New MoMo User</div>
           <div class="kpi-value" id="kpi-momo-jour">—</div>
           <div class="kpi-delta neutral" id="kpi-momo-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-wallet"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Agents actifs aujourd'hui</div>
+          <div class="kpi-label" id="kpi-label-agents">Agents actifs aujourd'hui</div>
           <div class="kpi-value" id="kpi-agents-actifs">—</div>
           <div class="kpi-delta neutral" id="kpi-agents-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-users"></i></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Activations ce mois</div>
+          <div class="kpi-label" id="kpi-label-mois">Activations ce mois</div>
           <div class="kpi-value" id="kpi-ga-mois">—</div>
           <div class="kpi-delta neutral" id="kpi-ga-mois-delta"><i class="fa fa-clock"></i> Chargement…</div>
           <div class="kpi-bg-icon"><i class="fa fa-chart-line"></i></div>
@@ -4179,10 +4179,13 @@
     }
 
     const dfaEl = document.getElementById('saisie-field-dfa');
-    if (dfaEl && !dfaEl.value) dfaEl.value = currentUser.nom || '';
+    if (dfaEl) dfaEl.value = currentUser.nom || '';
     const eqEl = document.getElementById('saisie-field-equipe');
     if (eqEl && !eqEl.value) {
-      [...eqEl.options].forEach(o => { if (o.value === currentUser.zone) eqEl.value = currentUser.zone; });
+      /* Normaliser pour tolérer les variantes d'accents et tirets */
+      const userZoneN = _normZ(currentUser.zone);
+      const match = [...eqEl.options].find(o => _normZ(o.value) === userZoneN);
+      if (match) eqEl.value = match.value;
     }
     const dateEl = document.getElementById('saisie-field-date');
     if (dateEl && !dateEl.value) dateEl.value = todayISO;
@@ -4410,7 +4413,7 @@
   function resetSaisie() {
     saisieSIMs = [];
     _renderSIMList();
-    ['saisie-field-sim','saisie-field-mtn','saisie-field-dfa',
+    ['saisie-field-sim','saisie-field-mtn',
      'saisie-field-momo','saisie-field-stock',
      'saisie-field-observation'].forEach(id => {
       const el = document.getElementById(id);
@@ -4418,8 +4421,15 @@
     });
     const ga = document.getElementById('saisie-field-activation');
     if (ga) ga.value = '';
+    /* Re-peupler DFA et zone automatiquement après reset */
+    const dfaEl = document.getElementById('saisie-field-dfa');
+    if (dfaEl && currentUser) dfaEl.value = currentUser.nom || '';
     const eq = document.getElementById('saisie-field-equipe');
-    if (eq) eq.value = '';
+    if (eq && currentUser) {
+      const userZoneN = _normZ(currentUser.zone);
+      const match = [...eq.options].find(o => _normZ(o.value) === userZoneN);
+      if (match) eq.value = match.value; else eq.value = '';
+    }
     const dateEl = document.getElementById('saisie-field-date');
     if (dateEl) dateEl.value = todayISO;
     const fb = document.getElementById('saisie-form-feedback');
@@ -4817,17 +4827,22 @@
     /* Analyser chaque saisie qui a des numéros SIM */
     _detectionData = [];
     (SAISIES_DATA || []).forEach(s => {
+      const isoDate = _parseSaisieDate(s.date) || '';
+      /* Dériver le superviseur depuis la zone si superviseurId absent */
+      const supFromZone = (USERS || []).find(u => u.role === 'superviseur' && _normZ(u.zone) === _normZ(s.zone));
+      const supId = s.superviseurId || (supFromZone ? supFromZone.id : '');
+      const dateLabel = isoDate ? isoDate.slice(8,10)+'/'+isoDate.slice(5,7)+'/'+isoDate.slice(0,4) : (s.date || '—');
+
       const sims = _parseSimList(s.simList);
       if (!sims.length) {
-        _detectionData.push({ date: s.date, dfaNom: s.dfaNom || s.dfaId, zone: s.zone, simNum: '—', statut: 'nr', supId: '' });
+        _detectionData.push({ date: dateLabel, isoDate, dfaNom: s.dfaNom || s.dfaId, zone: s.zone, simNum: '—', statut: 'nr', supId });
         return;
       }
       sims.forEach(simNum => {
         const inRange = ranges.some(r => _isSimInRange(simNum, r.debut, r.fin));
         _detectionData.push({
-          date: s.date, dfaNom: s.dfaNom || s.dfaId, zone: s.zone,
-          simNum, statut: inRange ? 'off' : 'ext',
-          supId: s.superviseurId || ''
+          date: dateLabel, isoDate, dfaNom: s.dfaNom || s.dfaId, zone: s.zone,
+          simNum, statut: inRange ? 'off' : 'ext', supId
         });
       });
     });
@@ -4842,8 +4857,8 @@
 
     const filtered = _detectionData.filter(r => {
       if (supFilter && r.supId !== supFilter) return false;
-      if (debFilter && r.date < debFilter) return false;
-      if (finFilter && r.date > finFilter)  return false;
+      if (debFilter && r.isoDate && r.isoDate < debFilter) return false;
+      if (finFilter && r.isoDate && r.isoDate > finFilter) return false;
       return true;
     });
 
@@ -5036,6 +5051,7 @@
           try { localStorage.setItem('ip_users_v1', JSON.stringify({ data: USERS, ts: Date.now() })); } catch {}
           /* Mettre à jour le menu et la vue superviseur si elle est active */
           _renderSupNavItems();
+          renderTeamStats();
           if (currentSupSelected) _renderSupView(currentSupSelected);
           else if (currentUser?.role === 'superviseur') { currentSupSelected = currentUser.id; _renderSupView(currentSupSelected); }
         }
@@ -5694,12 +5710,21 @@
     const rows = superviseurs.map(sup => {
       let d;
       if (SAISIES_DATA.length) {
-        const zSaisies = _filterPeriod(_filterZone(SAISIES_DATA, sup.zone), currentSupPeriod, today);
+        const zAll    = _filterZone(SAISIES_DATA, sup.zone);
+        const zSaisies = _filterPeriod(zAll, currentSupPeriod, today);
         const ga  = _sumField(zSaisies, 'grossAdd');
         const mm  = _sumField(zSaisies, 'momoUser');
         const mj  = _moyJour(zSaisies, 'grossAdd');
         const tgt = _zoneTarget(sup.zone, currentSupPeriod) || 70;
-        d = { grossAdd: ga, newMomo: mm, target: tgt, moyJour: mj, evolutif: 0 };
+        /* Calcul évolution vs période précédente */
+        const refPrev = new Date(today);
+        if (currentSupPeriod === 'jour')    refPrev.setDate(refPrev.getDate() - 1);
+        else if (currentSupPeriod === 'semaine') refPrev.setDate(refPrev.getDate() - 7);
+        else if (currentSupPeriod === 'mois')    refPrev.setMonth(refPrev.getMonth() - 1);
+        const zPrev = _filterPeriod(zAll, currentSupPeriod, refPrev);
+        const gaP   = _sumField(zPrev, 'grossAdd');
+        const evolutif = gaP > 0 ? parseFloat(((ga - gaP) / gaP * 100).toFixed(1)) : 0;
+        d = { grossAdd: ga, newMomo: mm, target: tgt, moyJour: mj, evolutif };
       } else {
         d = (SUP_PERF_DATA[sup.id] || {})[currentSupPeriod] || { grossAdd: 0, newMomo: 0, target: 70, moyJour: 0, evolutif: 0 };
       }
@@ -8008,37 +8033,66 @@
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
   }
 
-  /* --- KPI cards dashboard (Gross Add, MoMo, agents actifs, mois) --- */
+  /* --- Période active des KPI cards dashboard --- */
+  let dashKpiPeriod = 'jour';
+
+  function setDashPeriod(period, el) {
+    dashKpiPeriod = period;
+    document.querySelectorAll('#dash-kpi-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderDashKPIs();
+  }
+
+  /* --- KPI cards dashboard — sensible à dashKpiPeriod (jour / semaine / mois) --- */
   function renderDashKPIs() {
-    const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const p       = dashKpiPeriod;
+    const jours   = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const keyMois = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+    const daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+
+    /* Sous-titre selon la période */
     const sub = document.getElementById('dash-subtitle');
-    if (sub) sub.textContent = 'Performance en temps réel · ' + jours[today.getDay()] + ' ' + today.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
-
-    const keyMois   = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
-    const hierDate  = new Date(today); hierDate.setDate(hierDate.getDate() - 1);
-    const hierISO   = hierDate.toISOString().slice(0, 10);
-    const fil_jour  = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === todayISO);
-    const fil_hier  = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === hierISO);
-    const fil_mois  = _filterPeriod(SAISIES_DATA, 'mois', today);
-
-    const gaJour    = _sumField(fil_jour, 'grossAdd');
-    const gaHier    = _sumField(fil_hier, 'grossAdd');
-    const momoJour  = _sumField(fil_jour, 'momoUser');
-    const momoHier  = _sumField(fil_hier, 'momoUser');
-    const gaMois    = _sumField(fil_mois, 'grossAdd');
-    const nbActifs  = new Set(fil_jour.map(s => s.dfaId)).size;
-    const nbTotal   = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
-
-    const pctMois   = (() => { const t = MONTHLY_TARGETS[keyMois]; return (t && t.gsm) ? Math.round(gaMois / t.gsm * 100) : null; })();
-
-    const delta = (val, ref, unit) => {
-      if (!ref) return '<i class="fa fa-minus"></i> Pas de données hier';
-      const diff = Math.round((val - ref) / Math.max(1, ref) * 100);
-      if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs hier`;
-      if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs hier`;
-      return '<i class="fa fa-minus"></i> Stable vs hier';
+    const subLabels = {
+      jour:    'Performance en temps réel · ' + jours[today.getDay()] + ' ' + today.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
+      semaine: 'Performance hebdomadaire · ' + _semaineLisible(today),
+      mois:    'Performance mensuelle · ' + today.toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
     };
-    const setKPI = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    if (sub) sub.textContent = subLabels[p] || subLabels.jour;
+
+    /* Filtres période courante et précédente */
+    const refPrev = new Date(today);
+    if (p === 'jour')    refPrev.setDate(refPrev.getDate() - 1);
+    else if (p === 'semaine') refPrev.setDate(refPrev.getDate() - 7);
+    else if (p === 'mois')    refPrev.setMonth(refPrev.getMonth() - 1);
+
+    const filCurr  = p === 'jour'
+      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === todayISO)
+      : _filterPeriod(SAISIES_DATA, p, today);
+    const filPrev  = p === 'jour'
+      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === refPrev.toISOString().slice(0,10))
+      : _filterPeriod(SAISIES_DATA, p, refPrev);
+    const filMois  = _filterPeriod(SAISIES_DATA, 'mois', today);
+
+    const gaCurr   = _sumField(filCurr, 'grossAdd');
+    const gaPrev   = _sumField(filPrev, 'grossAdd');
+    const momoCurr = _sumField(filCurr, 'momoUser');
+    const momoPrev = _sumField(filPrev, 'momoUser');
+    const gaMois   = _sumField(filMois, 'grossAdd');
+    const nbActifs = new Set(filCurr.map(s => s.dfaId)).size;
+    const nbTotal  = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
+    const pctMois  = (() => { const t = MONTHLY_TARGETS[keyMois]; return (t && t.gsm) ? Math.round(gaMois / t.gsm * 100) : null; })();
+
+    const refLabel = p === 'jour' ? 'hier' : p === 'semaine' ? 'S-1' : 'M-1';
+    const delta = (val, ref) => {
+      if (!ref) return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
+      const diff = Math.round((val - ref) / Math.max(1, ref) * 100);
+      if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs ${refLabel}`;
+      if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs ${refLabel}`;
+      return `<i class="fa fa-minus"></i> Stable vs ${refLabel}`;
+    };
+
+    const setKPI   = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const setLabel = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     const setDelta = (id, html, cls) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -8046,20 +8100,32 @@
       el.className = 'kpi-delta ' + (cls || 'neutral');
     };
 
-    setKPI('kpi-ga-jour', gaJour || (SAISIES_DATA.length ? '0' : '—'));
-    setDelta('kpi-ga-delta', delta(gaJour, gaHier), gaJour > gaHier ? 'up' : gaJour < gaHier ? 'down' : 'neutral');
+    /* Labels dynamiques selon la période */
+    const periodSuffix = p === 'jour' ? 'du jour' : p === 'semaine' ? 'cette semaine' : 'ce mois';
+    const agentsSuffix = p === 'jour' ? "aujourd'hui" : p === 'semaine' ? 'cette semaine' : 'ce mois';
+    setLabel('kpi-label-ga',     'Gross Add ' + periodSuffix);
+    setLabel('kpi-label-momo',   'New MoMo User ' + periodSuffix);
+    setLabel('kpi-label-agents', 'Agents actifs ' + agentsSuffix);
+    setLabel('kpi-label-mois',   p === 'mois' ? 'Progression objectif mois' : 'Activations ce mois');
 
-    setKPI('kpi-momo-jour', momoJour || (SAISIES_DATA.length ? '0' : '—'));
-    setDelta('kpi-momo-delta', delta(momoJour, momoHier), momoJour > momoHier ? 'up' : momoJour < momoHier ? 'down' : 'neutral');
-
+    /* Valeurs */
+    setKPI('kpi-ga-jour',   gaCurr  || (SAISIES_DATA.length ? '0' : '—'));
+    setKPI('kpi-momo-jour', momoCurr || (SAISIES_DATA.length ? '0' : '—'));
     setKPI('kpi-agents-actifs', SAISIES_DATA.length ? nbActifs + (nbTotal ? ' / ' + nbTotal : '') : '—');
-    setDelta('kpi-agents-delta', nbTotal ? `<i class="fa fa-users"></i> ${Math.round(nbActifs/Math.max(1,nbTotal)*100)} % de l'équipe actifs` : '<i class="fa fa-clock"></i> Chargement…', nbActifs > 0 ? 'up' : 'neutral');
+    setKPI('kpi-ga-mois', p === 'mois'
+      ? (pctMois !== null ? pctMois + ' %' : '—')
+      : (gaMois || (SAISIES_DATA.length ? '0' : '—')));
 
-    setKPI('kpi-ga-mois', gaMois || (SAISIES_DATA.length ? '0' : '—'));
+    /* Deltas */
+    setDelta('kpi-ga-delta',    delta(gaCurr,   gaPrev),   gaCurr   > gaPrev   ? 'up' : gaCurr   < gaPrev   ? 'down' : 'neutral');
+    setDelta('kpi-momo-delta',  delta(momoCurr, momoPrev), momoCurr > momoPrev ? 'up' : momoCurr < momoPrev ? 'down' : 'neutral');
+    setDelta('kpi-agents-delta',
+      nbTotal ? `<i class="fa fa-users"></i> ${Math.round(nbActifs/Math.max(1,nbTotal)*100)} % de l'équipe actifs` : '<i class="fa fa-clock"></i> Chargement…',
+      nbActifs > 0 ? 'up' : 'neutral');
     setDelta('kpi-ga-mois-delta',
-      pctMois !== null
-        ? `<i class="fa fa-bullseye"></i> ${pctMois} % de l'objectif mensuel`
-        : `<i class="fa fa-clock"></i> Chargement…`,
+      p === 'mois'
+        ? (pctMois !== null ? `<i class="fa fa-bullseye"></i> Objectif : ${MONTHLY_TARGETS[keyMois]?.gsm || '—'} SIM` : '<i class="fa fa-clock"></i> Chargement…')
+        : (pctMois !== null ? `<i class="fa fa-bullseye"></i> ${pctMois} % de l'objectif mensuel` : '<i class="fa fa-clock"></i> Chargement…'),
       pctMois >= 80 ? 'up' : pctMois >= 50 ? 'neutral' : (pctMois !== null ? 'down' : 'neutral'));
   }
 
@@ -8153,12 +8219,13 @@
       if (badge) badge.textContent = '—';
       return;
     }
-    const bs = _computeBestsellerData('semaine', 0);
-    const top = (bs || []).slice(0, 5);
+    const bs  = (_computeBestsellerData('semaine', 0) || []).sort((a, b) => b.semaine - a.semaine);
+    const top = bs.slice(0, 5);
     const total = (bs || []).length;
     if (badge) badge.textContent = top.length + ' sur ' + total;
     const medals = ['medal-1','medal-2','medal-3'];
-    const tgtSem = Math.round((MONTHLY_TARGETS[today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0')]?.gsm || DFA_DAILY_TARGET * 7) * 7 / 30);
+    const _daysInM = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const tgtSem = Math.round((MONTHLY_TARGETS[today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0')]?.gsm || DFA_DAILY_TARGET * _daysInM) * 7 / _daysInM);
     tbody.innerHTML = top.map((a, i) => {
       const rank = i < 3
         ? `<i class="fa fa-medal ${medals[i]}"></i>`
