@@ -5008,11 +5008,15 @@
   ============================================================ */
 
   /* Promesses partagées — évite les double-fetch si plusieurs vues chargent en même temps */
-  let _usersInFlight    = null;
-  let _saisiesInFlight  = null;
+  let _usersInFlight       = null;
+  let _saisiesInFlight     = null;
+  /* Flag distinct du seed USERS_SEED : true seulement quand les vrais comptes Sheets sont chargés */
+  let _usersFromSheets     = false;
 
   async function _ensureUsersLoaded() {
-    if (Array.isArray(USERS) && USERS.length > 0) return;
+    /* USERS démarre avec USERS_SEED (6 comptes), donc length > 0 n'est pas suffisant.
+       On vérifie le flag qui prouve que Sheets (ou cache) a répondu. */
+    if (_usersFromSheets) return;
     if (!APPS_SCRIPT_URL.startsWith('https')) return;
     if (_usersInFlight) return _usersInFlight;
     _usersInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) })
@@ -5020,6 +5024,7 @@
       .then(json => {
         if (json.success && Array.isArray(json.users)) {
           USERS = json.users;
+          _usersFromSheets = true;
           try { localStorage.setItem('ip_users_v1', JSON.stringify({ data: USERS, ts: Date.now() })); } catch {}
           /* Mettre à jour le menu et la vue superviseur si elle est active */
           _renderSupNavItems();
@@ -7595,7 +7600,7 @@
     } catch {}
     try {
       const uc = localStorage.getItem(_USERS_CACHE_KEY);
-      if (uc) { const { data, ts } = JSON.parse(uc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { USERS = data; _renderSupNavItems(); } }
+      if (uc) { const { data, ts } = JSON.parse(uc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { USERS = data; _usersFromSheets = true; _renderSupNavItems(); } }
     } catch {}
   }
 
