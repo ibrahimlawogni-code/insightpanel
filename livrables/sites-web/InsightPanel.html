@@ -2756,8 +2756,11 @@
     /* Initialiser le badge saisies en attente */
     _updatePendingBadge();
 
-    /* Charger les vraies données depuis Sheets (non-bloquant) */
-    setTimeout(loadSaisiesData, 0);
+    /* 1. Afficher immédiatement les données du cache (si dispo) */
+    _loadCache();
+
+    /* 2. Rafraîchir saisies + users en parallèle depuis Sheets */
+    setTimeout(() => { Promise.all([loadSaisiesData(), _ensureUsersLoaded()]); }, 0);
   }
 
   function toggleLoginPwd() {
@@ -5004,24 +5007,32 @@
      GESTIONNAIRE DE STOCK — Traçabilité SIM en temps réel
   ============================================================ */
 
+  /* Promesses partagées — évite les double-fetch si plusieurs vues chargent en même temps */
+  let _usersInFlight    = null;
+  let _saisiesInFlight  = null;
+
   async function _ensureUsersLoaded() {
     if (Array.isArray(USERS) && USERS.length > 0) return;
     if (!APPS_SCRIPT_URL.startsWith('https')) return;
-    try {
-      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.users)) USERS = json.users;
-    } catch { }
+    if (_usersInFlight) return _usersInFlight;
+    _usersInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }) })
+      .then(r => r.json())
+      .then(json => { if (json.success && Array.isArray(json.users)) { USERS = json.users; try { localStorage.setItem('ip_users_v1', JSON.stringify({ data: USERS, ts: Date.now() })); } catch {} } })
+      .catch(() => {})
+      .finally(() => { _usersInFlight = null; });
+    return _usersInFlight;
   }
 
   async function _ensureSaisiesLoaded() {
     if (Array.isArray(SAISIES_DATA) && SAISIES_DATA.length > 0) return;
     if (!APPS_SCRIPT_URL.startsWith('https')) return;
-    try {
-      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisies' }) });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.saisies)) SAISIES_DATA = json.saisies;
-    } catch { }
+    if (_saisiesInFlight) return _saisiesInFlight;
+    _saisiesInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisies' }) })
+      .then(r => r.json())
+      .then(json => { if (json.success && Array.isArray(json.saisies)) SAISIES_DATA = json.saisies; })
+      .catch(() => {})
+      .finally(() => { _saisiesInFlight = null; });
+    return _saisiesInFlight;
   }
 
   /* Construit une Map { simNumber -> { dfaId, dfaNom, date, zone } } depuis SAISIES_DATA */
@@ -7560,7 +7571,22 @@
     }));
   }
 
-  /* --- Chargement principal --- */
+  /* --- Chargement principal avec cache localStorage --- */
+  const _SAISIES_CACHE_KEY = 'ip_saisies_v1';
+  const _USERS_CACHE_KEY   = 'ip_users_v1';
+  const _CACHE_TTL         = 8 * 60 * 1000; /* 8 minutes */
+
+  function _loadCache() {
+    try {
+      const sc = localStorage.getItem(_SAISIES_CACHE_KEY);
+      if (sc) { const { data, ts } = JSON.parse(sc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { SAISIES_DATA = data; _onSaisiesLoaded(); } }
+    } catch {}
+    try {
+      const uc = localStorage.getItem(_USERS_CACHE_KEY);
+      if (uc) { const { data, ts } = JSON.parse(uc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { USERS = data; _renderSupNavItems(); } }
+    } catch {}
+  }
+
   async function loadSaisiesData() {
     const syncEl    = document.getElementById('sync-indicator');
     const offlineEl = document.getElementById('offline-indicator');
@@ -7575,6 +7601,7 @@
       const json = await res.json();
       if (json.success) {
         SAISIES_DATA = json.saisies || [];
+        try { localStorage.setItem(_SAISIES_CACHE_KEY, JSON.stringify({ data: SAISIES_DATA, ts: Date.now() })); } catch {}
         _onSaisiesLoaded();
       }
     } catch(e) {
