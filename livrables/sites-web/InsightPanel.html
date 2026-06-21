@@ -5114,8 +5114,9 @@
 
   async function _refreshStocksView() {
     /* Ordre garanti : saisies d'abord, puis stock, puis rendu.
-       On utilise loadSaisiesData() (la fonction principale) plutôt que
-       _ensureSaisiesLoaded() pour éviter les conflits de flags. */
+       On réinitialise _stockFromSheets pour forcer un rechargement frais. */
+    _stockFromSheets = false;
+    _stockInFlight   = null;
     await loadSaisiesData();
     await loadStockHistorique();
     _renderSimVendues();
@@ -5210,32 +5211,48 @@
     }
   }
 
+  let _stockInFlight = null;
+  let _stockFromSheets = false;
+
+  async function _ensureStockLoaded() {
+    if (_stockFromSheets) return;
+    if (_stockInFlight) return _stockInFlight;
+    if (!APPS_SCRIPT_URL.startsWith('https')) return;
+    _stockInFlight = fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockSIM' }) })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && Array.isArray(json.data)) {
+          STOCK_DATA = json.data;
+          _stockFromSheets = true;
+        }
+      })
+      .catch(() => {})
+      .finally(() => { _stockInFlight = null; });
+    return _stockInFlight;
+  }
+
   async function loadStockHistorique() {
     const tbody = document.getElementById('stock-history-tbody');
     const badge = document.getElementById('stock-history-badge');
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>';
 
     if (!APPS_SCRIPT_URL.startsWith('https')) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">URL Apps Script non configurée.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">URL Apps Script non configurée.</td></tr>';
       return;
     }
 
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i> Chargement…</td></tr>';
+
     try {
-      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockSIM' }) });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        STOCK_DATA = json.data;
+      await _ensureStockLoaded();
+      if (tbody) {
         const filtered = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
         _renderStockHistorique(filtered);
-        /* _renderStockGestionnaire() est appelé ici uniquement si SAISIES_DATA
-           est déjà chargé (garanti par _refreshStocksView → await loadSaisiesData) */
-        if (SAISIES_DATA.length > 0 || _saisiesFromSheets) _renderStockGestionnaire();
-      } else {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible.</td></tr>';
       }
+      /* _renderStockGestionnaire() est appelé ici uniquement si SAISIES_DATA
+         est déjà chargé (garanti par _refreshStocksView → await loadSaisiesData) */
+      if (SAISIES_DATA.length > 0 || _saisiesFromSheets) _renderStockGestionnaire();
     } catch {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#721c24;padding:20px"><i class="fa fa-circle-exclamation"></i> Erreur de chargement.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#721c24;padding:20px"><i class="fa fa-circle-exclamation"></i> Erreur de chargement.</td></tr>';
     }
   }
 
@@ -10111,9 +10128,15 @@
   }
 
   // -------------------- ENTRY POINT --------------------
-  function renderRapports() {
+  async function renderRapports() {
     if (!currentUser) return;
     _updateRapportControls();
+
+    const kpiSec = document.getElementById('rapport-kpi-section');
+    if (kpiSec) kpiSec.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted)"><i class="fa fa-spinner fa-spin"></i> Chargement des données…</div>';
+
+    await Promise.all([_ensureSaisiesLoaded(), _ensureStockLoaded()]);
+
     const period  = _rapportPeriod();
     const refDate = _rapportRefDate();
 
@@ -10131,7 +10154,6 @@
       result = _buildRapportRA(period, refDate);
     }
 
-    const kpiSec = document.getElementById('rapport-kpi-section');
     if (kpiSec) kpiSec.innerHTML = result.kpiHtml;
     const preview = document.getElementById('rapport-text-preview');
     if (preview) preview.textContent = result.text;
