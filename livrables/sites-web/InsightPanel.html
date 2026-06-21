@@ -5060,7 +5060,11 @@
       return;
     }
     stockCards.forEach(c => {
-      if (!specialIds.some(id => c.closest('#' + id))) c.style.display = '';
+      if (specialIds.some(id => c.closest('#' + id))) return;
+      /* Respecter data-roles : ne pas réafficher une carte cachée par le filtre de rôle */
+      const rolesAttr = c.getAttribute('data-roles');
+      if (rolesAttr && !rolesAttr.split(',').includes(currentUser?.role || '')) return;
+      c.style.display = '';
     });
 
     /* Badge de type dans le formulaire */
