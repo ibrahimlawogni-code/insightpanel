@@ -37,6 +37,7 @@ function doPost(e) {
     if (data.action === 'saveStockSIM')         return handleSaveStockSIM(data);
     if (data.action === 'getStockSIM')          return handleGetStockSIM(data);
     if (data.action === 'resetPassword')        return handleResetPassword(data);
+    if (data.action === 'changeMyProfile')      return handleChangeMyProfile(data);
     if (data.action === 'savePerfSup')          return handleSavePerfSup(data);
     if (data.action === 'getPerfSup')           return handleGetPerfSup(data);
     if (data.action === 'saveTransfert')        return handleSaveTransfert(data);
@@ -753,6 +754,70 @@ function _initPerfSupSheet(sheet) {
 // ─────────────────────────────────────────────────────────────
 // RÉINITIALISATION MOT DE PASSE — ra et admin uniquement
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// PROFIL UTILISATEUR — auto-modification numéro et mot de passe
+// data: { userId, currentPwd, newPwd? (opt.), telephone? (opt.) }
+// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// PROFIL UTILISATEUR — auto-modification numéro et mot de passe
+// data: { userId, telephone? } OU { userId, currentPwd, newPwd }
+// Téléphone : pas de vérification de mot de passe (faible risque)
+// Mot de passe : currentPwd obligatoire pour vérification
+// ─────────────────────────────────────────────────────────────
+function handleChangeMyProfile(data) {
+  if (!data.userId) {
+    return jsonResponse({ success: false, error: 'Identifiant utilisateur manquant.' });
+  }
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Utilisateurs');
+  if (!sheet) return jsonResponse({ success: false, error: 'Feuille Utilisateurs introuvable.' });
+
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const colId   = headers.indexOf('id');
+  const colPwd  = headers.indexOf('pwd');
+  const colTel  = headers.indexOf('telephone');
+
+  if (colId === -1 || colPwd === -1) {
+    return jsonResponse({ success: false, error: 'Structure Utilisateurs invalide.' });
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    const rowId = rows[i][colId] ? rows[i][colId].toString().trim() : '';
+    if (rowId.toLowerCase() !== data.userId.toLowerCase()) continue;
+
+    // Changement de mot de passe — vérification obligatoire
+    if (data.newPwd) {
+      if (!data.currentPwd) {
+        return jsonResponse({ success: false, error: 'Mot de passe actuel requis.' });
+      }
+      const storedPwd = rows[i][colPwd] ? rows[i][colPwd].toString().trim() : '';
+      if (storedPwd !== data.currentPwd) {
+        return jsonResponse({ success: false, error: 'Mot de passe actuel incorrect.' });
+      }
+      if (data.newPwd.length < 6) {
+        return jsonResponse({ success: false, error: 'Le nouveau mot de passe doit faire au moins 6 caractères.' });
+      }
+      sheet.getRange(i + 1, colPwd + 1).setValue(data.newPwd);
+    }
+
+    // Mise à jour du téléphone
+    if (data.telephone !== undefined && data.telephone !== null) {
+      if (colTel !== -1) {
+        sheet.getRange(i + 1, colTel + 1).setValue(data.telephone);
+      } else {
+        const lastCol = headers.length + 1;
+        sheet.getRange(1, lastCol).setValue('Telephone');
+        sheet.getRange(i + 1, lastCol).setValue(data.telephone);
+      }
+    }
+
+    return jsonResponse({ success: true, message: 'Profil mis à jour.' });
+  }
+
+  return jsonResponse({ success: false, error: 'Utilisateur introuvable.' });
+}
+
 function handleResetPassword(data) {
   const allowedRoles = ['ra', 'admin'];
   if (!allowedRoles.includes(data.requesterRole)) {
