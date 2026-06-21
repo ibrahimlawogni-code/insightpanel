@@ -8326,12 +8326,15 @@
     const agentsData = zoneAgents.map(agent => {
       let ga = 0, momo = 0;
       if (SAISIES_DATA.length) {
-        const mine = SAISIES_DATA.filter(s => s.dfaId === agent.id);
-        const fil  = period === 'mois'
-          ? _filterPeriod(mine, 'mois', today)
-          : period === 'jour'
-          ? _filterPeriod(mine, 'jour', today)
-          : _filterWeekOffset(mine, 0);
+        const mine = SAISIES_DATA.filter(s => s.dfaId && s.dfaId.toLowerCase() === agent.id.toLowerCase());
+        let fil;
+        if (period === 'periode' && bsSupRangeDebut && bsSupRangeFin) {
+          fil = _filterDateRange(mine, bsSupRangeDebut, bsSupRangeFin);
+        } else if (['mois','jour','annee'].includes(period)) {
+          fil = _filterPeriod(mine, period, bsSupRefDate);
+        } else {
+          fil = _filterWeekOffset(mine, 0, bsSupRefDate);
+        }
         ga   = _sumField(fil, 'grossAdd');
         momo = _sumField(fil, 'momoUser');
       }
@@ -8599,13 +8602,13 @@
     }
   }
 
-  function _filterWeekOffset(saisies, offset) {
-    const ref = new Date(today);
+  function _filterWeekOffset(saisies, offset, refBase) {
+    const ref = new Date(refBase || today);
     ref.setDate(ref.getDate() + offset * 7);
     const wn = getWeekNumber(ref);
     const yr = ref.getFullYear();
     return saisies.filter(s => {
-      const d = _parseFrDate(s.date);
+      const d = _parseSaisieDate(s.date);
       return d && getWeekNumber(d) === wn && d.getFullYear() === yr;
     });
   }
