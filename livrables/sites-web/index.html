@@ -5109,11 +5109,12 @@
   }
 
   async function _refreshStocksView() {
-    /* Force le rechargement des saisies depuis Sheets puis rafraîchit tout */
-    SAISIES_DATA = [];
-    await _ensureSaisiesLoaded();
-    loadStockHistorique();       /* charge STOCK_DATA → _renderStockGestionnaire */
-    _renderSimVendues();         /* table numéros SIM vendus */
+    /* Ordre garanti : saisies d'abord, puis stock, puis rendu.
+       On utilise loadSaisiesData() (la fonction principale) plutôt que
+       _ensureSaisiesLoaded() pour éviter les conflits de flags. */
+    await loadSaisiesData();
+    await loadStockHistorique();
+    _renderSimVendues();
   }
 
   let _simVenduesLimit = 100;
@@ -5221,10 +5222,11 @@
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         STOCK_DATA = json.data;
-        /* Filtrer par type actif (p100 par défaut pour les anciennes lignes sans type) */
         const filtered = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
         _renderStockHistorique(filtered);
-        _renderStockGestionnaire();
+        /* _renderStockGestionnaire() est appelé ici uniquement si SAISIES_DATA
+           est déjà chargé (garanti par _refreshStocksView → await loadSaisiesData) */
+        if (SAISIES_DATA.length > 0 || _saisiesFromSheets) _renderStockGestionnaire();
       } else {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée disponible.</td></tr>';
       }
@@ -5643,8 +5645,8 @@
     return soldMap;
   }
 
-  async function _renderStockGestionnaire() {
-    await _ensureSaisiesLoaded();
+  function _renderStockGestionnaire() {
+    /* SAISIES_DATA est garanti chargé par _refreshStocksView avant cet appel */
     const soldMap = _buildSoldMap();
     if (currentUser && ['ra','admin','dg','dga','dcc','dc'].includes(currentUser.role)) {
       _renderGestionnaireRA(soldMap);
