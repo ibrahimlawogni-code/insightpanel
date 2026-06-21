@@ -1114,15 +1114,36 @@
          VUE : DASHBOARD (DC)
     ============================================================ -->
     <div class="view active" id="view-dashboard">
-      <div class="page-header">
+      <div class="page-header" style="flex-wrap:wrap;gap:10px">
         <div>
           <div class="page-title">Tableau de bord</div>
           <div class="page-subtitle" id="dash-subtitle">Performance en temps réel</div>
         </div>
-        <div class="tabs" id="dash-kpi-tabs">
-          <button class="tab active" onclick="setDashPeriod('jour',this)">Aujourd'hui</button>
-          <button class="tab" onclick="setDashPeriod('semaine',this)">Semaine</button>
-          <button class="tab" onclick="setDashPeriod('mois',this)">Mois</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div class="tabs" id="dash-kpi-tabs">
+            <button class="tab active" onclick="setDashPeriod('jour',this)">Jour</button>
+            <button class="tab" onclick="setDashPeriod('periode',this)">Période</button>
+            <button class="tab" onclick="setDashPeriod('semaine',this)">Semaine</button>
+            <button class="tab" onclick="setDashPeriod('mois',this)">Mois</button>
+            <button class="tab" onclick="setDashPeriod('annee',this)">Année</button>
+          </div>
+          <!-- Contrôles contextuels selon la période -->
+          <div id="dash-period-controls" style="display:flex;align-items:center;gap:6px">
+            <!-- Mode Jour / Semaine / Mois / Année : navigation + date picker -->
+            <div id="dash-ctrl-date" style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)" title="Précédent"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="dash-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="dashRefDateChanged()">
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)" title="Suivant"><i class="fa fa-chevron-right"></i></button>
+            </div>
+            <!-- Mode Période : deux date pickers -->
+            <div id="dash-ctrl-range" style="display:none;align-items:center;gap:5px">
+              <span style="font-size:12px;color:var(--gray-text)">Du</span>
+              <input type="date" id="dash-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <span style="font-size:12px;color:var(--gray-text)">au</span>
+              <input type="date" id="dash-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <button class="btn btn-yellow btn-sm" onclick="applyDashRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1480,14 +1501,27 @@
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
           <div class="card-title">Résumé de performance</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-secondary btn-sm" onclick="navPerfDate(-1)"><i class="fa fa-chevron-left"></i></button>
-            <span id="perf-date-label" style="font-size:13px;font-weight:600;min-width:190px;text-align:center">—</span>
-            <button class="btn btn-secondary btn-sm" onclick="navPerfDate(1)"><i class="fa fa-chevron-right"></i></button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
             <div class="tabs" id="perf-tabs">
               <button class="tab active" onclick="setPerfPeriod('jour',this)">Jour</button>
+              <button class="tab" onclick="setPerfPeriod('periode',this)">Période</button>
               <button class="tab" onclick="setPerfPeriod('semaine',this)">Semaine</button>
               <button class="tab" onclick="setPerfPeriod('mois',this)">Mois</button>
+              <button class="tab" onclick="setPerfPeriod('annee',this)">Année</button>
+            </div>
+            <div id="perf-period-controls" style="display:flex;align-items:center;gap:6px">
+              <div id="perf-ctrl-date" style="display:flex;align-items:center;gap:5px">
+                <button class="btn btn-secondary btn-sm" onclick="navPerfDate(-1)"><i class="fa fa-chevron-left"></i></button>
+                <input type="date" id="perf-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="perfRefDateChanged()">
+                <button class="btn btn-secondary btn-sm" onclick="navPerfDate(1)"><i class="fa fa-chevron-right"></i></button>
+              </div>
+              <div id="perf-ctrl-range" style="display:none;align-items:center;gap:5px">
+                <span style="font-size:12px;color:var(--gray-text)">Du</span>
+                <input type="date" id="perf-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <span style="font-size:12px;color:var(--gray-text)">au</span>
+                <input type="date" id="perf-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <button class="btn btn-yellow btn-sm" onclick="applyPerfRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1495,7 +1529,7 @@
       </div>
 
       <!-- OBJECTIFS -->
-      <div class="card" style="margin-bottom:20px">
+      <div class="card" id="agent-objectifs-card" style="margin-bottom:20px">
         <div class="card-header">
           <div class="card-title">Mes objectifs</div>
           <span class="badge badge-yellow">Gross Add + New MoMo User</span>
@@ -2407,9 +2441,12 @@
           <div class="page-title" id="equipes-page-title">Équipes</div>
           <div class="page-subtitle" id="equipes-page-subtitle">Sélectionnez une zone dans le menu</div>
         </div>
-        <div id="equipes-header-actions" style="display:flex;gap:8px">
+        <div id="equipes-header-actions" style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="openUserModal()" id="equipes-btn-nouveau-compte" style="display:none">
             <i class="fa fa-user-plus"></i> Nouveau compte
+          </button>
+          <button class="btn btn-secondary" onclick="migrateActivations()" id="btn-migrate-activations" style="display:none" title="Explode les simList/mtnList existantes en lignes individuelles dans la feuille Activations">
+            <i class="fa fa-database"></i> Migrer vers Activations
           </button>
         </div>
       </div>
@@ -2877,7 +2914,7 @@
     if (name === 'agent') {
       agentViewDfaId = null;
       _initAgentDfaSelector();
-      updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); _renderAgentEvalCard();
+      _updatePerfControls(); updatePerfDisplay(); _renderAgentObjectifs(); _renderAgentStats(); _renderAgentClassement(); _renderAgentHistorique(); _renderAgentTop10(); _renderAgentCalendrier(); _renderAgentEvalCard();
       /* Rafraîchir les données depuis Sheets à chaque ouverture de la vue */
       loadSaisiesData();
     }
@@ -2892,6 +2929,7 @@
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = todayISO;
+      _updateDashControls();
       renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashKPIs(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
     }
   }
@@ -3372,6 +3410,26 @@
     }
   }
 
+  /* ---- Migration données vers feuille Activations ---- */
+  async function migrateActivations() {
+    if (!APPS_SCRIPT_URL.startsWith('https')) { showToast('URL Apps Script non configurée.', 'error'); return; }
+    const btn = document.getElementById('btn-migrate-activations');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Migration en cours…'; }
+    try {
+      const r    = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'migrateActivations' }) });
+      const json = await r.json();
+      if (json.success) {
+        showToast(`Migration réussie : ${json.migrated} activation(s) écrite(s) dans la feuille Activations.`, 'success');
+      } else {
+        showToast('Erreur migration : ' + (json.error || 'inconnue'), 'error');
+      }
+    } catch (e) {
+      showToast('Erreur réseau lors de la migration.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-database"></i> Migrer vers Activations'; }
+    }
+  }
+
   /* ---- Chargement et affichage des demandes ---- */
 
   async function loadDemandes() {
@@ -3538,9 +3596,12 @@
     const chevron = document.getElementById('nav-chevron-equipes');
     if (sub) sub.style.display = 'block';
     if (chevron) chevron.classList.add('open');
-    /* Bouton "Nouveau compte" visible uniquement pour ra et admin */
+    /* Bouton "Nouveau compte" + bouton "Migrer" visibles uniquement pour ra et admin */
+    const isAdmin = currentUser && ['ra','admin'].includes(currentUser.role);
     const btnNouveau = document.getElementById('equipes-btn-nouveau-compte');
-    if (btnNouveau) btnNouveau.style.display = (currentUser && ['ra','admin'].includes(currentUser.role)) ? '' : 'none';
+    if (btnNouveau) btnNouveau.style.display = isAdmin ? '' : 'none';
+    const btnMigrate = document.getElementById('btn-migrate-activations');
+    if (btnMigrate) btnMigrate.style.display = isAdmin ? '' : 'none';
     loadUsers();
   }
 
@@ -5933,7 +5994,14 @@
     const container = document.getElementById('agent-objectifs-body');
     if (!container || !currentUser) return;
 
-    const daysInM   = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const card = document.getElementById('agent-objectifs-card');
+    if (perfPeriod === 'periode' || perfPeriod === 'annee') {
+      if (card) card.style.display = 'none';
+      return;
+    }
+    if (card) card.style.display = '';
+
+    const daysInM   = new Date(perfDate.getFullYear(), perfDate.getMonth()+1, 0).getDate();
     const tJour     = DFA_DAILY_TARGET;
     const tSem      = DFA_DAILY_TARGET * 7;
     const tMois     = DFA_DAILY_TARGET * daysInM;
@@ -5943,9 +6011,9 @@
 
     let gsmJ, momoJ, gsmS, momoS, gsmM, momoM;
     if (SAISIES_DATA.length) {
-      const dJ = _computeAgentPerf(_agentId(), 'jour',    today);
-      const dS = _computeAgentPerf(_agentId(), 'semaine', today);
-      const dM = _computeAgentPerf(_agentId(), 'mois',    today);
+      const dJ = _computeAgentPerf(_agentId(), 'jour',    perfDate);
+      const dS = _computeAgentPerf(_agentId(), 'semaine', perfDate);
+      const dM = _computeAgentPerf(_agentId(), 'mois',    perfDate);
       gsmJ = dJ.gsm; momoJ = dJ.momo;
       gsmS = dS.gsm; momoS = dS.momo;
       gsmM = dM.gsm; momoM = dM.momo;
@@ -6004,14 +6072,14 @@
     if (!container || !currentUser) return;
 
     const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-    const semMois = Math.ceil(today.getDate() / 7);
+    const semMois = Math.ceil(perfDate.getDate() / 7);
     const titleEl = document.getElementById('agent-stats-semaine-title');
-    if (titleEl) titleEl.textContent = `Mes stats — Semaine ${semMois} du mois de ${moisFR[today.getMonth()]} ${today.getFullYear()}`;
+    if (titleEl) titleEl.textContent = `Mes stats — Semaine ${semMois} du mois de ${moisFR[perfDate.getMonth()]} ${perfDate.getFullYear()}`;
 
     let gsm, momo, conformite;
     if (SAISIES_DATA.length) {
       const mine   = SAISIES_DATA.filter(s => s.dfaId === _agentId());
-      const semFil = _filterPeriod(mine, 'semaine', today);
+      const semFil = _filterPeriod(mine, 'semaine', perfDate);
       gsm        = _sumField(semFil, 'grossAdd');
       momo       = _sumField(semFil, 'momoUser');
       conformite = Math.min(100, Math.round(_uniqueDays(semFil) / 6 * 100));
@@ -7120,8 +7188,10 @@
   }
 
   /* ---- Performance Agent DFA ---- */
-  let perfPeriod = 'jour';
-  let perfDate   = new Date(today);
+  let perfPeriod    = 'jour';
+  let perfDate      = new Date(today);
+  let perfRangeDebut = null;
+  let perfRangeFin   = null;
 
   const agentPerfData = { jour: {}, semaine: {}, mois: {} };
 
@@ -7146,14 +7216,69 @@
       return perfDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     if (perfPeriod === 'semaine')
       return 'Semaine ' + getWeekNumber(perfDate) + ' — ' + perfDate.getFullYear();
-    return perfDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    if (perfPeriod === 'mois')
+      return perfDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    if (perfPeriod === 'annee')
+      return 'Année ' + perfDate.getFullYear();
+    if (perfPeriod === 'periode') {
+      if (!perfRangeDebut || !perfRangeFin) return 'Période personnalisée';
+      const fmtISO = iso => { const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+y; };
+      return 'Du ' + fmtISO(perfRangeDebut) + ' au ' + fmtISO(perfRangeFin);
+    }
+    return '—';
+  }
+
+  function _updatePerfControls() {
+    const ctrlDate  = document.getElementById('perf-ctrl-date');
+    const ctrlRange = document.getElementById('perf-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (perfPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const input = document.getElementById('perf-ref-date');
+      if (input) {
+        const iso = perfDate.getFullYear() + '-' + String(perfDate.getMonth()+1).padStart(2,'0') + '-' + String(perfDate.getDate()).padStart(2,'0');
+        input.value = iso;
+      }
+    }
+  }
+
+  function perfRefDateChanged() {
+    const input = document.getElementById('perf-ref-date');
+    if (!input || !input.value) return;
+    const [y, m, d] = input.value.split('-').map(Number);
+    perfDate = new Date(y, m - 1, d);
+    updatePerfDisplay();
+    _renderAgentObjectifs();
+    _renderAgentStats();
+  }
+
+  function applyPerfRange() {
+    const debut = document.getElementById('perf-range-debut');
+    const fin   = document.getElementById('perf-range-fin');
+    if (!debut || !fin || !debut.value || !fin.value) {
+      showToast('Sélectionnez une date de début et de fin.', 'error'); return;
+    }
+    if (debut.value > fin.value) {
+      showToast('La date de début doit être avant la date de fin.', 'error'); return;
+    }
+    perfRangeDebut = debut.value;
+    perfRangeFin   = fin.value;
+    updatePerfDisplay();
   }
 
   function navPerfDate(dir) {
     if (perfPeriod === 'jour')    perfDate.setDate(perfDate.getDate() + dir);
     if (perfPeriod === 'semaine') perfDate.setDate(perfDate.getDate() + dir * 7);
     if (perfPeriod === 'mois')    perfDate.setMonth(perfDate.getMonth() + dir);
+    if (perfPeriod === 'annee')   perfDate.setFullYear(perfDate.getFullYear() + dir);
+    _updatePerfControls();
     updatePerfDisplay();
+    _renderAgentObjectifs();
+    _renderAgentStats();
   }
 
   function setPerfPeriod(p, el) {
@@ -7161,7 +7286,10 @@
     document.querySelectorAll('#perf-tabs .tab').forEach(t => t.classList.remove('active'));
     if (el) el.classList.add('active');
     _savePeriods();
+    _updatePerfControls();
     updatePerfDisplay();
+    _renderAgentObjectifs();
+    _renderAgentStats();
   }
 
   let bestsellerPeriod = 'semaine';
@@ -7513,19 +7641,34 @@
   }
 
   function updatePerfDisplay() {
-    const moisFR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-    const semMois = Math.ceil(today.getDate() / 7);
-    const semTitre = document.getElementById('agent-stats-semaine-title');
-    if (semTitre) semTitre.textContent = `Mes stats — Semaine ${semMois} du mois de ${moisFR[today.getMonth()]} ${today.getFullYear()}`;
-
     const labelEl = document.getElementById('perf-date-label');
     const gridEl  = document.getElementById('perf-kpi-grid');
     if (!labelEl || !gridEl) return;
     labelEl.textContent = formatPerfLabel();
-    const key = getPerfKey();
-    const d   = (SAISIES_DATA.length && _agentId())
-      ? _computeAgentPerf(_agentId(), perfPeriod, perfDate)
-      : ((agentPerfData[perfPeriod] || {})[key]);
+
+    let d;
+    if (perfPeriod === 'periode') {
+      if (!perfRangeDebut || !perfRangeFin) {
+        gridEl.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px">Sélectionnez une période puis cliquez Appliquer.</div>';
+        return;
+      }
+      if (SAISIES_DATA.length && _agentId()) {
+        const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+        const fil  = _filterDateRange(mine, perfRangeDebut, perfRangeFin);
+        const gsm  = _sumField(fil, 'grossAdd');
+        const momo = _sumField(fil, 'momoUser');
+        const days = _uniqueDays(fil);
+        const moyJour  = days ? parseFloat((gsm / days).toFixed(1)) : 0;
+        const tauxMomo = gsm > 0 ? Math.min(100, Math.round(momo / gsm * 100)) : 0;
+        d = { gsm, momo, tauxGSM: 0, tauxMomo, moyJour, moyHebdo: '—' };
+      }
+    } else {
+      const key = getPerfKey();
+      d = (SAISIES_DATA.length && _agentId())
+        ? _computeAgentPerf(_agentId(), perfPeriod, perfDate)
+        : ((agentPerfData[perfPeriod] || {})[key]);
+    }
+
     if (!d) {
       gridEl.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:24px">Aucune donnée disponible pour cette période.</div>';
       return;
@@ -7586,6 +7729,7 @@
       if (period === 'jour')    return _sameDay(dt, ref);
       if (period === 'semaine') return _sameWeek(dt, ref);
       if (period === 'mois')    return _sameMonth(dt, ref);
+      if (period === 'annee')   return _sameYear(dt, ref);
       return true;
     });
   }
@@ -8089,69 +8233,96 @@
   }
 
   /* --- Période active des KPI cards dashboard --- */
-  let dashKpiPeriod = 'jour';
+  let dashKpiPeriod   = 'jour';
+  let dashRefDate     = new Date(today);   // date de référence navigable (Jour/Semaine/Mois/Année)
+  let dashRangeDebut  = null;              // pour le mode Période
+  let dashRangeFin    = null;
 
   function setDashPeriod(period, el) {
     dashKpiPeriod = period;
     document.querySelectorAll('#dash-kpi-tabs .tab').forEach(t => t.classList.remove('active'));
     if (el) el.classList.add('active');
+    _updateDashControls();
     renderDashKPIs();
   }
 
-  /* --- KPI cards dashboard — sensible à dashKpiPeriod (jour / semaine / mois) --- */
+  function _updateDashControls() {
+    const p         = dashKpiPeriod;
+    const ctrlDate  = document.getElementById('dash-ctrl-date');
+    const ctrlRange = document.getElementById('dash-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+
+    if (p === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+      /* Valeurs par défaut : début de semaine → aujourd'hui */
+      const deb = document.getElementById('dash-range-debut');
+      const fin = document.getElementById('dash-range-fin');
+      if (deb && !deb.value) {
+        const lun = new Date(today); lun.setDate(today.getDate() - ((today.getDay()||7) - 1));
+        deb.value = lun.getFullYear() + '-' + String(lun.getMonth()+1).padStart(2,'0') + '-' + String(lun.getDate()).padStart(2,'0');
+      }
+      if (fin && !fin.value) fin.value = todayISO;
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      /* Synchroniser le picker avec dashRefDate */
+      const inp = document.getElementById('dash-ref-date');
+      if (inp) inp.value = dashRefDate.getFullYear() + '-' + String(dashRefDate.getMonth()+1).padStart(2,'0') + '-' + String(dashRefDate.getDate()).padStart(2,'0');
+    }
+  }
+
+  function dashNavDate(dir) {
+    const p = dashKpiPeriod;
+    const d = new Date(dashRefDate);
+    if (p === 'jour')    d.setDate(d.getDate() + dir);
+    else if (p === 'semaine') d.setDate(d.getDate() + dir * 7);
+    else if (p === 'mois')    d.setMonth(d.getMonth() + dir);
+    else if (p === 'annee')   d.setFullYear(d.getFullYear() + dir);
+    dashRefDate = d;
+    const inp = document.getElementById('dash-ref-date');
+    if (inp) inp.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    renderDashKPIs();
+  }
+
+  function dashRefDateChanged() {
+    const inp = document.getElementById('dash-ref-date');
+    if (!inp || !inp.value) return;
+    dashRefDate = new Date(inp.value + 'T00:00:00');
+    renderDashKPIs();
+  }
+
+  function applyDashRange() {
+    const deb = document.getElementById('dash-range-debut');
+    const fin = document.getElementById('dash-range-fin');
+    if (!deb || !fin || !deb.value || !fin.value) return;
+    if (deb.value > fin.value) { showToast('La date de début doit être avant la date de fin.', 'error'); return; }
+    dashRangeDebut = deb.value;
+    dashRangeFin   = fin.value;
+    renderDashKPIs();
+  }
+
+  function _filterDateRange(saisies, debutISO, finISO) {
+    return saisies.filter(s => {
+      const iso = _parseSaisieDate(s.date);
+      return iso && iso >= debutISO && iso <= finISO;
+    });
+  }
+
+  function _sameYear(d, ref) {
+    return d.getFullYear() === ref.getFullYear();
+  }
+
+  /* --- KPI cards dashboard — 5 modes : jour / periode / semaine / mois / annee --- */
   function renderDashKPIs() {
-    const p       = dashKpiPeriod;
-    const jours   = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-    const keyMois = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+    const p    = dashKpiPeriod;
+    const ref  = dashRefDate;   // date de référence navigable (pas forcément today)
+    const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 
-    /* Sous-titre selon la période */
-    const sub = document.getElementById('dash-subtitle');
-    const subLabels = {
-      jour:    'Performance en temps réel · ' + jours[today.getDay()] + ' ' + today.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }),
-      semaine: 'Performance hebdomadaire · ' + _semaineLisible(today),
-      mois:    'Performance mensuelle · ' + today.toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
-    };
-    if (sub) sub.textContent = subLabels[p] || subLabels.jour;
-
-    /* Filtres période courante et précédente */
-    const refPrev = new Date(today);
-    if (p === 'jour')    refPrev.setDate(refPrev.getDate() - 1);
-    else if (p === 'semaine') refPrev.setDate(refPrev.getDate() - 7);
-    else if (p === 'mois')    refPrev.setMonth(refPrev.getMonth() - 1);
-
-    const _toLocalISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    const filCurr  = p === 'jour'
-      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === todayISO)
-      : _filterPeriod(SAISIES_DATA, p, today);
-    const filPrev  = p === 'jour'
-      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === _toLocalISO(refPrev))
-      : _filterPeriod(SAISIES_DATA, p, refPrev);
-    const filMois  = _filterPeriod(SAISIES_DATA, 'mois', today);
-
-    const gaCurr   = _sumField(filCurr, 'grossAdd');
-    const gaPrev   = _sumField(filPrev, 'grossAdd');
-    const momoCurr = _sumField(filCurr, 'momoUser');
-    const momoPrev = _sumField(filPrev, 'momoUser');
-    const gaMois   = _sumField(filMois, 'grossAdd');
-    const nbActifs = new Set(filCurr.map(s => s.dfaId)).size;
-    const nbTotal  = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
-    const pctMois  = (() => { const t = MONTHLY_TARGETS[keyMois]; return (t && t.gsm) ? Math.round(gaMois / t.gsm * 100) : null; })();
-
-    const refLabel = p === 'jour' ? 'hier' : p === 'semaine' ? 'S-1' : 'M-1';
-    const periodLabel = p === 'jour' ? 'ce jour' : p === 'semaine' ? 'cette semaine' : 'ce mois';
-    const delta = (val, ref) => {
-      if (val === 0 && !ref) return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
-      if (val === 0)         return `<i class="fa fa-clock"></i> Pas encore de saisie ${periodLabel}`;
-      if (!ref)              return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
-      const diff = Math.round((val - ref) / Math.max(1, ref) * 100);
-      if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs ${refLabel}`;
-      if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs ${refLabel}`;
-      return `<i class="fa fa-minus"></i> Stable vs ${refLabel}`;
-    };
-    const deltaCls = (val, ref) => val === 0 ? 'neutral' : val > ref ? 'up' : val < ref ? 'down' : 'neutral';
-
-    const setKPI   = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    const setLabel = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    /* Helpers */
+    const _toISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    const setKPI   = (id, val)  => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const setLabel = (id, txt)  => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     const setDelta = (id, html, cls) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -8159,33 +8330,126 @@
       el.className = 'kpi-delta ' + (cls || 'neutral');
     };
 
-    /* Labels dynamiques selon la période */
-    const periodSuffix = p === 'jour' ? 'du jour' : p === 'semaine' ? 'cette semaine' : 'ce mois';
-    const agentsSuffix = p === 'jour' ? "aujourd'hui" : p === 'semaine' ? 'cette semaine' : 'ce mois';
-    setLabel('kpi-label-ga',     'Gross Add ' + periodSuffix);
-    setLabel('kpi-label-momo',   'New MoMo User ' + periodSuffix);
-    setLabel('kpi-label-agents', 'Agents actifs ' + agentsSuffix);
-    setLabel('kpi-label-mois',   p === 'mois' ? 'Progression objectif mois' : 'Activations ce mois');
+    /* ---- Filtres courant + précédent ---- */
+    let filCurr, filPrev;
+    const refPrev = new Date(ref);
 
-    /* Valeurs */
-    setKPI('kpi-ga-jour',   gaCurr  || (SAISIES_DATA.length ? '0' : '—'));
-    setKPI('kpi-momo-jour', momoCurr || (SAISIES_DATA.length ? '0' : '—'));
-    setKPI('kpi-agents-actifs', SAISIES_DATA.length ? nbActifs + (nbTotal ? ' / ' + nbTotal : '') : '—');
-    setKPI('kpi-ga-mois', p === 'mois'
-      ? (pctMois !== null ? pctMois + ' %' : '—')
-      : (gaMois || (SAISIES_DATA.length ? '0' : '—')));
+    if (p === 'periode') {
+      if (dashRangeDebut && dashRangeFin) {
+        filCurr = _filterDateRange(SAISIES_DATA, dashRangeDebut, dashRangeFin);
+        /* Période précédente : même durée juste avant */
+        const dD    = new Date(dashRangeDebut + 'T00:00:00');
+        const dF    = new Date(dashRangeFin   + 'T00:00:00');
+        const duree = Math.round((dF - dD) / 86400000) + 1;
+        const pF    = new Date(dD); pF.setDate(pF.getDate() - 1);
+        const pD    = new Date(pF); pD.setDate(pD.getDate() - duree + 1);
+        filPrev = _filterDateRange(SAISIES_DATA, _toISO(pD), _toISO(pF));
+      } else {
+        filCurr = []; filPrev = [];
+      }
+    } else if (p === 'jour') {
+      const refISO = _toISO(ref);
+      refPrev.setDate(refPrev.getDate() - 1);
+      filCurr = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === refISO);
+      filPrev = SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === _toISO(refPrev));
+    } else if (p === 'semaine') {
+      refPrev.setDate(refPrev.getDate() - 7);
+      filCurr = _filterPeriod(SAISIES_DATA, 'semaine', ref);
+      filPrev = _filterPeriod(SAISIES_DATA, 'semaine', refPrev);
+    } else if (p === 'mois') {
+      refPrev.setMonth(refPrev.getMonth() - 1);
+      filCurr = _filterPeriod(SAISIES_DATA, 'mois', ref);
+      filPrev = _filterPeriod(SAISIES_DATA, 'mois', refPrev);
+    } else if (p === 'annee') {
+      refPrev.setFullYear(refPrev.getFullYear() - 1);
+      filCurr = _filterPeriod(SAISIES_DATA, 'annee', ref);
+      filPrev = _filterPeriod(SAISIES_DATA, 'annee', refPrev);
+    } else {
+      filCurr = []; filPrev = [];
+    }
 
-    /* Deltas */
-    setDelta('kpi-ga-delta',    delta(gaCurr,   gaPrev),   deltaCls(gaCurr,   gaPrev));
-    setDelta('kpi-momo-delta',  delta(momoCurr, momoPrev), deltaCls(momoCurr, momoPrev));
+    /* ---- Cumuls ---- */
+    const gaCurr   = _sumField(filCurr, 'grossAdd');
+    const gaPrev   = _sumField(filPrev, 'grossAdd');
+    const momoCurr = _sumField(filCurr, 'momoUser');
+    const momoPrev = _sumField(filPrev, 'momoUser');
+    const nbActifs = new Set(filCurr.map(s => s.dfaId)).size;
+    const nbTotal  = USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length;
+
+    /* 4e carte : toujours le mois de la date de référence (ou l'année en mode annee) */
+    const filRef4  = p === 'annee'
+      ? filCurr
+      : _filterPeriod(SAISIES_DATA, 'mois', ref);
+    const gaRef4   = p === 'annee' ? gaCurr : _sumField(filRef4, 'grossAdd');
+    const keyMois  = ref.getFullYear() + '-' + String(ref.getMonth()+1).padStart(2,'0');
+    const tMois    = MONTHLY_TARGETS[keyMois];
+    const pctRef4  = (() => {
+      if (p === 'annee') return null;
+      return (tMois && tMois.gsm) ? Math.round(gaRef4 / tMois.gsm * 100) : null;
+    })();
+
+    /* ---- Sous-titre ---- */
+    const sub = document.getElementById('dash-subtitle');
+    if (sub) {
+      const subMap = {
+        jour:    'Performance · ' + jours[ref.getDay()] + ' ' + ref.toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'}),
+        semaine: 'Performance hebdomadaire · ' + _semaineLisible(ref),
+        mois:    'Performance mensuelle · ' + ref.toLocaleDateString('fr-FR', {month:'long', year:'numeric'}),
+        annee:   'Performance annuelle · ' + ref.getFullYear(),
+        periode: (dashRangeDebut && dashRangeFin)
+          ? 'Période du ' + new Date(dashRangeDebut+'T00:00:00').toLocaleDateString('fr-FR') + ' au ' + new Date(dashRangeFin+'T00:00:00').toLocaleDateString('fr-FR')
+          : 'Sélectionnez une période puis cliquez Appliquer'
+      };
+      sub.textContent = subMap[p] || '';
+    }
+
+    /* ---- Labels des refLabels / delta ---- */
+    const refLabel    = {jour:'hier', semaine:'S-1', mois:'M-1', annee:'A-1', periode:'période préc.'}[p] || 'préc.';
+    const periodLabel = {jour:'ce jour', semaine:'cette semaine', mois:'ce mois', annee:'cette année', periode:'cette période'}[p] || 'cette période';
+
+    const delta = (val, ref2) => {
+      if (val === 0 && !ref2) return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
+      if (val === 0)          return `<i class="fa fa-clock"></i> Pas encore de saisie ${periodLabel}`;
+      if (!ref2)              return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
+      const diff = Math.round((val - ref2) / Math.max(1, ref2) * 100);
+      if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs ${refLabel}`;
+      if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs ${refLabel}`;
+      return `<i class="fa fa-minus"></i> Stable vs ${refLabel}`;
+    };
+    const deltaCls = (val, ref2) => val === 0 ? 'neutral' : val > ref2 ? 'up' : val < ref2 ? 'down' : 'neutral';
+
+    /* ---- Labels dynamiques ---- */
+    const suffix  = {jour:'du jour', semaine:'cette semaine', mois:'ce mois', annee:'cette année', periode:'sur la période'}[p] || '';
+    const agtSuffix = {jour:"aujourd'hui", semaine:'cette semaine', mois:'ce mois', annee:'cette année', periode:'sur la période'}[p] || '';
+    const lbl4    = p === 'annee' ? 'Activations ' + ref.getFullYear() : p === 'mois' ? 'Progression objectif mois' : 'Activations ' + ref.toLocaleDateString('fr-FR', {month:'long'});
+    setLabel('kpi-label-ga',     'Gross Add ' + suffix);
+    setLabel('kpi-label-momo',   'New MoMo User ' + suffix);
+    setLabel('kpi-label-agents', 'Agents actifs ' + agtSuffix);
+    setLabel('kpi-label-mois',   lbl4);
+
+    /* ---- Valeurs ---- */
+    const na = SAISIES_DATA.length;
+    setKPI('kpi-ga-jour',       na ? String(gaCurr)   : '—');
+    setKPI('kpi-momo-jour',     na ? String(momoCurr) : '—');
+    setKPI('kpi-agents-actifs', na ? nbActifs + (nbTotal ? ' / ' + nbTotal : '') : '—');
+    setKPI('kpi-ga-mois',
+      p === 'mois'    ? (pctRef4 !== null ? pctRef4 + ' %' : '—') :
+      p === 'annee'   ? String(gaCurr) :
+      na ? String(gaRef4) : '—');
+
+    /* ---- Deltas ---- */
+    setDelta('kpi-ga-delta',   delta(gaCurr, gaPrev),     deltaCls(gaCurr, gaPrev));
+    setDelta('kpi-momo-delta', delta(momoCurr, momoPrev), deltaCls(momoCurr, momoPrev));
     setDelta('kpi-agents-delta',
       nbTotal ? `<i class="fa fa-users"></i> ${Math.round(nbActifs/Math.max(1,nbTotal)*100)} % de l'équipe actifs` : '<i class="fa fa-clock"></i> Chargement…',
       nbActifs > 0 ? 'up' : 'neutral');
     setDelta('kpi-ga-mois-delta',
       p === 'mois'
-        ? (pctMois !== null ? `<i class="fa fa-bullseye"></i> Objectif : ${MONTHLY_TARGETS[keyMois]?.gsm || '—'} SIM` : '<i class="fa fa-clock"></i> Chargement…')
-        : (pctMois !== null ? `<i class="fa fa-bullseye"></i> ${pctMois} % de l'objectif mensuel` : '<i class="fa fa-clock"></i> Chargement…'),
-      pctMois >= 80 ? 'up' : pctMois >= 50 ? 'neutral' : (pctMois !== null ? 'down' : 'neutral'));
+        ? (pctRef4 !== null ? `<i class="fa fa-bullseye"></i> Objectif : ${tMois?.gsm || '—'} SIM` : '<i class="fa fa-clock"></i> Chargement…')
+        : p === 'annee'
+          ? `<i class="fa fa-calendar"></i> Année ${ref.getFullYear()}`
+          : (pctRef4 !== null ? `<i class="fa fa-bullseye"></i> ${pctRef4} % objectif ${ref.toLocaleDateString('fr-FR',{month:'long'})}` : '<i class="fa fa-clock"></i> Chargement…'),
+      pctRef4 >= 80 ? 'up' : pctRef4 >= 50 ? 'neutral' : (pctRef4 !== null ? 'down' : 'neutral'));
   }
 
   /* --- Carte évaluation embarquée dans Vue Agent --- */
