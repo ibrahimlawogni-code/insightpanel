@@ -2891,7 +2891,7 @@
     if (name === 'superviseur') { loadDemandes(); _initSupSelector(); }
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
-      if (di && !di.value) di.value = new Date().toISOString().slice(0, 10);
+      if (di && !di.value) di.value = todayISO;
       renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashKPIs(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
     }
   }
@@ -4274,10 +4274,10 @@
     }
     /* Format ISO YYYY-MM-DD */
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-    /* Fallback : Apps Script Date.toString() → "Fri Jun 19 2026 00:00:00 GMT+..." */
+    /* Fallback : Apps Script Date.toString() → "Fri Jun 19 2026 00:00:00 GMT+..." — getters locaux pour éviter le décalage UTC */
     try {
       const d = new Date(s);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      if (!isNaN(d.getTime())) return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -4863,7 +4863,8 @@
     const fin = document.getElementById('detection-filter-fin');
     if (deb && !deb.value) {
       const now = new Date();
-      deb.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
+      const d1 = new Date(now.getFullYear(), now.getMonth(), 1);
+      deb.value = d1.getFullYear() + '-' + String(d1.getMonth()+1).padStart(2,'0') + '-01';
       fin.value = todayISO;
     }
 
@@ -5844,7 +5845,7 @@
     if (!container) return;
 
     const input   = document.getElementById('objectif-date');
-    const dateStr = (input && input.value) ? input.value : new Date().toISOString().slice(0, 10);
+    const dateStr = (input && input.value) ? input.value : todayISO;
     const date    = new Date(dateStr + 'T00:00:00');
 
     /* Clés de lookup */
@@ -5949,7 +5950,7 @@
       gsmS = dS.gsm; momoS = dS.momo;
       gsmM = dM.gsm; momoM = dM.momo;
     } else {
-      const keyJ = today.toISOString().split('T')[0];
+      const keyJ = todayISO;
       const keyS = today.getFullYear() + '-W' + getWeekNumber(today);
       const keyM = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
       const dJ = agentPerfData.jour[keyJ]    || agentPerfData.jour['2026-06-08']  || {};
@@ -6145,7 +6146,7 @@
       tbody.innerHTML = entries.map(e => {
         const d   = new Date(e.dateStr + 'T00:00:00');
         const lbl = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-        const isToday = e.dateStr === today.toISOString().split('T')[0];
+        const isToday = e.dateStr === todayISO;
         const bdg = isToday
           ? '<span class="badge badge-yellow">Aujourd\'hui</span>'
           : '<span class="badge badge-green">Validé</span>';
@@ -7134,7 +7135,7 @@
 
   function getPerfKey() {
     if (perfPeriod === 'jour')
-      return perfDate.toISOString().split('T')[0];
+      return perfDate.getFullYear() + '-' + String(perfDate.getMonth()+1).padStart(2,'0') + '-' + String(perfDate.getDate()).padStart(2,'0');
     if (perfPeriod === 'semaine')
       return perfDate.getFullYear() + '-W' + getWeekNumber(perfDate);
     return perfDate.getFullYear() + '-' + String(perfDate.getMonth() + 1).padStart(2, '0');
@@ -8118,11 +8119,12 @@
     else if (p === 'semaine') refPrev.setDate(refPrev.getDate() - 7);
     else if (p === 'mois')    refPrev.setMonth(refPrev.getMonth() - 1);
 
+    const _toLocalISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     const filCurr  = p === 'jour'
       ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === todayISO)
       : _filterPeriod(SAISIES_DATA, p, today);
     const filPrev  = p === 'jour'
-      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === refPrev.toISOString().slice(0,10))
+      ? SAISIES_DATA.filter(s => _parseSaisieDate(s.date) === _toLocalISO(refPrev))
       : _filterPeriod(SAISIES_DATA, p, refPrev);
     const filMois  = _filterPeriod(SAISIES_DATA, 'mois', today);
 
@@ -8136,13 +8138,17 @@
     const pctMois  = (() => { const t = MONTHLY_TARGETS[keyMois]; return (t && t.gsm) ? Math.round(gaMois / t.gsm * 100) : null; })();
 
     const refLabel = p === 'jour' ? 'hier' : p === 'semaine' ? 'S-1' : 'M-1';
+    const periodLabel = p === 'jour' ? 'ce jour' : p === 'semaine' ? 'cette semaine' : 'ce mois';
     const delta = (val, ref) => {
-      if (!ref) return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
+      if (val === 0 && !ref) return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
+      if (val === 0)         return `<i class="fa fa-clock"></i> Pas encore de saisie ${periodLabel}`;
+      if (!ref)              return `<i class="fa fa-minus"></i> Pas de données ${refLabel}`;
       const diff = Math.round((val - ref) / Math.max(1, ref) * 100);
       if (diff > 0) return `<i class="fa fa-arrow-trend-up"></i> +${diff} % vs ${refLabel}`;
       if (diff < 0) return `<i class="fa fa-arrow-trend-down"></i> ${diff} % vs ${refLabel}`;
       return `<i class="fa fa-minus"></i> Stable vs ${refLabel}`;
     };
+    const deltaCls = (val, ref) => val === 0 ? 'neutral' : val > ref ? 'up' : val < ref ? 'down' : 'neutral';
 
     const setKPI   = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     const setLabel = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
@@ -8170,8 +8176,8 @@
       : (gaMois || (SAISIES_DATA.length ? '0' : '—')));
 
     /* Deltas */
-    setDelta('kpi-ga-delta',    delta(gaCurr,   gaPrev),   gaCurr   > gaPrev   ? 'up' : gaCurr   < gaPrev   ? 'down' : 'neutral');
-    setDelta('kpi-momo-delta',  delta(momoCurr, momoPrev), momoCurr > momoPrev ? 'up' : momoCurr < momoPrev ? 'down' : 'neutral');
+    setDelta('kpi-ga-delta',    delta(gaCurr,   gaPrev),   deltaCls(gaCurr,   gaPrev));
+    setDelta('kpi-momo-delta',  delta(momoCurr, momoPrev), deltaCls(momoCurr, momoPrev));
     setDelta('kpi-agents-delta',
       nbTotal ? `<i class="fa fa-users"></i> ${Math.round(nbActifs/Math.max(1,nbTotal)*100)} % de l'équipe actifs` : '<i class="fa fa-clock"></i> Chargement…',
       nbActifs > 0 ? 'up' : 'neutral');
@@ -8988,7 +8994,7 @@
 
     // Initialiser la date si vide
     const inp = document.getElementById('rapport-date-input');
-    if (inp && !inp.value) inp.value = today.toISOString().slice(0, 10);
+    if (inp && !inp.value) inp.value = todayISO;
 
     const subtitle = document.getElementById('rapport-subtitle');
     if (subtitle) subtitle.textContent = _rapportTypeLabel(period) + ' — ' + _rapportPeriodLabel(period, refDate);
