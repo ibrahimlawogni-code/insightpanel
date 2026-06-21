@@ -206,14 +206,21 @@
       user-select: none;
     }
 
-    .nav-item:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+    .nav-item:hover {
+      color: var(--white);
+      background: rgba(255,255,255,0.09);
+      border-left-color: rgba(255,195,0,0.45);
+    }
 
     .nav-item.active {
       color: var(--yellow);
-      background: rgba(255,195,0,0.08);
+      background: rgba(255,195,0,0.16);
       border-left-color: var(--yellow);
-      font-weight: 600;
+      border-left-width: 4px;
+      font-weight: 700;
     }
+
+    .nav-item.active i { color: var(--yellow); }
 
     .nav-item i { width: 17px; text-align: center; font-size: 13px; }
 
@@ -539,9 +546,19 @@
       cursor:pointer; border-radius:6px; margin:1px 8px;
       transition:background .15s,color .15s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
-    .nav-sub-item:hover { background:rgba(255,255,255,.07); color:var(--white); }
-    .nav-sub-item.active { background:var(--yellow); color:var(--black); font-weight:700; }
-    .nav-sub-item.active i { color:var(--black); }
+    .nav-sub-item:hover {
+      background: rgba(255,195,0,0.13);
+      color: var(--white);
+    }
+
+    .nav-sub-item.active {
+      background: var(--yellow);
+      color: var(--black);
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(255,195,0,0.25);
+    }
+
+    .nav-sub-item.active i { color: var(--black); }
     .nav-sub-badge { margin-left:auto; background:var(--yellow); color:var(--black); border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700; }
     .nav-sub-item.active .nav-sub-badge { background:var(--black); color:var(--yellow); }
 
@@ -1229,10 +1246,28 @@
       <div class="card" id="sup-perf-card" style="margin-bottom:20px">
         <div class="card-header">
           <div class="card-title">Suivi performance — Superviseurs</div>
-          <div class="tabs" id="sup-perf-tabs">
-            <button class="tab active" onclick="setSuperviseurPeriod('jour',this)">Aujourd'hui</button>
-            <button class="tab" onclick="setSuperviseurPeriod('semaine',this)">Semaine</button>
-            <button class="tab" onclick="setSuperviseurPeriod('mois',this)">Mois</button>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div class="tabs" id="sup-perf-tabs">
+              <button class="tab active" onclick="setSuperviseurPeriod('jour',this)">Jour</button>
+              <button class="tab" onclick="setSuperviseurPeriod('periode',this)">Période</button>
+              <button class="tab" onclick="setSuperviseurPeriod('semaine',this)">Semaine</button>
+              <button class="tab" onclick="setSuperviseurPeriod('mois',this)">Mois</button>
+              <button class="tab" onclick="setSuperviseurPeriod('annee',this)">Année</button>
+            </div>
+            <div id="sup-perf-controls" style="display:flex;align-items:center;gap:6px">
+              <div id="sup-perf-ctrl-date" style="display:flex;align-items:center;gap:5px">
+                <button class="btn btn-secondary btn-sm" onclick="navSupPerfDate(-1)"><i class="fa fa-chevron-left"></i></button>
+                <input type="date" id="sup-perf-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="supPerfRefDateChanged()">
+                <button class="btn btn-secondary btn-sm" onclick="navSupPerfDate(1)"><i class="fa fa-chevron-right"></i></button>
+              </div>
+              <div id="sup-perf-ctrl-range" style="display:none;align-items:center;gap:5px">
+                <span style="font-size:12px;color:var(--gray-text)">Du</span>
+                <input type="date" id="sup-perf-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <span style="font-size:12px;color:var(--gray-text)">au</span>
+                <input type="date" id="sup-perf-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <button class="btn btn-yellow btn-sm" onclick="applySupPerfRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="sup-perf-body">
@@ -1298,20 +1333,27 @@
           <div class="page-title">Vue Superviseur</div>
           <div class="page-subtitle" id="sup-view-subtitle">—</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <select id="sup-period-select" class="input-field" style="padding:6px 10px;font-size:13px;width:auto" onchange="setSupPeriod(this.value, null)">
-            <option value="jour">Aujourd'hui</option>
-            <option value="semaine">Semaine</option>
-            <option value="mois">Mois</option>
-            <option value="annee">Année</option>
-          </select>
-          <button class="tab" id="sup-tab-custom" onclick="setSupPeriod('custom', this)" style="white-space:nowrap">
-            <i class="fa fa-calendar-days" style="margin-right:4px"></i>Période
-          </button>
-          <div id="sup-custom-range" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
-            <input type="date" id="sup-date-from" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="_renderSupView(currentSupSelected)">
-            <span style="font-size:12px;color:var(--gray-text)">au</span>
-            <input type="date" id="sup-date-to"   class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="_renderSupView(currentSupSelected)">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div class="tabs" id="sup-view-tabs">
+            <button class="tab active" onclick="setSupPeriod('jour',this)">Jour</button>
+            <button class="tab" onclick="setSupPeriod('periode',this)">Période</button>
+            <button class="tab" onclick="setSupPeriod('semaine',this)">Semaine</button>
+            <button class="tab" onclick="setSupPeriod('mois',this)">Mois</button>
+            <button class="tab" onclick="setSupPeriod('annee',this)">Année</button>
+          </div>
+          <div id="sup-view-controls" style="display:flex;align-items:center;gap:6px">
+            <div id="sup-view-ctrl-date" style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="navSupViewDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="sup-view-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="supViewRefDateChanged()">
+              <button class="btn btn-secondary btn-sm" onclick="navSupViewDate(1)"><i class="fa fa-chevron-right"></i></button>
+            </div>
+            <div id="sup-view-ctrl-range" style="display:none;align-items:center;gap:5px">
+              <span style="font-size:12px;color:var(--gray-text)">Du</span>
+              <input type="date" id="sup-date-from" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <span style="font-size:12px;color:var(--gray-text)">au</span>
+              <input type="date" id="sup-date-to" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <button class="btn btn-yellow btn-sm" onclick="applySupViewRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1922,11 +1964,29 @@
           <div class="page-subtitle">Classement des meilleurs agents terrain</div>
         </div>
         <div>
-          <select id="bs-period-select" onchange="setBestsellerPeriod(this.value)" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:14px;cursor:pointer">
-            <option value="jour">Aujourd'hui</option>
-            <option value="semaine" selected>Cette semaine</option>
-            <option value="mois">Ce mois</option>
-          </select>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div class="tabs" id="bs-tabs">
+              <button class="tab" onclick="setBestsellerPeriod('jour',this)">Jour</button>
+              <button class="tab" onclick="setBestsellerPeriod('periode',this)">Période</button>
+              <button class="tab active" onclick="setBestsellerPeriod('semaine',this)">Semaine</button>
+              <button class="tab" onclick="setBestsellerPeriod('mois',this)">Mois</button>
+              <button class="tab" onclick="setBestsellerPeriod('annee',this)">Année</button>
+            </div>
+            <div id="bs-controls" style="display:flex;align-items:center;gap:6px">
+              <div id="bs-ctrl-date" style="display:flex;align-items:center;gap:5px">
+                <button class="btn btn-secondary btn-sm" onclick="navBsDate(-1)"><i class="fa fa-chevron-left"></i></button>
+                <input type="date" id="bs-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="bsRefDateChanged()">
+                <button class="btn btn-secondary btn-sm" onclick="navBsDate(1)"><i class="fa fa-chevron-right"></i></button>
+              </div>
+              <div id="bs-ctrl-range" style="display:none;align-items:center;gap:5px">
+                <span style="font-size:12px;color:var(--gray-text)">Du</span>
+                <input type="date" id="bs-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <span style="font-size:12px;color:var(--gray-text)">au</span>
+                <input type="date" id="bs-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <button class="btn btn-yellow btn-sm" onclick="applyBsRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1994,11 +2054,29 @@
           <div class="page-subtitle">Classement des superviseurs par performance d'équipe</div>
         </div>
         <div>
-          <select id="bs-sup-period-select" onchange="setBestsellerSupPeriod(this.value)" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:14px;cursor:pointer">
-            <option value="jour">Aujourd'hui</option>
-            <option value="semaine" selected>Cette semaine</option>
-            <option value="mois">Ce mois</option>
-          </select>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div class="tabs" id="bs-sup-tabs">
+              <button class="tab" onclick="setBestsellerSupPeriod('jour',this)">Jour</button>
+              <button class="tab" onclick="setBestsellerSupPeriod('periode',this)">Période</button>
+              <button class="tab active" onclick="setBestsellerSupPeriod('semaine',this)">Semaine</button>
+              <button class="tab" onclick="setBestsellerSupPeriod('mois',this)">Mois</button>
+              <button class="tab" onclick="setBestsellerSupPeriod('annee',this)">Année</button>
+            </div>
+            <div id="bs-sup-controls" style="display:flex;align-items:center;gap:6px">
+              <div id="bs-sup-ctrl-date" style="display:flex;align-items:center;gap:5px">
+                <button class="btn btn-secondary btn-sm" onclick="navBsSupDate(-1)"><i class="fa fa-chevron-left"></i></button>
+                <input type="date" id="bs-sup-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="bsSupRefDateChanged()">
+                <button class="btn btn-secondary btn-sm" onclick="navBsSupDate(1)"><i class="fa fa-chevron-right"></i></button>
+              </div>
+              <div id="bs-sup-ctrl-range" style="display:none;align-items:center;gap:5px">
+                <span style="font-size:12px;color:var(--gray-text)">Du</span>
+                <input type="date" id="bs-sup-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <span style="font-size:12px;color:var(--gray-text)">au</span>
+                <input type="date" id="bs-sup-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+                <button class="btn btn-yellow btn-sm" onclick="applyBsSupRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2384,22 +2462,39 @@
           <div class="page-title">Rapports</div>
           <div class="page-subtitle" id="rapport-subtitle">Rapport automatique</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="rapport-type-select" onchange="renderRapports()" style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;cursor:pointer">
-            <option value="jour">Journalier</option>
-            <option value="semaine" selected>Hebdomadaire</option>
-            <option value="mois">Mensuel</option>
-          </select>
-          <input type="date" id="rapport-date-input" onchange="renderRapports()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
-          <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-            <i class="fa fa-copy" style="margin-right:6px"></i>Copier
-          </button>
-          <button onclick="sendRapportWhatsApp()" id="rapport-wa-btn" style="padding:7px 14px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-            <i class="fa-brands fa-whatsapp" style="margin-right:6px"></i>WhatsApp
-          </button>
-          <button onclick="sendRapportEmail()" style="padding:7px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-            <i class="fa fa-envelope" style="margin-right:6px"></i>Email
-          </button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+              <i class="fa fa-copy" style="margin-right:6px"></i>Copier
+            </button>
+            <button onclick="sendRapportWhatsApp()" id="rapport-wa-btn" style="padding:7px 14px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+              <i class="fa-brands fa-whatsapp" style="margin-right:6px"></i>WhatsApp
+            </button>
+            <button onclick="sendRapportEmail()" style="padding:7px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
+              <i class="fa fa-envelope" style="margin-right:6px"></i>Email
+            </button>
+          </div>
+          <div class="tabs" id="rapport-tabs">
+            <button class="tab" onclick="setRapportPeriod('jour',this)">Jour</button>
+            <button class="tab" onclick="setRapportPeriod('periode',this)">Période</button>
+            <button class="tab active" onclick="setRapportPeriod('semaine',this)">Semaine</button>
+            <button class="tab" onclick="setRapportPeriod('mois',this)">Mois</button>
+            <button class="tab" onclick="setRapportPeriod('annee',this)">Année</button>
+          </div>
+          <div id="rapport-controls" style="display:flex;align-items:center;gap:6px">
+            <div id="rapport-ctrl-date" style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="navRapportDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="rapport-ref-date" class="input-field" style="width:140px;padding:5px 8px;font-size:12px" onchange="rapportRefDateChanged()">
+              <button class="btn btn-secondary btn-sm" onclick="navRapportDate(1)"><i class="fa fa-chevron-right"></i></button>
+            </div>
+            <div id="rapport-ctrl-range" style="display:none;align-items:center;gap:5px">
+              <span style="font-size:12px;color:var(--gray-text)">Du</span>
+              <input type="date" id="rapport-range-debut" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <span style="font-size:12px;color:var(--gray-text)">au</span>
+              <input type="date" id="rapport-range-fin" class="input-field" style="width:130px;padding:5px 8px;font-size:12px">
+              <button class="btn btn-yellow btn-sm" onclick="applyRapportRange()"><i class="fa fa-check" style="margin-right:4px"></i>Appliquer</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2503,8 +2598,145 @@
     </div>
 
     <div class="view" id="view-parametres">
-      <div class="page-header"><div><div class="page-title">Paramètres</div><div class="page-subtitle">Configuration de la plateforme</div></div></div>
-      <div class="card"><div class="empty-state"><i class="fa fa-gear"></i><p>Module disponible prochainement</p></div></div>
+      <div class="page-header">
+        <div>
+          <div class="page-title">Paramètres</div>
+          <div class="page-subtitle">Configuration de la plateforme InsightPanel</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:20px">
+
+        <!-- OBJECTIFS MENSUELS -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fa fa-bullseye" style="color:var(--yellow)"></i> Objectifs opérationnels</div>
+          </div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--gray-text);margin-bottom:16px">Définissez les cibles Gross Add et New MoMo pour chaque mois. Ces valeurs s'appliquent à tous les dashboards (RA, superviseurs, agents).</p>
+            <div style="display:flex;gap:10px;margin-bottom:14px">
+              <div style="flex:1">
+                <label class="input-label">Mois</label>
+                <input type="month" id="param-target-month" class="input-field" style="width:100%" onchange="_onParamMonthChange()">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+              <div>
+                <label class="input-label">Cible Gross Add</label>
+                <input type="number" id="param-target-gsm" class="input-field" placeholder="ex : 18 660" min="0" style="width:100%">
+              </div>
+              <div>
+                <label class="input-label">Cible New MoMo</label>
+                <input type="number" id="param-target-momo" class="input-field" placeholder="ex : 16 794" min="0" style="width:100%">
+              </div>
+            </div>
+            <div id="param-target-existing" style="margin-bottom:14px;font-size:12px;color:var(--gray-text)"></div>
+            <button class="btn btn-yellow btn-sm" onclick="saveParamTargets()" style="width:100%">
+              <i class="fa fa-floppy-disk"></i> Enregistrer les cibles
+            </button>
+            <div id="param-target-msg" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600"></div>
+          </div>
+          <div class="card-body" style="border-top:1px solid var(--gray-border)">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Cibles enregistrées</div>
+            <div id="param-targets-list" style="font-size:12px"></div>
+          </div>
+        </div>
+
+        <!-- MON COMPTE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fa fa-user-gear" style="color:var(--yellow)"></i> Mon compte</div>
+          </div>
+          <div class="card-body">
+            <div id="param-account-info" style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:18px">
+              <!-- rempli dynamiquement -->
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Changer mon mot de passe</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+              <div>
+                <label class="input-label">Nouveau mot de passe</label>
+                <div style="position:relative">
+                  <input type="password" id="param-pwd-new" class="input-field" placeholder="Nouveau mot de passe" style="width:100%;padding-right:36px">
+                  <span onclick="toggleParamPwd('param-pwd-new',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-text)"><i class="fa fa-eye"></i></span>
+                </div>
+              </div>
+              <div>
+                <label class="input-label">Confirmer le mot de passe</label>
+                <div style="position:relative">
+                  <input type="password" id="param-pwd-confirm" class="input-field" placeholder="Confirmer" style="width:100%;padding-right:36px">
+                  <span onclick="toggleParamPwd('param-pwd-confirm',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-text)"><i class="fa fa-eye"></i></span>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-yellow btn-sm" onclick="saveParamPassword()" style="width:100%">
+              <i class="fa fa-lock"></i> Mettre à jour le mot de passe
+            </button>
+            <div id="param-pwd-msg" style="display:none;margin-top:10px;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:600"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PLATEFORME -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-server" style="color:var(--yellow)"></i> Configuration plateforme</div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">URL Apps Script</div>
+              <div id="param-url-display" style="font-family:monospace;font-size:11px;background:var(--bg);border-radius:8px;padding:10px 12px;word-break:break-all;color:var(--gray-text);border:1px solid var(--gray-border)"></div>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button class="btn btn-secondary btn-sm" onclick="copyAppsScriptUrl()"><i class="fa fa-copy"></i> Copier</button>
+                <span id="param-url-copied" style="display:none;font-size:11px;color:var(--green);align-self:center"><i class="fa fa-check"></i> Copié</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">État de la connexion</div>
+              <div id="param-connection-status" style="font-size:13px;padding:10px 12px;border-radius:8px;border:1px solid var(--gray-border)">
+                <i class="fa fa-spinner fa-spin"></i> Vérification…
+              </div>
+              <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="testParamConnection()">
+                <i class="fa fa-rotate"></i> Tester la connexion
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- À PROPOS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-circle-info" style="color:var(--yellow)"></i> À propos</div>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+            <div style="text-align:center;padding:16px;background:var(--bg);border-radius:10px">
+              <div style="font-size:28px;font-weight:900;color:var(--yellow)">IP</div>
+              <div style="font-size:13px;font-weight:700;margin-top:4px">InsightPanel</div>
+              <div style="font-size:11px;color:var(--gray-text);margin-top:2px">v2.0 — Juin 2026</div>
+            </div>
+            <div style="padding:16px;background:var(--bg);border-radius:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Développé pour</div>
+              <div style="font-size:13px;font-weight:700">ZEPHIR GROUP</div>
+              <div style="font-size:12px;color:var(--gray-text)">Distributeur agréé MTN Bénin</div>
+              <div style="font-size:12px;color:var(--gray-text);margin-top:4px">Zones : Avrankou-Missérété · Dangbo · Adjohoun · Bonou</div>
+            </div>
+            <div style="padding:16px;background:var(--bg);border-radius:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Modules actifs</div>
+              <div style="font-size:12px;display:flex;flex-direction:column;gap:4px">
+                <span><i class="fa fa-check" style="color:var(--green);margin-right:6px"></i>Saisies & activations DFA</span>
+                <span><i class="fa fa-check" style="color:var(--green);margin-right:6px"></i>Dashboards RA / Superviseur / Agent</span>
+                <span><i class="fa fa-check" style="color:var(--green);margin-right:6px"></i>Gestion stocks SIM P100 / SWAP</span>
+                <span><i class="fa fa-check" style="color:var(--green);margin-right:6px"></i>Best Seller & Rapports</span>
+                <span><i class="fa fa-check" style="color:var(--green);margin-right:6px"></i>Gestion des comptes & équipes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /main-content -->
@@ -2788,8 +3020,9 @@
     const firstNav = document.querySelector(`.nav-item[data-roles*="${user.role}"]`);
     showView(defaultView[user.role] || 'agent', firstNav);
 
-    /* Restaurer les périodes de la session précédente */
+    /* Restaurer les périodes et cibles de la session précédente */
     _restorePeriods();
+    _loadParamTargets();
 
     if (['dg','dga','dcc','dc','ra','admin'].includes(user.role)) renderSalesChart();
 
@@ -2884,17 +3117,225 @@
     } catch(e) {}
   }
 
+  /* ============================================================
+     PARAMÈTRES
+  ============================================================ */
+
+  const PARAM_TARGETS_KEY = 'ip_param_targets_v1';
+
+  function _loadParamTargets() {
+    try {
+      const raw = localStorage.getItem(PARAM_TARGETS_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      for (const [month, vals] of Object.entries(saved)) {
+        MONTHLY_TARGETS[month] = vals;
+      }
+    } catch(e) {}
+  }
+
+  function renderParametresView() {
+    /* Mois par défaut = mois en cours */
+    const monthEl = document.getElementById('param-target-month');
+    if (monthEl && !monthEl.value) {
+      const now = today;
+      monthEl.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      _onParamMonthChange();
+    }
+
+    /* Infos compte */
+    const info = document.getElementById('param-account-info');
+    if (info && currentUser) {
+      const roleLabels = { ra:'Responsable Acquisition', admin:'Administrateur', superviseur:'Superviseur MPOS', agent:'DFA Agent', dg:'Directeur Général', dga:'Directeur Général Adjoint', dcc:'Directeur Commercial', dc:'Directeur Commercial' };
+      info.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--yellow);color:var(--black);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0">
+            ${(currentUser.nom||'?')[0].toUpperCase()}
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${currentUser.nom || '—'}</div>
+            <div style="font-size:12px;color:var(--gray-text)">${roleLabels[currentUser.role]||currentUser.role}</div>
+            <div style="font-size:11px;color:var(--gray-text);margin-top:1px"><i class="fa fa-map-pin" style="margin-right:4px"></i>${currentUser.zone || 'Toutes zones'}</div>
+          </div>
+        </div>`;
+    }
+
+    /* URL Apps Script */
+    const urlEl = document.getElementById('param-url-display');
+    if (urlEl) urlEl.textContent = APPS_SCRIPT_URL;
+
+    /* Liste des cibles enregistrées */
+    _renderParamTargetsList();
+
+    /* Test connexion */
+    testParamConnection();
+  }
+
+  function _onParamMonthChange() {
+    const month = document.getElementById('param-target-month')?.value;
+    if (!month) return;
+    const existing = MONTHLY_TARGETS[month];
+    const el = document.getElementById('param-target-existing');
+    const gsmEl  = document.getElementById('param-target-gsm');
+    const momoEl = document.getElementById('param-target-momo');
+    if (existing) {
+      if (el) el.innerHTML = `<i class="fa fa-info-circle" style="color:var(--yellow);margin-right:4px"></i>Cible actuelle : <strong>${existing.gsm.toLocaleString('fr-FR')}</strong> GA / <strong>${existing.momo.toLocaleString('fr-FR')}</strong> MoMo`;
+      if (gsmEl && !gsmEl.value)   gsmEl.value  = existing.gsm;
+      if (momoEl && !momoEl.value) momoEl.value = existing.momo;
+    } else {
+      if (el) el.textContent = 'Aucune cible définie pour ce mois.';
+    }
+  }
+
+  function _renderParamTargetsList() {
+    const el = document.getElementById('param-targets-list');
+    if (!el) return;
+    const entries = Object.entries(MONTHLY_TARGETS).sort((a,b) => b[0].localeCompare(a[0]));
+    if (!entries.length) { el.innerHTML = '<span style="color:var(--gray-text)">Aucune cible enregistrée.</span>'; return; }
+    el.innerHTML = entries.map(([month, vals]) => {
+      const [y, m] = month.split('-');
+      const label = new Date(Number(y), Number(m)-1, 1).toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-border)">
+        <span style="font-weight:600;text-transform:capitalize">${label}</span>
+        <span style="font-size:12px;color:var(--gray-text)">${vals.gsm.toLocaleString('fr-FR')} GA · ${vals.momo.toLocaleString('fr-FR')} MoMo</span>
+        <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" onclick="deleteParamTarget('${month}')"><i class="fa fa-trash"></i></button>
+      </div>`;
+    }).join('');
+  }
+
+  function saveParamTargets() {
+    const month = document.getElementById('param-target-month')?.value;
+    const gsm   = parseInt(document.getElementById('param-target-gsm')?.value  || '0');
+    const momo  = parseInt(document.getElementById('param-target-momo')?.value || '0');
+    const msgEl = document.getElementById('param-target-msg');
+
+    const showMsg = (txt, ok) => {
+      if (!msgEl) return;
+      msgEl.style.display = '';
+      msgEl.style.background = ok ? '#dcfce7' : '#fee2e2';
+      msgEl.style.color      = ok ? '#16a34a' : '#dc2626';
+      msgEl.textContent = txt;
+      setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+    };
+
+    if (!month) { showMsg('Sélectionnez un mois.', false); return; }
+    if (!gsm || gsm <= 0) { showMsg('Cible Gross Add invalide.', false); return; }
+    if (!momo || momo <= 0) { showMsg('Cible MoMo invalide.', false); return; }
+
+    MONTHLY_TARGETS[month] = { gsm, momo };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem(PARAM_TARGETS_KEY) || '{}');
+      existing[month] = { gsm, momo };
+      localStorage.setItem(PARAM_TARGETS_KEY, JSON.stringify(existing));
+    } catch(e) {}
+
+    showMsg('Cibles enregistrées avec succès.', true);
+    _renderParamTargetsList();
+    _onParamMonthChange();
+  }
+
+  function deleteParamTarget(month) {
+    delete MONTHLY_TARGETS[month];
+    try {
+      const existing = JSON.parse(localStorage.getItem(PARAM_TARGETS_KEY) || '{}');
+      delete existing[month];
+      localStorage.setItem(PARAM_TARGETS_KEY, JSON.stringify(existing));
+    } catch(e) {}
+    _renderParamTargetsList();
+  }
+
+  async function saveParamPassword() {
+    const newPwd  = document.getElementById('param-pwd-new')?.value  || '';
+    const confirm = document.getElementById('param-pwd-confirm')?.value || '';
+    const msgEl   = document.getElementById('param-pwd-msg');
+
+    const showMsg = (txt, ok) => {
+      if (!msgEl) return;
+      msgEl.style.display = '';
+      msgEl.style.background = ok ? '#dcfce7' : '#fee2e2';
+      msgEl.style.color      = ok ? '#16a34a' : '#dc2626';
+      msgEl.textContent = txt;
+      if (ok) setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+    };
+
+    if (newPwd.length < 6)    { showMsg('Le mot de passe doit contenir au moins 6 caractères.', false); return; }
+    if (newPwd !== confirm)   { showMsg('Les mots de passe ne correspondent pas.', false); return; }
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'resetPassword', userId: currentUser.id, newPassword: newPwd }) });
+      const json = await res.json();
+      if (json.success) {
+        showMsg('Mot de passe mis à jour.', true);
+        document.getElementById('param-pwd-new').value = '';
+        document.getElementById('param-pwd-confirm').value = '';
+      } else {
+        showMsg('Erreur : ' + (json.error || 'inconnue'), false);
+      }
+    } catch(e) {
+      showMsg('Erreur réseau.', false);
+    }
+  }
+
+  function toggleParamPwd(inputId, iconEl) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    iconEl.querySelector('i').className = isHidden ? 'fa fa-eye-slash' : 'fa fa-eye';
+  }
+
+  async function testParamConnection() {
+    const el = document.getElementById('param-connection-status');
+    if (!el) return;
+    el.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Test en cours…';
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'ping' }) });
+      const json = await res.json();
+      el.style.background = '#dcfce7';
+      el.style.color      = '#16a34a';
+      el.innerHTML = '<i class="fa fa-circle-check"></i> Connecté — Google Sheets opérationnel';
+    } catch(e) {
+      el.style.background = '#fee2e2';
+      el.style.color      = '#dc2626';
+      el.innerHTML = '<i class="fa fa-circle-xmark"></i> Impossible de joindre Apps Script';
+    }
+  }
+
+  function copyAppsScriptUrl() {
+    navigator.clipboard.writeText(APPS_SCRIPT_URL).then(() => {
+      const el = document.getElementById('param-url-copied');
+      if (el) { el.style.display = 'flex'; setTimeout(() => { el.style.display = 'none'; }, 2000); }
+    });
+  }
+
   /* ---- Navigation ---- */
+  function _clearNavActive() {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+  }
+
+  function _markNavActive(el) {
+    if (!el) return;
+    el.classList.add('active');
+    if (el.classList.contains('nav-sub-item')) {
+      const group = el.closest('.nav-group');
+      if (group) {
+        const toggle = group.querySelector('.nav-group-toggle');
+        if (toggle) toggle.classList.add('active');
+      }
+    }
+  }
+
   function showView(name, el) {
     saveViewState(name, null);
     closeSidebarMobile();
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+    _clearNavActive();
 
     const view = document.getElementById('view-' + name);
     if (view) view.classList.add('active');
-    if (el) el.classList.add('active');
+    _markNavActive(el);
 
     const titles = {
       dashboard:   "Vue d'ensemble — Tableau de bord",
@@ -2920,16 +3361,18 @@
     }
     if (name === 'evaluation')  _renderEvaluationView();
     if (name === 'saisie')      _initSaisieView();
-    if (name === 'bestseller')      renderBestseller(bestsellerPeriod);
-    if (name === 'bestseller-sup')  renderBestsellerSup(bestsellerSupPeriod);
-    if (name === 'rapports')        renderRapports();
+    if (name === 'bestseller')     { _updateBsControls();    renderBestseller(bestsellerPeriod); }
+    if (name === 'bestseller-sup') { _updateBsSupControls(); renderBestsellerSup(bestsellerSupPeriod); }
+    if (name === 'rapports')       { _updateRapportControls(); renderRapports(); }
     if (name === 'stocks')          _initStocksView();
-    if (name === 'equipes')   { loadUsers(); loadDemandes(); }
-    if (name === 'superviseur') { loadDemandes(); _initSupSelector(); }
+    if (name === 'equipes')    { loadUsers(); loadDemandes(); }
+    if (name === 'superviseur') { loadDemandes(); _initSupSelector(); _updateSupViewControls(); }
+    if (name === 'parametres') renderParametresView();
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
       if (di && !di.value) di.value = todayISO;
       _updateDashControls();
+      _updateSupPerfControls();
       renderTeamStats(); renderObjectifs(); renderSuperviseurZones(); renderSuperviseurPerf(); renderSupHebdoTable(); _updateDashWeekLabels(); renderDashKPIs(); renderDashTopAgents(); renderDashAlertes(); loadUsers();
     }
   }
@@ -3589,8 +4032,8 @@
   function _activateEquipesView() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-equipes').classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const toggle = document.querySelector('.nav-group-toggle');
+    _clearNavActive();
+    const toggle = document.querySelector('#nav-sub-equipes')?.closest('.nav-group')?.querySelector('.nav-group-toggle');
     if (toggle) toggle.classList.add('active');
     const sub = document.getElementById('nav-sub-equipes');
     const chevron = document.getElementById('nav-chevron-equipes');
@@ -3609,8 +4052,7 @@
     CURRENT_EQUIPE_ZONE = zone;
     saveViewState('equipes', { type: 'zone', zone });
     _activateEquipesView();
-    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
-    if (el) el.classList.add('active');
+    _markNavActive(el);
     document.getElementById('equipes-section-zone').style.display     = '';
     document.getElementById('equipes-section-demandes').style.display = 'none';
     document.getElementById('topbar-title').textContent = 'Équipes — ' + zone;
@@ -3620,15 +4062,12 @@
   function showSupView(supId, el) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-superviseur').classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const toggle = document.querySelector('[onclick*="toggleNavGroup(\'superviseur\'"]');
-    if (toggle) toggle.classList.add('active');
+    _clearNavActive();
     const sub     = document.getElementById('nav-sub-superviseur');
     const chevron = document.getElementById('nav-chevron-superviseur');
     if (sub) sub.style.display = 'block';
     if (chevron) chevron.classList.add('open');
-    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
-    if (el) el.classList.add('active');
+    _markNavActive(el);
     const sup = USERS.find(u => u.id === supId);
     document.getElementById('topbar-title').textContent = sup ? 'Vue Superviseur — ' + sup.nom : 'Vue Superviseur';
     currentSupSelected = supId;
@@ -4012,10 +4451,16 @@
 
   const SUP_PERF_DATA = {};
 
-  let currentSupPeriod  = 'semaine';
-  let currentSupSelected = null;
-  let supViewPeriod      = 'jour';
-  let supDfaPerfPeriod   = 'semaine';
+  let currentSupPeriod    = 'semaine';
+  let supPerfRefDate      = new Date(today);
+  let supPerfRangeDebut   = null;
+  let supPerfRangeFin     = null;
+  let currentSupSelected  = null;
+  let supViewPeriod       = 'jour';
+  let supViewRefDate      = new Date(today);
+  let supViewRangeDebut   = null;
+  let supViewRangeFin     = null;
+  let supDfaPerfPeriod    = 'semaine';
   let currentSupDfaFilter = '';
   let CURRENT_ZONE_PERIOD = 'jour';
   let agentViewDfaId      = null; // null = currentUser, sinon ID du DFA visualisé par sup/ra
@@ -4568,10 +5013,10 @@
 
   function showStocksView(type, el) {
     _stockViewType = type || 'p100';
-    /* Activer l'item nav */
-    document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
-    if (el) el.classList.add('active');
-    /* Afficher la vue */
+    _clearNavActive();
+    _markNavActive(el);
+    const stockTitles = { p100: 'P100', swap: 'SWAP', ressources: 'Ressources', detection: 'Détection SIMs', transferts: 'Transferts' };
+    document.getElementById('topbar-title').textContent = 'Stocks & Ressources — ' + (stockTitles[type] || type);
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     const view = document.getElementById('view-stocks');
     if (view) view.classList.add('active');
@@ -5208,16 +5653,30 @@
     }
   }
 
+  /* Retourne le grossAdd total des saisies pour un superviseur (par zone) */
+  function _grossAddForSup(supId) {
+    const sup = (USERS || []).find(u => u.id === supId);
+    if (!sup || !sup.zone) return 0;
+    const zNorm = _normZ(sup.zone);
+    return (SAISIES_DATA || [])
+      .filter(s => _normZ(s.zone) === zNorm)
+      .reduce((sum, s) => sum + (s.grossAdd || 0), 0);
+  }
+
   function _renderGestionnaireRA(soldMap) {
     const tbody  = document.getElementById('gestionnaire-tbody');
     const badge  = document.getElementById('gestionnaire-badge');
     const kpiRow = document.getElementById('gestionnaire-kpi-row');
     if (!tbody) return;
 
-    const totalRecu  = STOCK_DATA.filter(r => r.auteurRole === 'ra').reduce((s, r) => s + (r.quantite || 0), 0);
-    const totalVendu = soldMap.size;
-    const soldeGlobal = totalRecu - totalVendu;
+    const useSimTracking = soldMap.size > 0;
+    const totalRecu   = STOCK_DATA.filter(r => r.auteurRole === 'ra').reduce((s, r) => s + (r.quantite || 0), 0);
+    const totalVendu  = useSimTracking
+      ? soldMap.size
+      : (SAISIES_DATA || []).reduce((s, r) => s + (r.grossAdd || 0), 0);
+    const soldeGlobal = Math.max(0, totalRecu - totalVendu);
     const tauxGlobal  = totalRecu > 0 ? Math.round(totalVendu / totalRecu * 100) : 0;
+    const sourceLabel = useSimTracking ? 'Par N° SIM tracé' : 'Par Gross Add';
 
     if (kpiRow) kpiRow.innerHTML = `
       <div class="kpi-card" style="flex:1;min-width:130px">
@@ -5229,12 +5688,12 @@
       <div class="kpi-card" style="flex:1;min-width:130px">
         <div class="kpi-label">SIM vendues</div>
         <div class="kpi-value">${totalVendu.toLocaleString('fr-FR')}</div>
-        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> Activées</div>
+        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> ${sourceLabel}</div>
         <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
       </div>
       <div class="kpi-card" style="flex:1;min-width:130px">
         <div class="kpi-label">Solde disponible</div>
-        <div class="kpi-value">${Math.max(0, soldeGlobal).toLocaleString('fr-FR')}</div>
+        <div class="kpi-value">${soldeGlobal.toLocaleString('fr-FR')}</div>
         <div class="kpi-delta ${soldeGlobal < 100 ? 'negative' : 'neutral'}">
           <i class="fa fa-${soldeGlobal < 100 ? 'triangle-exclamation' : 'circle-check'}"></i>
           ${tauxGlobal} % écoulé
@@ -5252,21 +5711,23 @@
 
     tbody.innerHTML = supEntries.map(entry => {
       let vendu = 0;
-      if (entry.simDebut && entry.simFin) {
+      if (useSimTracking && entry.simDebut && entry.simFin) {
         const debut = Number(entry.simDebut);
         const fin   = Number(entry.simFin);
         for (const sim of soldMap.keys()) {
           const n = Number(sim);
           if (n >= debut && n <= fin) vendu++;
         }
+      } else {
+        vendu = _grossAddForSup(entry.auteurId || '');
       }
-      const solde = (entry.quantite || 0) - vendu;
+      const solde = Math.max(0, (entry.quantite || 0) - vendu);
       const taux  = entry.quantite > 0 ? Math.round(vendu / entry.quantite * 100) : 0;
       const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
       return `<tr>
         <td><strong>${entry.auteurNom || '—'}</strong></td>
         <td>${entry.date || '—'}</td>
-        <td style="font-family:monospace;font-size:11px;white-space:nowrap">${entry.simDebut} → ${entry.simFin}</td>
+        <td style="font-family:monospace;font-size:11px;white-space:nowrap">${entry.simDebut || '—'} → ${entry.simFin || '—'}</td>
         <td>${(entry.quantite || 0).toLocaleString('fr-FR')}</td>
         <td>${vendu.toLocaleString('fr-FR')}</td>
         <td><strong style="color:${solde < 20 ? '#721c24' : 'inherit'}">${solde.toLocaleString('fr-FR')}</strong></td>
@@ -5281,16 +5742,18 @@
     const kpiRow = document.getElementById('gestionnaire-sup-kpi-row');
     if (!tbody) return;
 
-    const supRanges  = STOCK_DATA.filter(r => r.auteurId === currentUser.id);
-    const totalRecu  = supRanges.reduce((s, r) => s + (r.quantite || 0), 0);
+    const supRanges = STOCK_DATA.filter(r => r.auteurId === currentUser.id);
+    const totalRecu = supRanges.reduce((s, r) => s + (r.quantite || 0), 0);
+    const myZoneN   = _normZ(currentUser.zone || '');
 
+    /* SIM tracées par N° dans la plage */
     const dfaMap = new Map();
-    let totalVendu = 0;
+    let totalVenduSim = 0;
     for (const [sim, meta] of soldMap.entries()) {
       const n = Number(sim);
       const inRange = supRanges.some(r => r.simDebut && r.simFin && n >= Number(r.simDebut) && n <= Number(r.simFin));
       if (!inRange) continue;
-      totalVendu++;
+      totalVenduSim++;
       if (!dfaMap.has(meta.dfaId)) {
         dfaMap.set(meta.dfaId, { nom: meta.dfaNom, zone: meta.zone, count: 0, lastDate: meta.date });
       }
@@ -5299,8 +5762,27 @@
       if (meta.date > entry.lastDate) entry.lastDate = meta.date;
     }
 
-    const solde = totalRecu - totalVendu;
+    /* Fallback Gross Add si aucun N° SIM tracé */
+    const useSimTracking = totalVenduSim > 0;
+    let totalVendu = totalVenduSim;
+    if (!useSimTracking && myZoneN) {
+      const mySaisies = (SAISIES_DATA || []).filter(s => _normZ(s.zone) === myZoneN);
+      totalVendu = mySaisies.reduce((sum, s) => sum + (s.grossAdd || 0), 0);
+      /* Construire dfaMap depuis grossAdd */
+      for (const s of mySaisies) {
+        if (!s.dfaId) continue;
+        if (!dfaMap.has(s.dfaId)) {
+          dfaMap.set(s.dfaId, { nom: s.dfaNom || s.dfaId, zone: s.zone, count: 0, lastDate: s.date });
+        }
+        const entry = dfaMap.get(s.dfaId);
+        entry.count += (s.grossAdd || 0);
+        if ((s.date || '') > entry.lastDate) entry.lastDate = s.date;
+      }
+    }
+
+    const solde = Math.max(0, totalRecu - totalVendu);
     const taux  = totalRecu > 0 ? Math.round(totalVendu / totalRecu * 100) : 0;
+    const sourceLabel = useSimTracking ? 'Par N° SIM tracé' : 'Par Gross Add';
 
     if (kpiRow) kpiRow.innerHTML = `
       <div class="kpi-card" style="flex:1;min-width:130px">
@@ -5312,12 +5794,12 @@
       <div class="kpi-card" style="flex:1;min-width:130px">
         <div class="kpi-label">SIM vendues</div>
         <div class="kpi-value">${totalVendu.toLocaleString('fr-FR')}</div>
-        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> Par mes DFA</div>
+        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> ${sourceLabel}</div>
         <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
       </div>
       <div class="kpi-card" style="flex:1;min-width:130px">
         <div class="kpi-label">Solde</div>
-        <div class="kpi-value">${Math.max(0, solde).toLocaleString('fr-FR')}</div>
+        <div class="kpi-value">${solde.toLocaleString('fr-FR')}</div>
         <div class="kpi-delta ${solde < 20 ? 'negative' : 'neutral'}">
           <i class="fa fa-${solde < 20 ? 'triangle-exclamation' : 'circle-check'}"></i> ${taux} % écoulé
         </div>
@@ -5327,15 +5809,15 @@
     if (badge) badge.textContent = `${dfaMap.size} DFA`;
 
     if (!dfaMap.size) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune vente enregistrée dans votre plage.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-text);padding:20px">Aucune vente enregistrée dans votre zone.</td></tr>';
       return;
     }
 
     tbody.innerHTML = [...dfaMap.entries()]
       .sort((a, b) => b[1].count - a[1].count)
       .map(([dfaId, info]) => {
-        const pct = totalRecu > 0 ? Math.round(info.count / totalRecu * 100) : 0;
-        const taux = totalVendu > 0 ? Math.round(info.count / totalVendu * 100) : 0;
+        const pct  = totalRecu   > 0 ? Math.round(info.count / totalRecu   * 100) : 0;
+        const taux = totalVendu  > 0 ? Math.round(info.count / totalVendu  * 100) : 0;
         return `<tr>
           <td><strong>${info.nom || dfaId}</strong></td>
           <td style="font-size:12px;color:var(--gray-text)">${info.zone || '—'}</td>
@@ -5504,10 +5986,53 @@
     renderEquipeZone(CURRENT_EQUIPE_ZONE);
   }
 
+  function _updateSupPerfControls() {
+    const ctrlDate  = document.getElementById('sup-perf-ctrl-date');
+    const ctrlRange = document.getElementById('sup-perf-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (currentSupPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const inp = document.getElementById('sup-perf-ref-date');
+      if (inp) inp.value = supPerfRefDate.getFullYear() + '-' + String(supPerfRefDate.getMonth()+1).padStart(2,'0') + '-' + String(supPerfRefDate.getDate()).padStart(2,'0');
+    }
+  }
+
   function setSuperviseurPeriod(period, btn) {
     currentSupPeriod = period;
     document.querySelectorAll('#sup-perf-tabs .tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    _updateSupPerfControls();
+    renderSuperviseurPerf();
+  }
+
+  function navSupPerfDate(dir) {
+    if (currentSupPeriod === 'jour')    supPerfRefDate.setDate(supPerfRefDate.getDate() + dir);
+    if (currentSupPeriod === 'semaine') supPerfRefDate.setDate(supPerfRefDate.getDate() + dir * 7);
+    if (currentSupPeriod === 'mois')    supPerfRefDate.setMonth(supPerfRefDate.getMonth() + dir);
+    if (currentSupPeriod === 'annee')   supPerfRefDate.setFullYear(supPerfRefDate.getFullYear() + dir);
+    _updateSupPerfControls();
+    renderSuperviseurPerf();
+  }
+
+  function supPerfRefDateChanged() {
+    const inp = document.getElementById('sup-perf-ref-date');
+    if (!inp || !inp.value) return;
+    const [y,m,d] = inp.value.split('-').map(Number);
+    supPerfRefDate = new Date(y, m-1, d);
+    renderSuperviseurPerf();
+  }
+
+  function applySupPerfRange() {
+    const debut = document.getElementById('sup-perf-range-debut');
+    const fin   = document.getElementById('sup-perf-range-fin');
+    if (!debut?.value || !fin?.value) { showToast('Sélectionnez une date de début et de fin.','error'); return; }
+    if (debut.value > fin.value)       { showToast('La date de début doit être avant la date de fin.','error'); return; }
+    supPerfRangeDebut = debut.value;
+    supPerfRangeFin   = fin.value;
     renderSuperviseurPerf();
   }
 
@@ -5558,38 +6083,65 @@
     _renderSupView(currentSupSelected);
   }
 
+  function _updateSupViewControls() {
+    const ctrlDate  = document.getElementById('sup-view-ctrl-date');
+    const ctrlRange = document.getElementById('sup-view-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (supViewPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const inp = document.getElementById('sup-view-ref-date');
+      if (inp) inp.value = supViewRefDate.getFullYear() + '-' + String(supViewRefDate.getMonth()+1).padStart(2,'0') + '-' + String(supViewRefDate.getDate()).padStart(2,'0');
+    }
+    document.querySelectorAll('#sup-view-tabs .tab').forEach(t => {
+      t.classList.toggle('active', t.textContent.toLowerCase().startsWith(supViewPeriod === 'periode' ? 'pé' : supViewPeriod === 'annee' ? 'an' : supViewPeriod === 'semaine' ? 'se' : supViewPeriod === 'mois' ? 'mo' : 'jo'));
+    });
+  }
+
   function setSupPeriod(period, el) {
     supViewPeriod = period;
-    const sel = document.getElementById('sup-period-select');
-    const customBtn = document.getElementById('sup-tab-custom');
-    const customRange = document.getElementById('sup-custom-range');
-    if (period === 'custom') {
-      if (sel) sel.value = 'jour'; // reset select visuel
-      if (customBtn) customBtn.classList.add('active');
-    } else {
-      if (sel) sel.value = period;
-      if (customBtn) customBtn.classList.remove('active');
-    }
-    if (customRange) customRange.style.display = period === 'custom' ? 'flex' : 'none';
+    document.querySelectorAll('#sup-view-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    _updateSupViewControls();
+    _renderSupView(currentSupSelected);
+  }
+
+  function navSupViewDate(dir) {
+    if (supViewPeriod === 'jour')    supViewRefDate.setDate(supViewRefDate.getDate() + dir);
+    if (supViewPeriod === 'semaine') supViewRefDate.setDate(supViewRefDate.getDate() + dir * 7);
+    if (supViewPeriod === 'mois')    supViewRefDate.setMonth(supViewRefDate.getMonth() + dir);
+    if (supViewPeriod === 'annee')   supViewRefDate.setFullYear(supViewRefDate.getFullYear() + dir);
+    _updateSupViewControls();
+    _renderSupView(currentSupSelected);
+  }
+
+  function supViewRefDateChanged() {
+    const inp = document.getElementById('sup-view-ref-date');
+    if (!inp || !inp.value) return;
+    const [y,m,d] = inp.value.split('-').map(Number);
+    supViewRefDate = new Date(y, m-1, d);
+    _renderSupView(currentSupSelected);
+  }
+
+  function applySupViewRange() {
+    const debut = document.getElementById('sup-date-from');
+    const fin   = document.getElementById('sup-date-to');
+    if (!debut?.value || !fin?.value) { showToast('Sélectionnez une date de début et de fin.','error'); return; }
+    if (debut.value > fin.value)       { showToast('La date de début doit être avant la date de fin.','error'); return; }
+    supViewRangeDebut = debut.value;
+    supViewRangeFin   = fin.value;
     _renderSupView(currentSupSelected);
   }
 
   function _filterSupViewPeriod(saisies) {
-    if (supViewPeriod === 'jour')    return _filterPeriod(saisies, 'jour',    today);
-    if (supViewPeriod === 'semaine') return _filterPeriod(saisies, 'semaine', today);
-    if (supViewPeriod === 'mois')    return _filterPeriod(saisies, 'mois',    today);
-    if (supViewPeriod === 'annee') {
-      const yr = today.getFullYear();
-      return saisies.filter(s => { const d = _parseFrDate(s.date); return d && d.getFullYear() === yr; });
+    if (supViewPeriod === 'periode') {
+      if (!supViewRangeDebut || !supViewRangeFin) return saisies;
+      return _filterDateRange(saisies, supViewRangeDebut, supViewRangeFin);
     }
-    if (supViewPeriod === 'custom') {
-      const fEl = document.getElementById('sup-date-from');
-      const tEl = document.getElementById('sup-date-to');
-      if (!fEl?.value || !tEl?.value) return saisies;
-      const from = new Date(fEl.value + 'T00:00:00');
-      const to   = new Date(tEl.value + 'T23:59:59');
-      return saisies.filter(s => { const d = _parseFrDate(s.date); return d && d >= from && d <= to; });
-    }
+    return _filterPeriod(saisies, supViewPeriod, supViewRefDate);
     return saisies;
   }
 
@@ -5822,18 +6374,19 @@
     const rows = superviseurs.map(sup => {
       let d;
       if (SAISIES_DATA.length) {
-        const zAll    = _filterZone(SAISIES_DATA, sup.zone);
-        const zSaisies = _filterPeriod(zAll, currentSupPeriod, today);
+        const zAll = _filterZone(SAISIES_DATA, sup.zone);
+        const zSaisies = currentSupPeriod === 'periode' && supPerfRangeDebut && supPerfRangeFin
+          ? _filterDateRange(zAll, supPerfRangeDebut, supPerfRangeFin)
+          : _filterPeriod(zAll, currentSupPeriod, supPerfRefDate);
         const ga  = _sumField(zSaisies, 'grossAdd');
         const mm  = _sumField(zSaisies, 'momoUser');
         const mj  = _moyJour(zSaisies, 'grossAdd');
         const tgt = _zoneTarget(sup.zone, currentSupPeriod) || 70;
-        /* Calcul évolution vs période précédente */
-        const refPrev = new Date(today);
+        const refPrev = new Date(supPerfRefDate);
         if (currentSupPeriod === 'jour')    refPrev.setDate(refPrev.getDate() - 1);
         else if (currentSupPeriod === 'semaine') refPrev.setDate(refPrev.getDate() - 7);
         else if (currentSupPeriod === 'mois')    refPrev.setMonth(refPrev.getMonth() - 1);
-        const zPrev = _filterPeriod(zAll, currentSupPeriod, refPrev);
+        const zPrev = ['periode','annee'].includes(currentSupPeriod) ? [] : _filterPeriod(zAll, currentSupPeriod, refPrev);
         const gaP   = _sumField(zPrev, 'grossAdd');
         const evolutif = gaP > 0 ? parseFloat(((ga - gaP) / gaP * 100).toFixed(1)) : 0;
         d = { grossAdd: ga, newMomo: mm, target: tgt, moyJour: mj, evolutif };
@@ -6330,40 +6883,78 @@
     const activeIds      = new Set(moisSaisies.map(s => s.dfaId)).size;
     const totalZoneAgents = USERS.filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === _normZ(sup.zone)).length;
 
+    const curCls  = curPct  !== null ? (curPct  >= 80 ? 'badge-green' : curPct  >= 50 ? 'badge-orange' : 'badge-red') : 'badge-yellow';
+    const momoNew = momoM;
+    const prevMoisSaisies = _filterPeriod(zoneSaisies, 'mois', (() => { const d = new Date(today); d.setMonth(d.getMonth()-1); return d; })());
+    const gsmPrev = _sumField(prevMoisSaisies, 'grossAdd');
+    const vsLast  = gsmPrev > 0 ? Math.round((gsmM - gsmPrev) / gsmPrev * 100) : null;
+    const vsLastStr  = vsLast !== null ? (vsLast >= 0 ? `+${vsLast}%` : `${vsLast}%`) : null;
+    const vsLastCol  = vsLast !== null ? (vsLast >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--gray-text)';
+    const vsLastIcon = vsLast !== null ? (vsLast > 5 ? '↑' : vsLast < -5 ? '↓' : '→') : '';
+
     container.innerHTML = `
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
-          <span>Gross Add ce mois</span>
-          <span style="font-weight:700">${gsmM.toLocaleString('fr-FR')} / ${tMois > 0 ? tMois.toLocaleString('fr-FR') : '—'}</span>
+      <div style="padding:4px 0">
+
+        <!-- RÉALISÉ -->
+        <div style="margin-bottom:18px">
+          <div style="font-size:10px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">
+            <i class="fa fa-chart-line" style="color:var(--yellow);margin-right:5px"></i>Réalisé ce mois
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+            <span style="font-size:36px;font-weight:900;color:${curColor};line-height:1">${gsmM.toLocaleString('fr-FR')}</span>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:12px;color:var(--gray-text)">sur <strong>${tMois > 0 ? tMois.toLocaleString('fr-FR') : '—'}</strong> objectif</span>
+              ${vsLastStr !== null ? `<span style="font-size:11px;font-weight:700;color:${vsLastCol}">${vsLastIcon} ${vsLastStr} vs mois préc.</span>` : ''}
+            </div>
+            ${curPct !== null ? `<span class="badge ${curCls}" style="margin-left:auto;font-size:12px;padding:4px 10px">${curPct}%</span>` : ''}
+          </div>
+          ${curPct !== null ? `
+          <div class="zone-track" style="height:12px;border-radius:6px">
+            <div class="zone-fill" style="width:${curPct}%;background:${curColor};border-radius:6px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:5px">
+            <span style="font-size:11px;color:var(--gray-text)">Jour ${dayOfM} / ${daysInM}</span>
+            <span style="font-size:11px;color:var(--gray-text)">${daysLeft} jour${daysLeft>1?'s':''} restant${daysLeft>1?'s':''}</span>
+          </div>` : ''}
         </div>
-        ${curPct !== null ? `
-        <div class="zone-track" style="height:10px"><div class="zone-fill" style="width:${curPct}%;background:${curColor}"></div></div>
-        <div style="font-size:11px;color:${curColor};font-weight:600;margin-top:3px">${curPct}% atteint · ${daysLeft} jour${daysLeft > 1 ? 's' : ''} restant${daysLeft > 1 ? 's' : ''}</div>
-        ` : ''}
-        <div style="height:1px;background:var(--gray-border);margin:12px 0"></div>
+
+        <!-- PROJECTION -->
         ${projected !== null ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-          <span style="color:var(--gray-text)">Projection fin de mois</span>
-          <span style="font-weight:700;color:${projColor}">${projected.toLocaleString('fr-FR')}</span>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:10px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.6px">
+              <i class="fa fa-bullseye" style="color:var(--yellow);margin-right:5px"></i>Projection fin de mois
+            </span>
+            <span class="badge ${projCls}" style="font-size:10px">${projPct}% prévu</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+            <span style="font-size:26px;font-weight:900;color:${projColor}">${projected.toLocaleString('fr-FR')}</span>
+            <span style="font-size:12px;color:var(--gray-text)">estimé · ${Math.round(avgJour)} / jour</span>
+          </div>
+          <div class="zone-track" style="height:8px;border-radius:4px">
+            <div class="zone-fill" style="width:${projPct}%;background:${projColor};border-radius:4px;opacity:0.7"></div>
+          </div>
+        </div>` : ''}
+
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:20px;font-weight:900;color:${momoCol}">${momoRate}%</div>
+            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">Taux MoMo</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">${momoNew} act.</div>
+          </div>
+          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:20px;font-weight:900">${activeIds}<span style="font-size:13px;font-weight:400;color:var(--gray-text)">/${totalZoneAgents}</span></div>
+            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">DFA actifs</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">${totalZoneAgents > 0 ? Math.round(activeIds/totalZoneAgents*100) : 0}% engagement</div>
+          </div>
+          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:20px;font-weight:900">${Math.round(avgJour)}</div>
+            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">Moy./jour</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">cible ${Math.round(tMois/daysInM)}/j</div>
+          </div>
         </div>
-        <div class="zone-track" style="height:8px"><div class="zone-fill" style="width:${projPct}%;background:${projColor}"></div></div>
-        <div style="font-size:11px;color:${projColor};font-weight:600;margin-top:3px">${projPct}% projeté</div>
-        <div style="height:1px;background:var(--gray-border);margin:12px 0"></div>
-        ` : ''}
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <div style="flex:1;min-width:70px">
-            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">Taux MoMo</div>
-            <div style="font-size:16px;font-weight:800;color:${momoCol}">${momoRate}%</div>
-          </div>
-          <div style="flex:1;min-width:70px">
-            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">DFA actifs</div>
-            <div style="font-size:16px;font-weight:800">${activeIds}<span style="font-size:12px;font-weight:400;color:var(--gray-text)"> / ${totalZoneAgents}</span></div>
-          </div>
-          <div style="flex:1;min-width:70px">
-            <div style="font-size:11px;color:var(--gray-text);margin-bottom:2px">Moy. / jour</div>
-            <div style="font-size:16px;font-weight:800">${Math.round(avgJour)}</div>
-          </div>
-        </div>
+
       </div>`;
   }
 
@@ -7293,47 +7884,113 @@
   }
 
   let bestsellerPeriod = 'semaine';
+  let bsRefDate        = new Date(today);
+  let bsRangeDebut     = null;
+  let bsRangeFin       = null;
 
-  function setBestsellerPeriod(p) {
+  function _updateBsControls() {
+    const ctrlDate  = document.getElementById('bs-ctrl-date');
+    const ctrlRange = document.getElementById('bs-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (bestsellerPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const inp = document.getElementById('bs-ref-date');
+      if (inp) inp.value = bsRefDate.getFullYear() + '-' + String(bsRefDate.getMonth()+1).padStart(2,'0') + '-' + String(bsRefDate.getDate()).padStart(2,'0');
+    }
+  }
+
+  function setBestsellerPeriod(p, el) {
     bestsellerPeriod = p;
-    const sel = document.getElementById('bs-period-select');
-    if (sel) sel.value = p;
+    document.querySelectorAll('#bs-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
     _savePeriods();
+    _updateBsControls();
     renderBestseller(p);
+  }
+
+  function navBsDate(dir) {
+    if (bestsellerPeriod === 'jour')    bsRefDate.setDate(bsRefDate.getDate() + dir);
+    if (bestsellerPeriod === 'semaine') bsRefDate.setDate(bsRefDate.getDate() + dir * 7);
+    if (bestsellerPeriod === 'mois')    bsRefDate.setMonth(bsRefDate.getMonth() + dir);
+    if (bestsellerPeriod === 'annee')   bsRefDate.setFullYear(bsRefDate.getFullYear() + dir);
+    _updateBsControls();
+    renderBestseller(bestsellerPeriod);
+  }
+
+  function bsRefDateChanged() {
+    const inp = document.getElementById('bs-ref-date');
+    if (!inp || !inp.value) return;
+    const [y,m,d] = inp.value.split('-').map(Number);
+    bsRefDate = new Date(y, m-1, d);
+    renderBestseller(bestsellerPeriod);
+  }
+
+  function applyBsRange() {
+    const debut = document.getElementById('bs-range-debut');
+    const fin   = document.getElementById('bs-range-fin');
+    if (!debut?.value || !fin?.value) { showToast('Sélectionnez une date de début et de fin.','error'); return; }
+    if (debut.value > fin.value)       { showToast('La date de début doit être avant la date de fin.','error'); return; }
+    bsRangeDebut = debut.value;
+    bsRangeFin   = fin.value;
+    renderBestseller(bestsellerPeriod);
   }
 
   function renderBestseller(period) {
     if (!currentUser) return;
+    _updateBsControls();
 
-    const key = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
+    const ref = bsRefDate;
     const _moisFR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const key = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : period === 'annee' ? 'annee' : period === 'periode' ? 'periode' : 'semaine';
     const periodLabel = period === 'mois'
-      ? today.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      ? ref.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : period === 'jour'
-      ? `${today.getDate()} ${_moisFR[today.getMonth()]} ${today.getFullYear()}`
-      : `Semaine ${Math.ceil(today.getDate() / 7)} du mois de ${_moisFR[today.getMonth()]} ${today.getFullYear()}`;
+      ? `${ref.getDate()} ${_moisFR[ref.getMonth()]} ${ref.getFullYear()}`
+      : period === 'annee'
+      ? `Année ${ref.getFullYear()}`
+      : period === 'periode' && bsRangeDebut && bsRangeFin
+      ? `Du ${bsRangeDebut.split('-').reverse().join('/')} au ${bsRangeFin.split('-').reverse().join('/')}`
+      : `Semaine ${Math.ceil(ref.getDate() / 7)} du mois de ${_moisFR[ref.getMonth()]} ${ref.getFullYear()}`;
 
     const userZone = currentUser.zone;
 
-    /* Données : vraies saisies si disponibles, sinon mock avec momo approximé à 85 % */
-    const source = SAISIES_DATA.length
-      ? _computeBestsellerData(period)
-      : [...BESTSELLER_MOCK].map(a => ({ ...a, jour: a.jour ?? Math.round(a.moyJour), momo: Math.round((a[key] || 0) * 0.85) }));
-    const sorted = [...source].sort((a, b) => b[key] - a[key]);
-
-    /* Tendance S vs S-1 (données réelles seulement) */
+    /* Données : filtrage par période/référence */
+    let source;
     if (SAISIES_DATA.length) {
-      const prevSource = _computeBestsellerData(period === 'jour' ? 'jour' : period === 'mois' ? 'mois' : 'semaine', -1);
+      const filterFn = period === 'periode'
+        ? s => bsRangeDebut && bsRangeFin && _parseSaisieDate(s.date) >= bsRangeDebut && _parseSaisieDate(s.date) <= bsRangeFin
+        : s => { const dt = _parseSaisieDate(s.date); if (!dt) return false; return _filterPeriod([s], period, ref).length > 0; };
+      const filtered = SAISIES_DATA.filter(filterFn);
+      const byAgent = {};
+      filtered.forEach(s => {
+        if (!s.dfaId) return;
+        if (!byAgent[s.dfaId]) byAgent[s.dfaId] = { id: s.dfaId, jour: 0, semaine: 0, mois: 0, annee: 0, periode: 0, momo: 0, moyJour: 0 };
+        byAgent[s.dfaId][key] = (byAgent[s.dfaId][key] || 0) + (s.grossAdd || 0);
+        byAgent[s.dfaId].momo += s.momoUser || 0;
+      });
+      source = Object.values(byAgent).map(a => {
+        const u = USERS.find(u => u.id === a.id);
+        return { ...a, nom: u ? u.nom : a.id, zone: u ? u.zone : '' };
+      });
+    } else {
+      source = [...BESTSELLER_MOCK].map(a => ({ ...a, momo: Math.round((a[key] || 0) * 0.85) }));
+    }
+    const sorted = [...source].sort((a, b) => (b[key]||0) - (a[key]||0));
+
+    /* Tendance vs période précédente (données réelles, modes nav seulement) */
+    if (SAISIES_DATA.length && !['periode','annee'].includes(period)) {
+      const prevSource = _computeBestsellerData(key, -1);
       const prevMap = {};
       prevSource.forEach(a => { prevMap[a.id] = a[key] || 0; });
-      sorted.forEach(a => {
-        const prev = prevMap[a.id];
-        a.trendPct = (prev > 0) ? Math.round((a[key] - prev) / prev * 100) : null;
-      });
+      sorted.forEach(a => { const prev = prevMap[a.id]; a.trendPct = (prev > 0) ? Math.round(((a[key]||0) - prev) / prev * 100) : null; });
     }
 
-    /* Seuils ancrés sur DFA_DAILY_TARGET (objectif réel) */
-    const daysInM  = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    /* Seuils */
+    const daysInM  = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
     const tgt      = DFA_DAILY_TARGET * (key === 'jour' ? 1 : key === 'semaine' ? 7 : daysInM);
     const thresholds = [
       [Math.round(tgt * 1.2), 'Excellent',   'badge-green'],
@@ -7467,31 +8124,85 @@
 
   /* --- Best Seller Superviseurs MPOS --- */
   let bestsellerSupPeriod   = 'semaine';
-  let bestsellerSupSelected = null; // ID du superviseur sélectionné pour le détail
+  let bestsellerSupSelected = null;
+  let bsSupRefDate          = new Date(today);
+  let bsSupRangeDebut       = null;
+  let bsSupRangeFin         = null;
 
-  function setBestsellerSupPeriod(p) {
+  function _updateBsSupControls() {
+    const ctrlDate  = document.getElementById('bs-sup-ctrl-date');
+    const ctrlRange = document.getElementById('bs-sup-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (bestsellerSupPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const inp = document.getElementById('bs-sup-ref-date');
+      if (inp) inp.value = bsSupRefDate.getFullYear() + '-' + String(bsSupRefDate.getMonth()+1).padStart(2,'0') + '-' + String(bsSupRefDate.getDate()).padStart(2,'0');
+    }
+  }
+
+  function setBestsellerSupPeriod(p, el) {
     bestsellerSupPeriod = p;
-    const sel = document.getElementById('bs-sup-period-select');
-    if (sel) sel.value = p;
+    document.querySelectorAll('#bs-sup-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
     _savePeriods();
+    _updateBsSupControls();
     renderBestsellerSup(p);
-    /* Rafraîchir le détail si un superviseur était déjà sélectionné */
     if (bestsellerSupSelected) renderBestsellerSupDetail(bestsellerSupSelected, p);
+  }
+
+  function navBsSupDate(dir) {
+    if (bestsellerSupPeriod === 'jour')    bsSupRefDate.setDate(bsSupRefDate.getDate() + dir);
+    if (bestsellerSupPeriod === 'semaine') bsSupRefDate.setDate(bsSupRefDate.getDate() + dir * 7);
+    if (bestsellerSupPeriod === 'mois')    bsSupRefDate.setMonth(bsSupRefDate.getMonth() + dir);
+    if (bestsellerSupPeriod === 'annee')   bsSupRefDate.setFullYear(bsSupRefDate.getFullYear() + dir);
+    _updateBsSupControls();
+    renderBestsellerSup(bestsellerSupPeriod);
+    if (bestsellerSupSelected) renderBestsellerSupDetail(bestsellerSupSelected, bestsellerSupPeriod);
+  }
+
+  function bsSupRefDateChanged() {
+    const inp = document.getElementById('bs-sup-ref-date');
+    if (!inp || !inp.value) return;
+    const [y,m,d] = inp.value.split('-').map(Number);
+    bsSupRefDate = new Date(y, m-1, d);
+    renderBestsellerSup(bestsellerSupPeriod);
+    if (bestsellerSupSelected) renderBestsellerSupDetail(bestsellerSupSelected, bestsellerSupPeriod);
+  }
+
+  function applyBsSupRange() {
+    const debut = document.getElementById('bs-sup-range-debut');
+    const fin   = document.getElementById('bs-sup-range-fin');
+    if (!debut?.value || !fin?.value) { showToast('Sélectionnez une date de début et de fin.','error'); return; }
+    if (debut.value > fin.value)       { showToast('La date de début doit être avant la date de fin.','error'); return; }
+    bsSupRangeDebut = debut.value;
+    bsSupRangeFin   = fin.value;
+    renderBestsellerSup(bestsellerSupPeriod);
+    if (bestsellerSupSelected) renderBestsellerSupDetail(bestsellerSupSelected, bestsellerSupPeriod);
   }
 
   function renderBestsellerSup(period) {
     if (!currentUser) return;
+    _updateBsSupControls();
     const tbody   = document.getElementById('bs-sup-tbody');
     const badgeEl = document.getElementById('bs-sup-badge');
     if (!tbody) return;
 
+    const ref = bsSupRefDate;
     const _moisFR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-    const daysInM = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const daysInM = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
     const periodLabel = period === 'mois'
-      ? today.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      ? ref.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       : period === 'jour'
-      ? `${today.getDate()} ${_moisFR[today.getMonth()]} ${today.getFullYear()}`
-      : `Sem. ${Math.ceil(today.getDate() / 7)} · ${_moisFR[today.getMonth()]} ${today.getFullYear()}`;
+      ? `${ref.getDate()} ${_moisFR[ref.getMonth()]} ${ref.getFullYear()}`
+      : period === 'annee'
+      ? `Année ${ref.getFullYear()}`
+      : period === 'periode' && bsSupRangeDebut && bsSupRangeFin
+      ? `Du ${bsSupRangeDebut.split('-').reverse().join('/')} au ${bsSupRangeFin.split('-').reverse().join('/')}`
+      : `Sem. ${Math.ceil(ref.getDate() / 7)} · ${_moisFR[ref.getMonth()]} ${ref.getFullYear()}`;
 
     const superviseurs = USERS.filter(u => u.role === 'superviseur' && u.statut === 'actif');
 
@@ -7502,9 +8213,11 @@
 
       if (SAISIES_DATA.length) {
         const zoneSaisies = _filterZone(SAISIES_DATA, sup.zone);
-        const fil = period === 'mois'   ? _filterPeriod(zoneSaisies, 'mois', today)
-                  : period === 'jour'   ? _filterPeriod(zoneSaisies, 'jour', today)
-                  : _filterWeekOffset(zoneSaisies, 0);
+        const fil = period === 'periode' && bsSupRangeDebut && bsSupRangeFin
+          ? _filterDateRange(zoneSaisies, bsSupRangeDebut, bsSupRangeFin)
+          : ['mois','jour','annee'].includes(period)
+          ? _filterPeriod(zoneSaisies, period, ref)
+          : _filterPeriod(zoneSaisies, 'semaine', ref);
         ga           = _sumField(fil, 'grossAdd');
         momo         = _sumField(fil, 'momoUser');
         agentsActifs = new Set(fil.map(s => s.dfaId)).size;
@@ -8942,24 +9655,73 @@
     return `${mois} ${d.getFullYear()}`;
   }
 
-  function _rapportRefDate() {
-    const inp = document.getElementById('rapport-date-input');
-    if (inp && inp.value) {
-      const p = inp.value.split('-');
-      return new Date(+p[0], +p[1]-1, +p[2]);
+  function _rapportRefDate() { return rapportRefDate; }
+
+  let rapportPeriod     = 'semaine';
+  let rapportRefDate    = new Date(today);
+  let rapportRangeDebut = null;
+  let rapportRangeFin   = null;
+
+  function _updateRapportControls() {
+    const ctrlDate  = document.getElementById('rapport-ctrl-date');
+    const ctrlRange = document.getElementById('rapport-ctrl-range');
+    if (!ctrlDate || !ctrlRange) return;
+    if (rapportPeriod === 'periode') {
+      ctrlDate.style.display  = 'none';
+      ctrlRange.style.display = 'flex';
+    } else {
+      ctrlDate.style.display  = 'flex';
+      ctrlRange.style.display = 'none';
+      const inp = document.getElementById('rapport-ref-date');
+      if (inp) inp.value = rapportRefDate.getFullYear() + '-' + String(rapportRefDate.getMonth()+1).padStart(2,'0') + '-' + String(rapportRefDate.getDate()).padStart(2,'0');
     }
-    return today;
   }
 
-  function _rapportPeriod() {
-    const sel = document.getElementById('rapport-type-select');
-    return sel ? sel.value : 'semaine';
+  function setRapportPeriod(p, el) {
+    rapportPeriod = p;
+    document.querySelectorAll('#rapport-tabs .tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    _updateRapportControls();
+    renderRapports();
   }
+
+  function navRapportDate(dir) {
+    if (rapportPeriod === 'jour')    rapportRefDate.setDate(rapportRefDate.getDate() + dir);
+    if (rapportPeriod === 'semaine') rapportRefDate.setDate(rapportRefDate.getDate() + dir * 7);
+    if (rapportPeriod === 'mois')    rapportRefDate.setMonth(rapportRefDate.getMonth() + dir);
+    if (rapportPeriod === 'annee')   rapportRefDate.setFullYear(rapportRefDate.getFullYear() + dir);
+    _updateRapportControls();
+    renderRapports();
+  }
+
+  function rapportRefDateChanged() {
+    const inp = document.getElementById('rapport-ref-date');
+    if (!inp || !inp.value) return;
+    const [y,m,d] = inp.value.split('-').map(Number);
+    rapportRefDate = new Date(y, m-1, d);
+    renderRapports();
+  }
+
+  function applyRapportRange() {
+    const debut = document.getElementById('rapport-range-debut');
+    const fin   = document.getElementById('rapport-range-fin');
+    if (!debut?.value || !fin?.value) { showToast('Sélectionnez une date de début et de fin.','error'); return; }
+    if (debut.value > fin.value)       { showToast('La date de début doit être avant la date de fin.','error'); return; }
+    rapportRangeDebut = debut.value;
+    rapportRangeFin   = fin.value;
+    renderRapports();
+  }
+
+  function _rapportPeriod() { return rapportPeriod; }
 
   // Filtre adaptatif selon la période et la date de référence
   function _rapportFilter(saisies, period, refDate) {
+    if (period === 'periode') {
+      if (!rapportRangeDebut || !rapportRangeFin) return [];
+      return _filterDateRange(saisies, rapportRangeDebut, rapportRangeFin);
+    }
     const d = refDate || today;
-    const filterKey = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : 'semaine';
+    const filterKey = period === 'mois' ? 'mois' : period === 'jour' ? 'jour' : period === 'annee' ? 'annee' : 'semaine';
     return _filterPeriod(saisies, filterKey, d);
   }
 
@@ -9253,12 +10015,9 @@
   // -------------------- ENTRY POINT --------------------
   function renderRapports() {
     if (!currentUser) return;
+    _updateRapportControls();
     const period  = _rapportPeriod();
     const refDate = _rapportRefDate();
-
-    // Initialiser la date si vide
-    const inp = document.getElementById('rapport-date-input');
-    if (inp && !inp.value) inp.value = todayISO;
 
     const subtitle = document.getElementById('rapport-subtitle');
     if (subtitle) subtitle.textContent = _rapportTypeLabel(period) + ' — ' + _rapportPeriodLabel(period, refDate);
