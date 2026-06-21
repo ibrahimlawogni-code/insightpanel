@@ -9861,23 +9861,33 @@
       ? souss50.map(a => `<tr style="color:#ef4444"><td>${a.nom}</td><td>${a.ga}</td></tr>`).join('')
       : '<tr><td colspan="2" style="color:#22c55e">Tous au-dessus de 50%</td></tr>';
 
+    // Données stocks superviseur
+    const stk     = _stockRapportSup(supUser.id, zone);
+    const hasStock = stk.recu > 0;
+
     const kpiHtml = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Gross Add Zone</div>
-          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga}</div>
-          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt} — ${_rapportBadge(pct)}</div>
+          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga.toLocaleString('fr-FR')}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt.toLocaleString('fr-FR')} — ${_rapportBadge(pct)}</div>
         </div>
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Taux MoMo Zone</div>
           <div style="font-size:32px;font-weight:800;color:var(--text)">${momoP}%</div>
-          <div style="font-size:12px;color:var(--text-muted)">${momo} activations</div>
+          <div style="font-size:12px;color:var(--text-muted)">${momo.toLocaleString('fr-FR')} activations</div>
         </div>
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Agents actifs</div>
           <div style="font-size:32px;font-weight:800;color:var(--text)">${actifs} / ${nbA}</div>
           <div style="font-size:12px;color:#ef4444">${absents > 0 ? absents + ' absent(s)' : 'Équipe complète'}</div>
         </div>
+        ${hasStock ? `
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">SIM vendues / Stock</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${stk.vendu.toLocaleString('fr-FR')}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Reçu : ${stk.recu.toLocaleString('fr-FR')} — Solde : ${stk.solde.toLocaleString('fr-FR')} — ${stk.taux}% écoulé</div>
+        </div>` : ''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
         <div class="card">
@@ -9904,16 +9914,23 @@
       `👤 ${nom} | Zone : ${zone || '—'}`,
       '━━━━━━━━━━━━━━━━━━━━━━━',
       '',
-      `🎯 Gross Add zone : *${ga}* / ${tgt} (${pct}%)`,
-      `💰 Taux MoMo      : *${momoP}%* (${momo} act.)`,
+      `🎯 Gross Add zone : *${ga.toLocaleString('fr-FR')}* / ${tgt.toLocaleString('fr-FR')} (${pct}%)`,
+      `💰 Taux MoMo      : *${momoP}%* (${momo.toLocaleString('fr-FR')} act.)`,
       `👥 Actifs         : *${actifs} / ${nbA}* agents${absents > 0 ? ' — ' + absents + ' absent(s)' : ''}`,
       '',
       '🏆 *Top 3 :*',
-      ...top3.map((a, i) => `  ${['🥇','🥈','🥉'][i]} ${a.nom} — ${a.ga} GA`),
+      ...top3.map((a, i) => `  ${['🥇','🥈','🥉'][i]} ${a.nom} — ${a.ga.toLocaleString('fr-FR')} GA`),
       '',
       souss50.length > 0
-        ? '⚠️ *À renforcer :*\n' + souss50.map(a => `  • ${a.nom} — ${a.ga} GA`).join('\n')
+        ? '⚠️ *À renforcer :*\n' + souss50.map(a => `  • ${a.nom} — ${a.ga.toLocaleString('fr-FR')} GA`).join('\n')
         : '✅ Tous les agents dépassent 50% de leur objectif.',
+      ...(hasStock ? [
+        '',
+        '📦 *Stock SIM P100 :*',
+        `  Reçu    : *${stk.recu.toLocaleString('fr-FR')} SIM*`,
+        `  Vendues : *${stk.vendu.toLocaleString('fr-FR')}* (${stk.taux}% écoulé)`,
+        `  Solde   : *${stk.solde.toLocaleString('fr-FR')} SIM*`,
+      ] : []),
       '',
       `${pct >= 100 ? '✅ Objectif zone atteint !' : pct >= 80 ? '🟡 Bon rythme général.' : '🔴 Zone à mobiliser davantage.'}`,
       '',
@@ -9921,6 +9938,40 @@
     ].join('\n');
 
     return { kpiHtml, text };
+  }
+
+  // -------------------- HELPERS STOCKS RAPPORT --------------------
+  function _stockRapportRA() {
+    const stockRecu  = STOCK_DATA.filter(r => r.auteurRole === 'ra').reduce((s, r) => s + (r.quantite || 0), 0);
+    const venduTotal = (SAISIES_DATA || []).reduce((s, r) => s + (r.grossAdd || 0), 0);
+    const solde      = Math.max(0, stockRecu - venduTotal);
+    const taux       = stockRecu > 0 ? Math.round(venduTotal / stockRecu * 100) : 0;
+
+    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur');
+    const supLines   = supEntries.map(e => {
+      const sup    = (USERS || []).find(u => u.id === e.auteurId);
+      const supZN  = sup ? _normZ(sup.zone) : '';
+      const vendu  = supZN
+        ? (SAISIES_DATA || []).filter(s => _normZ(s.zone) === supZN).reduce((s, r) => s + (r.grossAdd || 0), 0)
+        : 0;
+      const soldeS = Math.max(0, (e.quantite || 0) - vendu);
+      const tauxS  = e.quantite > 0 ? Math.round(vendu / e.quantite * 100) : 0;
+      return { nom: e.auteurNom || '—', recu: e.quantite || 0, vendu, solde: soldeS, taux: tauxS };
+    });
+
+    return { stockRecu, venduTotal, solde, taux, supLines };
+  }
+
+  function _stockRapportSup(supId, supZone) {
+    const supRanges = STOCK_DATA.filter(r => r.auteurId === supId);
+    const recu      = supRanges.reduce((s, r) => s + (r.quantite || 0), 0);
+    const zNorm     = _normZ(supZone || '');
+    const vendu     = zNorm
+      ? (SAISIES_DATA || []).filter(s => _normZ(s.zone) === zNorm).reduce((s, r) => s + (r.grossAdd || 0), 0)
+      : 0;
+    const solde = Math.max(0, recu - vendu);
+    const taux  = recu > 0 ? Math.round(vendu / recu * 100) : 0;
+    return { recu, vendu, solde, taux };
   }
 
   // -------------------- RAPPORT RA --------------------
@@ -9962,23 +10013,43 @@
         <td>${_rapportBadge(z.pct)}</td>
       </tr>`).join('');
 
+    // Données stocks
+    const stk = _stockRapportRA();
+    const hasStock = stk.stockRecu > 0;
+    const stockSupHtml = stk.supLines.map(s => {
+      const cls = s.taux >= 80 ? 'badge-green' : s.taux >= 50 ? 'badge-yellow' : 'badge-gray';
+      return `<tr>
+        <td>${s.nom}</td>
+        <td>${s.recu.toLocaleString('fr-FR')}</td>
+        <td>${s.vendu.toLocaleString('fr-FR')}</td>
+        <td><strong>${s.solde.toLocaleString('fr-FR')}</strong></td>
+        <td><span class="badge ${cls}">${s.taux}%</span></td>
+      </tr>`;
+    }).join('');
+
     const kpiHtml = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Gross Add Réseau</div>
-          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga}</div>
-          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt} — ${_rapportBadge(pct)}</div>
+          <div style="font-size:32px;font-weight:800;color:var(--yellow)">${ga.toLocaleString('fr-FR')}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Objectif : ${tgt.toLocaleString('fr-FR')} — ${_rapportBadge(pct)}</div>
         </div>
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Taux MoMo</div>
           <div style="font-size:32px;font-weight:800;color:var(--text)">${momoP}%</div>
-          <div style="font-size:12px;color:var(--text-muted)">${momo} activations</div>
+          <div style="font-size:12px;color:var(--text-muted)">${momo.toLocaleString('fr-FR')} activations</div>
         </div>
         <div class="card" style="text-align:center;padding:20px">
           <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Agents actifs</div>
           <div style="font-size:32px;font-weight:800;color:var(--text)">${actifs} / ${nbA}</div>
           <div style="font-size:12px;color:var(--text-muted)">${nbA - actifs} absent(s)</div>
         </div>
+        ${hasStock ? `
+        <div class="card" style="text-align:center;padding:20px">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">SIM vendues / Stock</div>
+          <div style="font-size:32px;font-weight:800;color:var(--text)">${stk.venduTotal.toLocaleString('fr-FR')}</div>
+          <div style="font-size:12px;color:var(--text-muted)">Reçu : ${stk.stockRecu.toLocaleString('fr-FR')} — Solde : ${stk.solde.toLocaleString('fr-FR')} — ${stk.taux}% écoulé</div>
+        </div>` : ''}
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-header"><div class="card-title">📊 Performance par zone</div></div>
@@ -9988,7 +10059,20 @@
             <tbody>${zonesHtml}</tbody>
           </table>
         </div>
-      </div>`;
+      </div>
+      ${hasStock && stk.supLines.length ? `
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-boxes-stacked" style="color:var(--yellow)"></i> Stocks SIM P100 — Suivi par superviseur</div>
+          <span class="badge badge-black">${stk.stockRecu.toLocaleString('fr-FR')} SIM reçues</span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <table class="table">
+            <thead><tr><th>Superviseur</th><th>Reçues</th><th>Vendues</th><th>Solde</th><th>Écoulé</th></tr></thead>
+            <tbody>${stockSupHtml}</tbody>
+          </table>
+        </div>
+      </div>` : ''}`;
 
     const typeL = _rapportTypeLabel(period);
     const perL  = _rapportPeriodLabel(period, refDate);
@@ -10000,15 +10084,23 @@
       `👤 Établi par : ${nom} (RA)`,
       '━━━━━━━━━━━━━━━━━━━━━━━',
       '',
-      `🎯 Gross Add réseau : *${ga}* / ${tgt} (${pct}%)`,
-      `💰 Taux MoMo        : *${momoP}%* (${momo} act.)`,
+      `🎯 Gross Add réseau : *${ga.toLocaleString('fr-FR')}* / ${tgt.toLocaleString('fr-FR')} (${pct}%)`,
+      `💰 Taux MoMo        : *${momoP}%* (${momo.toLocaleString('fr-FR')} act.)`,
       `👥 Agents actifs    : *${actifs} / ${nbA}*`,
       '',
       '📊 *Performance par zone :*',
-      ...zones.map(z => `  • Zone ${z.zone || '—'} (${z.nom}) : ${z.ga} GA — ${z.pct}%`),
+      ...zones.map(z => `  • Zone ${z.zone || '—'} (${z.nom}) : ${z.ga.toLocaleString('fr-FR')} GA — ${z.pct}%`),
       '',
       meilleureZone ? `🏆 Meilleure zone : *${meilleureZone.zone}* — ${meilleureZone.pct}%` : '',
       zoneRenforcer && zoneRenforcer !== meilleureZone ? `⚠️ À renforcer    : *${zoneRenforcer.zone}* — ${zoneRenforcer.pct}%` : '',
+      ...(hasStock ? [
+        '',
+        '📦 *Stocks SIM P100 :*',
+        `  Stock reçu   : *${stk.stockRecu.toLocaleString('fr-FR')} SIM*`,
+        `  SIM vendues  : *${stk.venduTotal.toLocaleString('fr-FR')}* (${stk.taux}% écoulé)`,
+        `  Solde estimé : *${stk.solde.toLocaleString('fr-FR')} SIM*`,
+        ...stk.supLines.map(s => `  • ${s.nom} : ${s.vendu} vendues / ${s.recu} reçues (solde ${s.solde})`),
+      ] : []),
       '',
       `${pct >= 100 ? '✅ Objectif réseau atteint !' : pct >= 80 ? '🟡 Bon rythme global.' : '🔴 Mobilisation nécessaire sur le réseau.'}`,
       '',

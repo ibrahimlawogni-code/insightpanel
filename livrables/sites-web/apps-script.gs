@@ -41,6 +41,8 @@ function doPost(e) {
     if (data.action === 'getPerfSup')           return handleGetPerfSup(data);
     if (data.action === 'saveTransfert')        return handleSaveTransfert(data);
     if (data.action === 'getTransferts')        return handleGetTransferts(data);
+    if (data.action === 'migrateActivations')   return handleMigrateActivations();
+    if (data.action === 'getActivations')       return handleGetActivations(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -137,10 +139,13 @@ function handleSaisie(data) {
     _initSaisiesSheet(sheet);
   }
 
+  const dateStr = data.date || new Date().toLocaleDateString('fr-FR');
+  const ts      = new Date().toLocaleString('fr-FR');
+
   sheet.appendRow([
-    data.date        || new Date().toLocaleDateString('fr-FR'),
-    data.dfa         || '',   // ID (ex: Jules.Akindes)
-    data.dfaNom      || '',   // Nom complet (ex: Jules AKINDES)
+    dateStr,
+    data.dfa         || '',
+    data.dfaNom      || '',
     data.equipe      || '',
     Number(data.activation) || 0,
     Number(data.momoUser)   || 0,
@@ -149,14 +154,133 @@ function handleSaisie(data) {
     data.observation || '',
     data.simList     || '',
     data.mtnList     || '',
-    new Date().toLocaleString('fr-FR')
+    ts
   ]);
+
+  /* Écriture individuelle dans ACTIVATIONS (une ligne par SIM+MTN) */
+  if (data.simList) {
+    _appendActivations(ss, dateStr, data.dfa || '', data.dfaNom || '', data.equipe || '', data.simList, data.mtnList || '', ts);
+  }
 
   return jsonResponse({
     success: true,
     message: 'Saisie enregistrée avec succès.',
     grossAdd: Number(data.activation) || 0
   });
+}
+
+// ─────────────────────────────────────────────────────────────
+// FEUILLE ACTIVATIONS — écriture des lignes individuelles
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateActivationsSheet(ss) {
+  let sheet = ss.getSheetByName('Activations');
+  if (!sheet) {
+    sheet = ss.insertSheet('Activations');
+    sheet.appendRow(['Horodatage', 'Date', 'DFA ID', 'DFA Nom', 'Zone', 'N° SIM', 'N° MTN']);
+    sheet.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f8c200');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 160);
+    sheet.setColumnWidth(2, 110);
+    sheet.setColumnWidth(3, 150);
+    sheet.setColumnWidth(4, 180);
+    sheet.setColumnWidth(5, 130);
+    sheet.setColumnWidth(6, 130);
+    sheet.setColumnWidth(7, 130);
+  }
+  return sheet;
+}
+
+function _appendActivations(ss, dateStr, dfaId, dfaNom, zone, simList, mtnList, ts) {
+  const actSheet = _getOrCreateActivationsSheet(ss);
+  const sims = simList.split(',').map(s => s.trim()).filter(Boolean);
+  const mtns = mtnList ? mtnList.split(',').map(s => s.trim()) : [];
+  const rows = sims.map((sim, i) => [ts, dateStr, dfaId, dfaNom, zone, sim, mtns[i] || '']);
+  if (rows.length > 0) {
+    actSheet.getRange(actSheet.getLastRow() + 1, 1, rows.length, 7).setValues(rows);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// MIGRATION : explode les simList/mtnList existantes en lignes individuelles
+// ─────────────────────────────────────────────────────────────
+function handleMigrateActivations() {
+  const ss        = SpreadsheetApp.openById(SHEET_ID);
+  const saisies   = ss.getSheetByName('Saisies');
+  if (!saisies) return jsonResponse({ success: false, error: 'Feuille Saisies introuvable.' });
+
+  /* Lire toutes les saisies existantes (colonnes : date=0, dfaId=1, dfaNom=2, zone=3, simList=9, mtnList=10) */
+  const data   = saisies.getDataRange().getValues();
+  const header = data[0].map(h => h.toString().toLowerCase());
+  const idx    = {
+    date:    header.indexOf('date'),
+    dfaId:   header.indexOf('dfa id') !== -1 ? header.indexOf('dfa id') : 1,
+    dfaNom:  header.indexOf('dfa nom') !== -1 ? header.indexOf('dfa nom') : 2,
+    zone:    header.indexOf('zone') !== -1 ? header.indexOf('zone') : 3,
+    simList: header.indexOf('simliste') !== -1 ? header.indexOf('simliste') : 9,
+    mtnList: header.indexOf('mtnliste') !== -1 ? header.indexOf('mtnliste') : 10,
+    ts:      header.indexOf('horodatage') !== -1 ? header.indexOf('horodatage') : 11
+  };
+
+  /* Récupérer les SIMs déjà dans Activations pour éviter les doublons */
+  const actSheet   = _getOrCreateActivationsSheet(ss);
+  const existingRows = actSheet.getLastRow() > 1 ? actSheet.getRange(2, 6, actSheet.getLastRow() - 1, 1).getValues().flat().map(s => s.toString().trim()) : [];
+  const existingSet  = new Set(existingRows.filter(Boolean));
+
+  const newRows = [];
+  for (let i = 1; i < data.length; i++) {
+    const row     = data[i];
+    const simList = (row[idx.simList] || '').toString().trim();
+    if (!simList) continue;
+    const mtnList = (row[idx.mtnList] || '').toString().trim();
+    const sims    = simList.split(',').map(s => s.trim()).filter(Boolean);
+    const mtns    = mtnList ? mtnList.split(',').map(s => s.trim()) : [];
+    const dateStr = row[idx.date] ? row[idx.date].toString() : '';
+    const ts      = row[idx.ts]   ? row[idx.ts].toString()   : dateStr;
+
+    sims.forEach((sim, j) => {
+      if (existingSet.has(sim)) return;   // déjà migré, skip
+      existingSet.add(sim);
+      newRows.push([ts, dateStr, (row[idx.dfaId]||'').toString(), (row[idx.dfaNom]||'').toString(), (row[idx.zone]||'').toString(), sim, mtns[j] || '']);
+    });
+  }
+
+  if (newRows.length > 0) {
+    actSheet.getRange(actSheet.getLastRow() + 1, 1, newRows.length, 7).setValues(newRows);
+  }
+
+  return jsonResponse({ success: true, migrated: newRows.length, message: newRows.length + ' activations migrées dans la feuille Activations.' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// LECTURE ACTIVATIONS (lecture paginée ou filtrée)
+// ─────────────────────────────────────────────────────────────
+function handleGetActivations(data) {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Activations');
+  if (!sheet || sheet.getLastRow() < 2) return jsonResponse({ success: true, activations: [] });
+
+  const rows   = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues();
+  const dfaId  = data.dfaId  || null;
+  const depuis = data.depuis || null;
+
+  const activations = rows
+    .filter(r => {
+      if (!r[5]) return false;                             // SIM vide → skip
+      if (dfaId  && r[2].toString() !== dfaId) return false;
+      if (depuis && r[1].toString() < depuis)  return false;
+      return true;
+    })
+    .map(r => ({
+      ts:     r[0].toString(),
+      date:   r[1].toString(),
+      dfaId:  r[2].toString(),
+      dfaNom: r[3].toString(),
+      zone:   r[4].toString(),
+      sim:    r[5].toString().trim(),
+      mtn:    r[6].toString().trim()
+    }));
+
+  return jsonResponse({ success: true, activations });
 }
 
 // ─────────────────────────────────────────────────────────────
