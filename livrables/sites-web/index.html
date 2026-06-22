@@ -1808,12 +1808,12 @@
                 </div>
                 <div class="form-grid" style="flex:1;min-width:240px">
                   <div>
-                    <label class="input-label">N° SIM <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
-                    <input class="input-field" type="text" id="saisie-field-sim" placeholder="22546368589" maxlength="11" inputmode="numeric">
+                    <label class="input-label">N° SIM <span style="color:var(--gray-text);font-weight:400">(11 chiffres, ou plusieurs séparés par des virgules)</span></label>
+                    <input class="input-field" type="text" id="saisie-field-sim" placeholder="22546368589 ou 225…,226…,227…" inputmode="numeric">
                   </div>
                   <div>
-                    <label class="input-label">N° MTN <span style="color:var(--gray-text);font-weight:400">(10 chiffres)</span></label>
-                    <input class="input-field" type="text" id="saisie-field-mtn" placeholder="0166161247" maxlength="10" inputmode="numeric">
+                    <label class="input-label">N° MTN <span style="color:var(--gray-text);font-weight:400">(10 chiffres, ou plusieurs séparés par des virgules)</span></label>
+                    <input class="input-field" type="text" id="saisie-field-mtn" placeholder="0166161247 ou 016…,017…,018…" inputmode="numeric">
                   </div>
                 </div>
               </div>
@@ -4481,8 +4481,8 @@
   let saisieSIMs = [];
 
   function addSIM() {
-    const simVal = (document.getElementById('saisie-field-sim').value || '').trim();
-    const mtnVal = (document.getElementById('saisie-field-mtn').value || '').trim();
+    const rawSim = (document.getElementById('saisie-field-sim').value || '').trim();
+    const rawMtn = (document.getElementById('saisie-field-mtn').value || '').trim();
     const fb     = document.getElementById('sim-add-feedback');
 
     function showAddFb(msg, ok) {
@@ -4493,7 +4493,49 @@
       if (ok) setTimeout(() => { fb.style.display = 'none'; }, 2500);
     }
 
-    if (!simVal && !mtnVal) { showAddFb('Renseignez au moins N° SIM ou N° MTN.', false); return; }
+    if (!rawSim && !rawMtn) { showAddFb('Renseignez au moins N° SIM ou N° MTN.', false); return; }
+
+    const simVals = rawSim ? rawSim.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean) : [];
+    const mtnVals = rawMtn ? rawMtn.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean) : [];
+    const isMulti = simVals.length > 1 || mtnVals.length > 1;
+
+    if (isMulti) {
+      /* Appariement dans l'ordre : SIM[i] + MTN[i] (l'un ou l'autre peut être absent) */
+      const count = Math.max(simVals.length, mtnVals.length);
+      let added = 0;
+      const invalides = [], doublons = [];
+      for (let i = 0; i < count; i++) {
+        const sv = simVals[i] || '';
+        const mv = mtnVals[i] || '';
+        if (sv && !/^[1-9]\d{10}$/.test(sv)) { invalides.push(sv); continue; }
+        if (mv && !/^0\d{9}$/.test(mv))       { invalides.push(mv); continue; }
+        if (!sv && !mv) continue;
+        if (saisieSIMs.some(s => (sv && s.sim === sv) || (mv && s.mtn === mv))) { doublons.push(sv || mv); continue; }
+        saisieSIMs.push({ sim: sv, mtn: mv });
+        added++;
+      }
+      const gaField   = document.getElementById('saisie-field-activation');
+      const momoField = document.getElementById('saisie-field-momo');
+      if (gaField)   gaField.value   = saisieSIMs.length;
+      if (momoField) momoField.value = saisieSIMs.length;
+      _autoCalcStock();
+      document.getElementById('saisie-field-sim').value = '';
+      document.getElementById('saisie-field-mtn').value = '';
+      const sp = document.getElementById('scan-preview-wrap');
+      if (sp) sp.style.display = 'none';
+      const ss = document.getElementById('scan-status');
+      if (ss) ss.style.display = 'none';
+      let msg = `${added} SIM${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''}.`;
+      if (invalides.length) msg += ` Invalides ignorés : ${invalides.join(', ')}.`;
+      if (doublons.length)  msg += ` Doublons ignorés : ${doublons.join(', ')}.`;
+      showAddFb(msg, added > 0);
+      _renderSIMList();
+      return;
+    }
+
+    /* Mode saisie unitaire */
+    const simVal = simVals[0] || '';
+    const mtnVal = mtnVals[0] || '';
     if (simVal && !/^[1-9]\d{10}$/.test(simVal)) { showAddFb('N° SIM invalide (11 chiffres, ne commence pas par 0).', false); return; }
     if (mtnVal && !/^0\d{9}$/.test(mtnVal))       { showAddFb('N° MTN invalide (10 chiffres, commence par 0).', false); return; }
 
@@ -4504,14 +4546,12 @@
 
     saisieSIMs.push({ sim: simVal, mtn: mtnVal });
 
-    /* Mettre à jour Gross Add, New MoMo User et Stock SIM automatiquement */
     const gaField = document.getElementById('saisie-field-activation');
     if (gaField) gaField.value = saisieSIMs.length;
     const momoField = document.getElementById('saisie-field-momo');
     if (momoField) momoField.value = saisieSIMs.length;
     _autoCalcStock();
 
-    /* Vider les champs SIM/MTN et le scan */
     document.getElementById('saisie-field-sim').value = '';
     document.getElementById('saisie-field-mtn').value = '';
     const sp = document.getElementById('scan-preview-wrap');
@@ -6252,6 +6292,11 @@
     const tbody = document.getElementById('sup-agents-tbody');
     if (!tbody) return;
 
+    renderSupDfaHebdoTable(supId);
+    _renderSupAlertes(supId);
+    _renderSupEquipeMensuel(supId);
+    _renderSupEquipeTendance(supId);
+
     if (!sup) {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-text)">Sélectionnez un superviseur</td></tr>';
       return;
@@ -6380,11 +6425,6 @@
       ? `<tr><td colspan="6" style="text-align:center;font-size:12px;color:var(--gray-text);padding:8px;border-top:1px dashed #ddd"><i class="fa fa-ellipsis" style="margin-right:5px"></i>${totalAgents - 10} DFA supplémentaire(s) non affiché(s) — total : ${totalAgents}</td></tr>`
       : '';
     tbody.innerHTML = agentRows + moreRow1 + agentFooter;
-
-    renderSupDfaHebdoTable(supId);
-    _renderSupAlertes(supId);
-    _renderSupEquipeMensuel(supId);
-    _renderSupEquipeTendance(supId);
   }
 
   function renderSuperviseurPerf() {
@@ -8608,8 +8648,11 @@
     const wn = getWeekNumber(ref);
     const yr = ref.getFullYear();
     return saisies.filter(s => {
-      const d = _parseSaisieDate(s.date);
-      return d && getWeekNumber(d) === wn && d.getFullYear() === yr;
+      const iso = _parseSaisieDate(s.date);
+      if (!iso) return false;
+      const [y, m, d] = iso.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      return getWeekNumber(dt) === wn && dt.getFullYear() === yr;
     });
   }
 

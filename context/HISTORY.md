@@ -7,6 +7,36 @@
 
 ---
 
+## 2026-06-21
+
+### InsightPanel — Rapports stocks, profil utilisateur, fix Best Seller
+
+- Rapports : intégration données Stocks & Ressources dans `_buildRapportRA` et `_buildRapportSup`
+  - KPI card SIM vendues / stock, tableau par superviseur (reçu / vendu / solde / taux)
+  - Section stocks dans le texte WhatsApp/email
+  - Helpers `_stockRapportRA()` et `_stockRapportSup()`
+
+- Fix rapports stocks : `renderRapports()` était synchrone, `STOCK_DATA` vide à l'ouverture
+  - Ajout `_ensureStockLoaded()` indépendant du DOM (`loadStockHistorique` avait une garde `!tbody`)
+  - `renderRapports()` devient async, attend `Promise.all([saisies, stock])`
+  - `_refreshStocksView()` réinitialise `_stockFromSheets` pour forcer rechargement
+
+- Modal "Mon profil" : clic sur les initiales (sidebar) ouvre le modal
+  - Lecture seule : nom, identifiant, rôle, zone
+  - Modifiable : téléphone (sans vérification pwd) et mot de passe (avec vérification ancien pwd)
+  - Endpoint Apps Script `changeMyProfile` : gère les deux cas séparément
+  - Colonne Telephone créée automatiquement dans Utilisateurs si absente
+
+- Fix critique Best Seller détail agents : toutes les valeurs à 0
+  - Cause : `_filterWeekOffset` utilisait `_parseFrDate` (DD/MM/YYYY uniquement)
+  - Apps Script renvoie des dates ISO (YYYY-MM-DD) → `_parseFrDate` retournait null → filtre vide
+  - Correction : `_parseSaisieDate` (multi-format) + paramètre `refBase` optionnel
+  - `renderBestsellerSupDetail` : utilise `bsSupRefDate` au lieu de `today`, gère tous les modes de période
+  - Comparaison `dfaId` désormais insensible à la casse
+  - Ce bug touchait aussi les tableaux hebdomadaires et calculs S-1/S-2 partout dans l'app
+
+---
+
 ## 2026-06-20 — Session 2
 
 ### InsightPanel — Tabs Vue d'ensemble + audit intégrité données
