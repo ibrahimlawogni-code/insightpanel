@@ -3376,7 +3376,7 @@
     if (name === 'rapports')       { _updateRapportControls(); renderRapports(); }
     if (name === 'stocks')          _initStocksView();
     if (name === 'equipes')    { loadUsers(); loadDemandes(); }
-    if (name === 'superviseur') { loadDemandes(); _initSupSelector(); _updateSupViewControls(); }
+    if (name === 'superviseur') { supViewRefDate = new Date(today); supPerfRefDate = new Date(today); loadDemandes(); _initSupSelector(); _updateSupViewControls(); _updateSupPerfControls(); }
     if (name === 'parametres') renderParametresView();
     if (name === 'dashboard') {
       const di = document.getElementById('objectif-date');
