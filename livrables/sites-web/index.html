@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InsightPanel — ZEPHIR GROUP · MTN Bénin</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
       --yellow: #FFC300;
@@ -2286,7 +2287,12 @@
       <div class="card" data-roles="ra,admin,superviseur" id="sim-vendues-card">
         <div class="card-header">
           <div class="card-title"><i class="fa fa-sim-card" style="color:var(--yellow)"></i> Numéros SIM vendus</div>
-          <span class="badge badge-black" id="sim-vendues-badge">—</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="badge badge-black" id="sim-vendues-badge">—</span>
+            <button class="btn btn-secondary btn-sm" onclick="exportSimsVendusExcel()" title="Exporter les données filtrées en Excel">
+              <i class="fa fa-file-excel" style="color:#22c55e;margin-right:4px"></i> Exporter Excel
+            </button>
+          </div>
         </div>
         <div class="card-body" style="padding-bottom:8px">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
@@ -5352,6 +5358,90 @@
       </tr>`).join('');
 
     if (moreBtn) moreBtn.style.display = rows.length > _simVenduesLimit ? '' : 'none';
+  }
+
+  function exportSimsVendusExcel() {
+    if (typeof XLSX === 'undefined') {
+      showToast('Bibliothèque Excel non chargée. Vérifiez votre connexion.', 'error');
+      return;
+    }
+
+    /* Reprendre les mêmes filtres actifs que _renderSimVendues */
+    const zoneEl    = document.getElementById('sim-vendues-zone');
+    const dfaEl     = document.getElementById('sim-vendues-dfa');
+    const searchEl  = document.getElementById('sim-vendues-search');
+    const dateDebEl = document.getElementById('sim-vendues-date-debut');
+    const dateFinEl = document.getElementById('sim-vendues-date-fin');
+
+    const zoneFilter    = currentUser.role === 'superviseur'
+      ? (currentUser.zone || '')
+      : (zoneEl?.value || '');
+    const dfaFilter     = (dfaEl?.value    || '').toLowerCase().trim();
+    const searchFilter  = (searchEl?.value || '').trim();
+    const dateDebFilter = dateDebEl?.value || '';
+    const dateFinFilter = dateFinEl?.value || '';
+
+    /* Construire toutes les lignes (sans limite d'affichage) */
+    const rows = [];
+    for (const s of (SAISIES_DATA || [])) {
+      if (!s.simList) continue;
+      if (zoneFilter && !s.zone.toLowerCase().includes(zoneFilter.toLowerCase())) continue;
+      if (dfaFilter  && !s.dfaNom.toLowerCase().includes(dfaFilter)) continue;
+      const isoDate = _parseSaisieDate(s.date);
+      if (dateDebFilter && isoDate && isoDate < dateDebFilter) continue;
+      if (dateFinFilter && isoDate && isoDate > dateFinFilter) continue;
+
+      const sims = s.simList.split(',').map(x => x.trim()).filter(Boolean);
+      const mtns = (s.mtnList || '').split(',').map(x => x.trim());
+      sims.forEach((sim, i) => {
+        if (searchFilter && !sim.includes(searchFilter)) return;
+        rows.push({ date: s.date, dfaNom: s.dfaNom, zone: s.zone, sim, mtn: mtns[i] || '' });
+      });
+    }
+    rows.reverse();
+
+    if (!rows.length) { showToast('Aucune donnée à exporter.', 'error'); return; }
+
+    /* Construire le tableau Excel */
+    const headers = ['Date', 'DFA', 'Zone', 'N° SIM', 'N° MTN'];
+    const data = [
+      headers,
+      ...rows.map(r => [r.date, r.dfaNom, r.zone, r.sim, r.mtn || ''])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    /* Largeurs des colonnes */
+    ws['!cols'] = [
+      { wch: 14 }, // Date
+      { wch: 24 }, // DFA
+      { wch: 22 }, // Zone
+      { wch: 16 }, // N° SIM
+      { wch: 16 }  // N° MTN
+    ];
+
+    /* Style de l'en-tête (fond jaune, texte gras) */
+    headers.forEach((_, ci) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (!ws[cellRef]) return;
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: '000000' } },
+        fill: { fgColor: { rgb: 'F8C200' } },
+        alignment: { horizontal: 'center' }
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SIMs vendues');
+
+    /* Nom du fichier avec date et zone */
+    const now      = new Date();
+    const dateFmt  = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const zonePart = zoneFilter ? '_' + zoneFilter.replace(/\s/g, '-').replace(/[^a-zA-Z0-9\-_]/g, '') : '';
+    const fileName = `SIMs_vendues${zonePart}_${dateFmt}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    showToast(`${rows.length} SIM exportées vers ${fileName}`, 'success');
   }
 
   function _autoCalcStockQuantite() {
