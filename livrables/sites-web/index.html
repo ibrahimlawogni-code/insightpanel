@@ -4103,6 +4103,9 @@
 
   function showSupView(supId, el) {
     saveViewState('superviseur', { supId });
+    /* Réinitialiser les dates de référence à aujourd'hui à chaque ouverture */
+    supViewRefDate  = new Date(today);
+    supPerfRefDate  = new Date(today);
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-superviseur').classList.add('active');
     _clearNavActive();
@@ -6347,6 +6350,10 @@
   function _renderSupView(supId) {
     currentSupSelected = supId;
     const sup = USERS.find(u => u.id === supId);
+
+    /* Initialiser les champs de date au premier rendu */
+    _updateSupViewControls();
+    _updateSupPerfControls();
 
     const subtitle = document.getElementById('sup-view-subtitle');
     if (subtitle) subtitle.textContent = sup ? `${sup.nom} · Zone ${sup.zone}` : '—';
