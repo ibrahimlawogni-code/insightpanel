@@ -44,6 +44,7 @@ function doPost(e) {
     if (data.action === 'getTransferts')        return handleGetTransferts(data);
     if (data.action === 'migrateActivations')   return handleMigrateActivations();
     if (data.action === 'getActivations')       return handleGetActivations(data);
+    if (data.action === 'deduplicateSaisies')   return handleDeduplicateSaisies(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -928,6 +929,78 @@ function handleGetTransferts(data) {
     });
   }
   return jsonResponse({ success: true, data: result });
+}
+
+// ─────────────────────────────────────────────────────────────
+// DÉDUPLICATION — supprime les lignes en doublon
+// Saisies    : clé = Date + DFA ID + Gross Add  → garde la plus récente
+// Activations : clé = N° SIM                   → garde la première occurrence
+// Accès réservé aux rôles ra et admin
+// ─────────────────────────────────────────────────────────────
+function handleDeduplicateSaisies(data) {
+  const allowedRoles = ['ra', 'admin'];
+  if (!allowedRoles.includes((data.requesterRole || '').toLowerCase())) {
+    return jsonResponse({ success: false, error: 'Accès non autorisé.' });
+  }
+
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const stats = { saisies: 0, activations: 0 };
+
+  /* --- Feuille Saisies : clé = date|dfaId|grossAdd --- */
+  const saisiesSheet = ss.getSheetByName('Saisies');
+  if (saisiesSheet && saisiesSheet.getLastRow() > 1) {
+    const rows    = saisiesSheet.getDataRange().getValues();
+    const dataRows = rows.slice(1); // sans en-tête
+    const seen    = new Set();
+    const toDelete = []; // indices 1-based dans la feuille
+
+    // Parcours de bas en haut : on garde la dernière (plus récente)
+    for (let i = dataRows.length - 1; i >= 0; i--) {
+      const r   = dataRows[i];
+      if (!r[0] && !r[1]) continue; // ligne vide → skip
+      const key = [
+        (r[0] || '').toString().trim(),
+        (r[1] || '').toString().trim().toLowerCase(),
+        (r[4] || '').toString().trim()
+      ].join('|');
+
+      if (seen.has(key)) {
+        toDelete.push(i + 2); // +2 : +1 pour l'en-tête, +1 pour l'index 1-based
+      } else {
+        seen.add(key);
+      }
+    }
+
+    // Suppression de bas en haut pour ne pas décaler les indices
+    toDelete.sort((a, b) => b - a).forEach(rowNum => saisiesSheet.deleteRow(rowNum));
+    stats.saisies = toDelete.length;
+  }
+
+  /* --- Feuille Activations : clé = N° SIM (col 6, index 5) --- */
+  const actSheet = ss.getSheetByName('Activations');
+  if (actSheet && actSheet.getLastRow() > 1) {
+    const rows    = actSheet.getDataRange().getValues();
+    const dataRows = rows.slice(1);
+    const seenSIMs = new Set();
+    const toDelete = [];
+
+    // Parcours de bas en haut : on garde la première occurrence (plus ancienne)
+    for (let i = dataRows.length - 1; i >= 0; i--) {
+      const sim = (dataRows[i][5] || '').toString().trim();
+      if (!sim) continue;
+      if (seenSIMs.has(sim)) {
+        toDelete.push(i + 2);
+      } else {
+        seenSIMs.add(sim);
+      }
+    }
+
+    toDelete.sort((a, b) => b - a).forEach(rowNum => actSheet.deleteRow(rowNum));
+    stats.activations = toDelete.length;
+  }
+
+  const msg = `Déduplication terminée — ${stats.saisies} saisie(s) et ${stats.activations} activation(s) en doublon supprimées.`;
+  return jsonResponse({ success: true, message: msg, stats });
 }
 
 function jsonResponse(obj) {

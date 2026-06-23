@@ -2234,11 +2234,11 @@
               <input class="input-field" type="date" id="stock-field-date">
             </div>
             <div>
-              <label class="input-label">N° SIM Début <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+              <label class="input-label">N° SIM Début <span style="color:#e53e3e;font-weight:700">*</span> <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
               <input class="input-field" type="text" id="stock-field-sim-debut" placeholder="22546000001" maxlength="11" inputmode="numeric" oninput="_autoCalcStockQuantite()">
             </div>
             <div>
-              <label class="input-label">N° SIM Fin <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
+              <label class="input-label">N° SIM Fin <span style="color:#e53e3e;font-weight:700">*</span> <span style="color:var(--gray-text);font-weight:400">(11 chiffres)</span></label>
               <input class="input-field" type="text" id="stock-field-sim-fin" placeholder="22546000200" maxlength="11" inputmode="numeric" oninput="_autoCalcStockQuantite()">
             </div>
             <div class="span-2">
@@ -2371,6 +2371,10 @@
               <input type="date" id="detection-filter-debut" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
               <input type="date" id="detection-filter-fin" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
             </div>
+            <div id="detection-no-ranges-warning" style="display:none;background:#fff3cd;border:1.5px solid #f6c23e;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#78350f">
+              <i class="fa fa-triangle-exclamation" style="color:#f6c23e;margin-right:8px"></i>
+              <strong>Aucune plage SIM enregistrée.</strong> La détection ne peut pas fonctionner correctement tant qu'aucune plage N° SIM Début / N° SIM Fin n'est saisie dans le stock P100. Toutes les SIMs ressortent "Externes" à tort.
+            </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
               <div class="card" style="flex:1;min-width:140px;background:var(--gray-bg)">
                 <div class="card-body" style="padding:14px 18px">
@@ -2468,13 +2472,13 @@
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button onclick="copyRapport()" id="rapport-copy-btn" style="padding:7px 14px;background:var(--yellow);color:var(--black);border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-              <i class="fa fa-copy" style="margin-right:6px"></i>Copier
+              📋 Copier
             </button>
             <button onclick="sendRapportWhatsApp()" id="rapport-wa-btn" style="padding:7px 14px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-              <i class="fa-brands fa-whatsapp" style="margin-right:6px"></i>WhatsApp
+              📱 WhatsApp
             </button>
             <button onclick="sendRapportEmail()" style="padding:7px 14px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">
-              <i class="fa fa-envelope" style="margin-right:6px"></i>Email
+              ✉️ Email
             </button>
           </div>
           <div class="tabs" id="rapport-tabs">
@@ -2508,17 +2512,17 @@
       <div class="card" style="margin-top:20px">
         <div class="card-header">
           <div class="card-title">
-            <i class="fa fa-comment-dots" style="color:#25D366;margin-right:8px"></i>Aperçu texte — WhatsApp / Email
+            💬 Aperçu texte — WhatsApp / Email
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="copyRapport()" style="padding:5px 12px;background:var(--yellow);color:var(--black);border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
-              <i class="fa fa-copy" style="margin-right:4px"></i>Copier
+              📋 Copier
             </button>
             <button onclick="sendRapportWhatsApp()" style="padding:5px 12px;background:#25D366;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
-              <i class="fa-brands fa-whatsapp"></i>
+              📱
             </button>
             <button onclick="sendRapportEmail()" style="padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">
-              <i class="fa fa-envelope"></i>
+              ✉️
             </button>
           </div>
         </div>
@@ -2545,6 +2549,9 @@
           </button>
           <button class="btn btn-secondary" onclick="migrateActivations()" id="btn-migrate-activations" style="display:none" title="Explode les simList/mtnList existantes en lignes individuelles dans la feuille Activations">
             <i class="fa fa-database"></i> Migrer vers Activations
+          </button>
+          <button class="btn btn-secondary" onclick="deduplicateSaisies()" id="btn-deduplicate" style="display:none" title="Détecte et supprime les lignes en doublon dans Saisies et Activations">
+            <i class="fa fa-broom"></i> Supprimer les doublons
           </button>
         </div>
       </div>
@@ -3702,7 +3709,7 @@
                       .sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
     if (!sups.length) return;
     container.innerHTML = sups.map(sup => `
-      <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin" onclick="showSupView('${sup.id}', this)">
+      <div class="nav-sub-item" data-sup-id="${sup.id}" data-roles="dg,dga,dcc,dc,ra,admin" onclick="showSupView('${sup.id}', this)">
         <i class="fa fa-circle-dot"></i> ${sup.nom}
       </div>`).join('');
     /* Ré-appliquer la visibilité selon le rôle courant */
@@ -3711,6 +3718,11 @@
         const allowed = el.getAttribute('data-roles').split(',');
         el.style.display = allowed.includes(currentUser.role) ? '' : 'none';
       });
+    }
+    /* Ré-appliquer la surbrillance du superviseur actuellement sélectionné */
+    if (currentSupSelected) {
+      const activeItem = container.querySelector(`[data-sup-id="${currentSupSelected}"]`);
+      if (activeItem) activeItem.classList.add('active');
     }
   }
 
@@ -3876,6 +3888,30 @@
     }
   }
 
+  /* ---- Déduplication des feuilles Saisies et Activations ---- */
+  async function deduplicateSaisies() {
+    if (!APPS_SCRIPT_URL.startsWith('https')) { showToast('URL Apps Script non configurée.', 'error'); return; }
+    if (!confirm('Supprimer les doublons dans Saisies et Activations ?\n\nCette action est irréversible.')) return;
+    const btn = document.getElementById('btn-deduplicate');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> En cours…'; }
+    try {
+      const r    = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({
+        action: 'deduplicateSaisies',
+        requesterRole: currentUser ? currentUser.role : ''
+      })});
+      const json = await r.json();
+      if (json.success) {
+        showToast(json.message, 'success');
+      } else {
+        showToast('Erreur : ' + (json.error || 'inconnue'), 'error');
+      }
+    } catch (e) {
+      showToast('Erreur réseau lors de la déduplication.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-broom"></i> Supprimer les doublons'; }
+    }
+  }
+
   /* ---- Chargement et affichage des demandes ---- */
 
   async function loadDemandes() {
@@ -4026,8 +4062,9 @@
     if (!el) return;
     const id = agentViewDfaId;
     if (!id) { el.textContent = ''; return; }
-    const total     = SAISIES_DATA.filter(s => s.dfaId === id).length;
-    const todaySais = SAISIES_DATA.filter(s => s.dfaId === id && _parseSaisieDate(s.date) === todayISO).length;
+    const _aidSync = (id || '').toLowerCase().trim();
+    const total     = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidSync).length;
+    const todaySais = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidSync && _parseSaisieDate(s.date) === todayISO).length;
     const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     el.textContent = `Sync ${now} · ${total} saisie(s) en mémoire · ${todaySais} aujourd'hui`;
   }
@@ -4042,12 +4079,14 @@
     const chevron = document.getElementById('nav-chevron-equipes');
     if (sub) sub.style.display = 'block';
     if (chevron) chevron.classList.add('open');
-    /* Bouton "Nouveau compte" + bouton "Migrer" visibles uniquement pour ra et admin */
+    /* Bouton "Nouveau compte" + boutons admin visibles uniquement pour ra et admin */
     const isAdmin = currentUser && ['ra','admin'].includes(currentUser.role);
     const btnNouveau = document.getElementById('equipes-btn-nouveau-compte');
     if (btnNouveau) btnNouveau.style.display = isAdmin ? '' : 'none';
     const btnMigrate = document.getElementById('btn-migrate-activations');
     if (btnMigrate) btnMigrate.style.display = isAdmin ? '' : 'none';
+    const btnDedupe = document.getElementById('btn-deduplicate');
+    if (btnDedupe) btnDedupe.style.display = isAdmin ? '' : 'none';
     loadUsers();
   }
 
@@ -4063,6 +4102,7 @@
   }
 
   function showSupView(supId, el) {
+    saveViewState('superviseur', { supId });
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-superviseur').classList.add('active');
     _clearNavActive();
@@ -4095,7 +4135,71 @@
     loadDemandes();
   }
 
+  function _buildEquipePerf(zone) {
+    const norm = z => (z || '').toLowerCase().replace(/[\s\-]/g, '');
+    const zNorm = norm(zone);
+
+    const zoneAgents  = USERS.filter(u => u.role === 'agent' && norm(u.zone) === zNorm);
+    const zoneIds     = new Set(zoneAgents.map(u => (u.id || '').toLowerCase()));
+    const zoneSaisies = SAISIES_DATA.filter(s =>
+      zoneIds.has((s.dfaId || '').toLowerCase()) || norm(s.zone || '') === zNorm
+    );
+
+    /* Cible mensuelle proratisée par nombre de DFAs de la zone */
+    const keyMois    = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+    const mCible     = MONTHLY_TARGETS[keyMois];
+    const nbDFATotal = Math.max(1, USERS.filter(u => u.role === 'agent').length);
+    const targetMois = mCible
+      ? Math.round(mCible.gsm * Math.max(1, zoneAgents.length) / nbDFATotal)
+      : 10 * Math.max(1, zoneAgents.length) * 30;
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+    /* KPI par période */
+    ZONE_PERF_DATA[zone] = {};
+    ['jour', 'semaine', 'mois', 'annee'].forEach(period => {
+      const curr    = _filterPeriod(zoneSaisies, period);
+      const prevRef = new Date(today);
+      if      (period === 'jour')    prevRef.setDate(prevRef.getDate() - 1);
+      else if (period === 'semaine') prevRef.setDate(prevRef.getDate() - 7);
+      else if (period === 'mois')    prevRef.setMonth(prevRef.getMonth() - 1);
+      else if (period === 'annee')   prevRef.setFullYear(prevRef.getFullYear() - 1);
+      const prev = _filterPeriod(zoneSaisies, period, prevRef);
+
+      const grossAdd     = _sumField(curr, 'grossAdd');
+      const grossAddPrev = _sumField(prev, 'grossAdd');
+      const dfaActifs    = new Set(curr.filter(s => (Number(s.grossAdd) || 0) > 0).map(s => (s.dfaId || '').toLowerCase())).size;
+      const evolution    = grossAddPrev > 0
+        ? Math.round((grossAdd - grossAddPrev) / grossAddPrev * 100)
+        : (grossAdd > 0 ? 100 : 0);
+
+      let target = targetMois;
+      if      (period === 'jour')    target = Math.round(targetMois / daysInMonth);
+      else if (period === 'semaine') target = Math.round(targetMois * 7 / daysInMonth);
+      else if (period === 'annee')   target = targetMois * 12;
+
+      ZONE_PERF_DATA[zone][period] = { grossAdd, dfaActifs, target: target || 1, evolution };
+    });
+
+    /* Perf par agent */
+    const dayOfMonth   = today.getDate();
+    const yesterday    = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const weeksElapsed = Math.max(1, Math.ceil(dayOfMonth / 7));
+
+    for (const agent of zoneAgents) {
+      const aId      = (agent.id || '').toLowerCase();
+      const aSaisies = zoneSaisies.filter(s => (s.dfaId || '').toLowerCase() === aId);
+      const jour      = _sumField(_filterPeriod(aSaisies, 'jour'), 'grossAdd');
+      const hier      = _sumField(_filterPeriod(aSaisies, 'jour', yesterday), 'grossAdd');
+      const semaine   = _sumField(_filterPeriod(aSaisies, 'semaine'), 'grossAdd');
+      const mois      = _sumField(_filterPeriod(aSaisies, 'mois'), 'grossAdd');
+      const moyJour    = dayOfMonth > 0 ? Math.round(mois / dayOfMonth * 10) / 10 : 0;
+      const moySemaine = Math.round(mois / weeksElapsed * 10) / 10;
+      AGENT_PERF_DATA[agent.id] = { jour, hier, semaine, mois, moyJour, moySemaine };
+    }
+  }
+
   function renderEquipeZone(zone) {
+    _buildEquipePerf(zone);
     const allUsers = USERS.length ? USERS : USERS_SEED;
     const normalZ  = z => z ? z.toLowerCase().replace(/[\s\-]/g, '') : '';
     const zNorm    = normalZ(zone);
@@ -4650,7 +4754,7 @@
     /* Soustraire les SIMs déjà soumises ce jour par ce DFA (soumissions précédentes) */
     const dejaSoumis = (currentUser && SAISIES_DATA.length)
       ? SAISIES_DATA
-          .filter(s => s.dfaId === currentUser.id && _parseSaisieDate(s.date) === todayISO)
+          .filter(s => (s.dfaId || '').toLowerCase().trim() === (currentUser.id || '').toLowerCase().trim() && _parseSaisieDate(s.date) === todayISO)
           .reduce((sum, s) => sum + (Number(s.grossAdd) || 0), 0)
       : 0;
     const reste = simRecu - dejaSoumis - saisieSIMs.length;
@@ -5056,6 +5160,7 @@
 
   function showStocksView(type, el) {
     _stockViewType = type || 'p100';
+    saveViewState('stocks', { type: _stockViewType });
     _clearNavActive();
     _markNavActive(el);
     const stockTitles = { p100: 'P100', swap: 'SWAP', ressources: 'Ressources', detection: 'Détection SIMs', transferts: 'Transferts' };
@@ -5139,8 +5244,14 @@
     if (hist)  hist.innerHTML  = empty;
     if (badge) badge.textContent = '0';
     /* Gestionnaire */
-    const gest = document.getElementById('stock-gestionnaire-body');
-    if (gest) gest.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-text)">Aucune donnée enregistrée</div>';
+    const gest      = document.getElementById('stock-gestionnaire-body');
+    const gestTbody = document.getElementById('gestionnaire-tbody');
+    const gestBadge = document.getElementById('gestionnaire-badge');
+    const gestKpi   = document.getElementById('gestionnaire-kpi-row');
+    if (gest)      gest.innerHTML      = '<div style="text-align:center;padding:20px;color:var(--gray-text)">Aucune donnée enregistrée</div>';
+    if (gestTbody) gestTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucune donnée enregistrée</td></tr>';
+    if (gestBadge) gestBadge.textContent = '—';
+    if (gestKpi)   gestKpi.innerHTML   = '';
     /* SIM vendues */
     const simTbody = document.getElementById('sim-vendues-tbody');
     const simBadge = document.getElementById('sim-vendues-badge');
@@ -5444,6 +5555,10 @@
     const ranges = (STOCK_DATA || [])
       .filter(r => (r.type || 'p100') === 'p100' && r.simDebut && r.simFin)
       .map(r => ({ debut: r.simDebut.toString().trim(), fin: r.simFin.toString().trim() }));
+
+    /* Avertissement si aucune plage disponible */
+    const warningEl = document.getElementById('detection-no-ranges-warning');
+    if (warningEl) warningEl.style.display = ranges.length === 0 ? '' : 'none';
 
     /* Analyser chaque saisie qui a des numéros SIM */
     _detectionData = [];
@@ -6697,7 +6812,8 @@
 
     let gsm, momo, conformite;
     if (SAISIES_DATA.length) {
-      const mine   = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+      const _aid   = (_agentId() || '').toLowerCase().trim();
+      const mine   = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aid);
       const semFil = _filterPeriod(mine, 'semaine', perfDate);
       gsm        = _sumField(semFil, 'grossAdd');
       momo       = _sumField(semFil, 'momoUser');
@@ -6798,7 +6914,8 @@
     const todayStr = today.toLocaleDateString('fr-FR');
 
     if (SAISIES_DATA.length) {
-      const mine  = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+      const _aidH  = (_agentId() || '').toLowerCase().trim();
+      const mine  = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidH);
       const dates = [...new Set(mine.map(s => s.date).filter(Boolean))].sort((a, b) => {
         const da = _parseFrDate(a), db = _parseFrDate(b);
         return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
@@ -6958,66 +7075,73 @@
     const vsLastCol  = vsLast !== null ? (vsLast >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--gray-text)';
     const vsLastIcon = vsLast !== null ? (vsLast > 5 ? '↑' : vsLast < -5 ? '↓' : '→') : '';
 
-    container.innerHTML = `
-      <div style="padding:4px 0">
+    const engagPct = totalZoneAgents > 0 ? Math.round(activeIds / totalZoneAgents * 100) : 0;
+    const engagCol  = engagPct >= 80 ? 'var(--green)' : engagPct >= 50 ? 'var(--orange)' : 'var(--red)';
+    const avgJourRound = Math.round(avgJour);
+    const cibleJour    = tMois > 0 ? Math.round(tMois / daysInM) : 0;
+    const avgCol       = avgJourRound >= cibleJour ? 'var(--green)' : avgJourRound >= cibleJour * 0.7 ? 'var(--orange)' : 'var(--red)';
 
-        <!-- RÉALISÉ -->
-        <div style="margin-bottom:18px">
-          <div style="font-size:10px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">
-            <i class="fa fa-chart-line" style="color:var(--yellow);margin-right:5px"></i>Réalisé ce mois
+    container.innerHTML = `
+      <div style="padding:2px 0;display:flex;flex-direction:column;gap:14px">
+
+        <!-- RÉALISÉ CE MOIS -->
+        <div style="background:var(--bg);border-radius:12px;padding:14px 16px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span style="font-size:10px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.8px">📈 Réalisé ce mois</span>
+            ${curPct !== null ? `<span class="badge ${curCls}" style="font-size:11px;padding:3px 10px">${curPct}%</span>` : ''}
           </div>
-          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-            <span style="font-size:36px;font-weight:900;color:${curColor};line-height:1">${gsmM.toLocaleString('fr-FR')}</span>
-            <div style="display:flex;flex-direction:column;gap:2px">
-              <span style="font-size:12px;color:var(--gray-text)">sur <strong>${tMois > 0 ? tMois.toLocaleString('fr-FR') : '—'}</strong> objectif</span>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font-size:40px;font-weight:900;color:${curColor};line-height:1;letter-spacing:-1px">${gsmM.toLocaleString('fr-FR')}</span>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:12px;color:var(--gray-text)">sur <strong style="color:var(--text)">${tMois > 0 ? tMois.toLocaleString('fr-FR') : '—'}</strong> objectif</span>
               ${vsLastStr !== null ? `<span style="font-size:11px;font-weight:700;color:${vsLastCol}">${vsLastIcon} ${vsLastStr} vs mois préc.</span>` : ''}
             </div>
-            ${curPct !== null ? `<span class="badge ${curCls}" style="margin-left:auto;font-size:12px;padding:4px 10px">${curPct}%</span>` : ''}
           </div>
           ${curPct !== null ? `
-          <div class="zone-track" style="height:12px;border-radius:6px">
-            <div class="zone-fill" style="width:${curPct}%;background:${curColor};border-radius:6px"></div>
+          <div style="position:relative;height:10px;background:var(--border);border-radius:999px;overflow:hidden;margin-bottom:6px">
+            <div style="position:absolute;inset:0;width:${curPct}%;background:linear-gradient(90deg,${curColor}99,${curColor});border-radius:999px;transition:width .4s ease"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:5px">
-            <span style="font-size:11px;color:var(--gray-text)">Jour ${dayOfM} / ${daysInM}</span>
-            <span style="font-size:11px;color:var(--gray-text)">${daysLeft} jour${daysLeft>1?'s':''} restant${daysLeft>1?'s':''}</span>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:11px;color:var(--gray-text)">Jour <strong>${dayOfM}</strong> / ${daysInM}</span>
+            <span style="font-size:11px;color:var(--gray-text);font-weight:600">${daysLeft} jour${daysLeft>1?'s':''} restant${daysLeft>1?'s':''}</span>
           </div>` : ''}
         </div>
 
         <!-- PROJECTION -->
         ${projected !== null ? `
-        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:18px">
+        <div style="background:var(--bg);border-radius:12px;padding:14px 16px;border:1.5px dashed var(--border)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:10px;font-weight:700;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.6px">
-              <i class="fa fa-bullseye" style="color:var(--yellow);margin-right:5px"></i>Projection fin de mois
-            </span>
-            <span class="badge ${projCls}" style="font-size:10px">${projPct}% prévu</span>
+            <span style="font-size:10px;font-weight:800;color:var(--gray-text);text-transform:uppercase;letter-spacing:0.8px">🎯 Projection fin de mois</span>
+            <span class="badge ${projCls}" style="font-size:10px;padding:3px 9px">${projPct}% prévu</span>
           </div>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-            <span style="font-size:26px;font-weight:900;color:${projColor}">${projected.toLocaleString('fr-FR')}</span>
-            <span style="font-size:12px;color:var(--gray-text)">estimé · ${Math.round(avgJour)} / jour</span>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
+            <span style="font-size:30px;font-weight:900;color:${projColor};letter-spacing:-0.5px">${projected.toLocaleString('fr-FR')}</span>
+            <span style="font-size:12px;color:var(--gray-text)">estimé &nbsp;·&nbsp; <strong>${avgJourRound}</strong> / jour</span>
           </div>
-          <div class="zone-track" style="height:8px;border-radius:4px">
-            <div class="zone-fill" style="width:${projPct}%;background:${projColor};border-radius:4px;opacity:0.7"></div>
+          <div style="position:relative;height:8px;background:var(--border);border-radius:999px;overflow:hidden">
+            <div style="position:absolute;inset:0;width:${projPct}%;background:linear-gradient(90deg,${projColor}66,${projColor}aa);border-radius:999px"></div>
           </div>
         </div>` : ''}
 
-        <!-- KPIs -->
+        <!-- KPIs BAS -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-            <div style="font-size:20px;font-weight:900;color:${momoCol}">${momoRate}%</div>
-            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">Taux MoMo</div>
-            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">${momoNew} act.</div>
+          <div style="text-align:center;padding:12px 6px;background:var(--bg);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;margin-bottom:4px">💰</div>
+            <div style="font-size:22px;font-weight:900;color:${momoCol};line-height:1">${momoRate}%</div>
+            <div style="font-size:9px;color:var(--gray-text);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:4px">Taux MoMo</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:2px">${momoM.toLocaleString('fr-FR')} act.</div>
           </div>
-          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-            <div style="font-size:20px;font-weight:900">${activeIds}<span style="font-size:13px;font-weight:400;color:var(--gray-text)">/${totalZoneAgents}</span></div>
-            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">DFA actifs</div>
-            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">${totalZoneAgents > 0 ? Math.round(activeIds/totalZoneAgents*100) : 0}% engagement</div>
+          <div style="text-align:center;padding:12px 6px;background:var(--bg);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;margin-bottom:4px">👥</div>
+            <div style="font-size:22px;font-weight:900;color:${engagCol};line-height:1">${activeIds}<span style="font-size:13px;font-weight:400;color:var(--gray-text)">/${totalZoneAgents}</span></div>
+            <div style="font-size:9px;color:var(--gray-text);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:4px">DFA actifs</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:2px">${engagPct}% engagement</div>
           </div>
-          <div style="text-align:center;padding:10px 6px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-            <div style="font-size:20px;font-weight:900">${Math.round(avgJour)}</div>
-            <div style="font-size:10px;color:var(--gray-text);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px">Moy./jour</div>
-            <div style="font-size:10px;color:var(--gray-text);margin-top:1px">cible ${Math.round(tMois/daysInM)}/j</div>
+          <div style="text-align:center;padding:12px 6px;background:var(--bg);border-radius:12px;border:1px solid var(--border)">
+            <div style="font-size:13px;margin-bottom:4px">⚡</div>
+            <div style="font-size:22px;font-weight:900;color:${avgCol};line-height:1">${avgJourRound}</div>
+            <div style="font-size:9px;color:var(--gray-text);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:4px">Moy. / jour</div>
+            <div style="font-size:10px;color:var(--gray-text);margin-top:2px">cible ${cibleJour}/j</div>
           </div>
         </div>
 
@@ -7439,10 +7563,11 @@
     const badgeEl   = document.getElementById('agent-tendance-badge');
     if (!container || !currentUser) return;
 
+    const _aidW = (_agentId() || '').toLowerCase().trim();
     function weekData(offset) {
       const lbl = offset === 0 ? 'Cette sem.' : `S-${Math.abs(offset)}`;
       if (SAISIES_DATA.length) {
-        const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+        const mine = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidW);
         const fil  = _filterWeekOffset(mine, offset);
         return { lbl, gsm: _sumField(fil, 'grossAdd'), momo: _sumField(fil, 'momoUser') };
       } else {
@@ -7504,7 +7629,8 @@
 
     let gsmM, momoM, semW, semW1;
     if (SAISIES_DATA.length) {
-      const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+      const _aidM = (_agentId() || '').toLowerCase().trim();
+      const mine = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidM);
       gsmM  = _sumField(_filterPeriod(mine, 'mois',    today), 'grossAdd');
       momoM = _sumField(_filterPeriod(mine, 'mois',    today), 'momoUser');
       semW  = _sumField(_filterWeekOffset(mine,  0), 'grossAdd');
@@ -7546,7 +7672,8 @@
 
     let daysActifs;
     if (SAISIES_DATA.length) {
-      const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+      const _aidD = (_agentId() || '').toLowerCase().trim();
+      const mine = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidD);
       daysActifs = _uniqueDays(_filterWeekOffset(mine, 0));
     } else {
       daysActifs = Object.values(agentPerfData.jour).filter(j => j.gsm > 0).length;
@@ -8435,7 +8562,8 @@
         return;
       }
       if (SAISIES_DATA.length && _agentId()) {
-        const mine = SAISIES_DATA.filter(s => s.dfaId === _agentId());
+        const _aidP = (_agentId() || '').toLowerCase().trim();
+        const mine = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidP);
         const fil  = _filterDateRange(mine, perfRangeDebut, perfRangeFin);
         const gsm  = _sumField(fil, 'grossAdd');
         const momo = _sumField(fil, 'momoUser');
@@ -8548,8 +8676,9 @@
 
   /* --- Calcul perf agent depuis données réelles --- */
   function _computeAgentPerf(dfaId, period, refDate) {
-    const ref  = (refDate instanceof Date) ? refDate : today;
-    const mine = SAISIES_DATA.filter(s => s.dfaId === dfaId);
+    const ref    = (refDate instanceof Date) ? refDate : today;
+    const normId = (dfaId || '').toLowerCase().trim();
+    const mine   = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === normId);
     const fil  = _filterPeriod(mine, period, ref);
     const gsm  = _sumField(fil, 'grossAdd');
     const momo = _sumField(fil, 'momoUser');
@@ -9376,7 +9505,8 @@
   function _renderDernieresSaisies() {
     const tbody = document.getElementById('dernieres-saisies-tbody');
     if (!tbody || !currentUser) return;
-    const mine = SAISIES_DATA.filter(s => s.dfaId === currentUser.id);
+    const _aidDS = (currentUser.id || '').toLowerCase().trim();
+    const mine = SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidDS);
     const dates = [...new Set(mine.map(s => s.date).filter(Boolean))].sort((a, b) => {
       const da = _parseFrDate(a), db = _parseFrDate(b);
       return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
@@ -9680,6 +9810,12 @@
           } else if (vs.extra.type === 'demandes') {
             showEquipeDemandes(document.getElementById('nav-sub-demandes-item'));
           }
+        } else if (vs.name === 'stocks' && vs.extra && vs.extra.type) {
+          const el = document.querySelector(`.nav-sub-item[onclick*="showStocksView('${vs.extra.type}'"]`);
+          showStocksView(vs.extra.type, el || null);
+        } else if (vs.name === 'superviseur' && vs.extra && vs.extra.supId) {
+          const el = document.querySelector(`.nav-sub-item[data-sup-id="${vs.extra.supId}"]`);
+          showSupView(vs.extra.supId, el || null);
         } else if (vs.name) {
           const el = [...document.querySelectorAll('.nav-item')].find(
             n => (n.getAttribute('onclick') || '').includes(`'${vs.name}'`)
@@ -9797,11 +9933,24 @@
     return _filterPeriod(saisies, filterKey, d);
   }
 
-  // Objectif calculé selon la période et le nombre d'agents/jours
+  // Objectif calculé selon la période et le nombre d'agents couverts
   function _rapportObjectif(period, nbAgents) {
-    const d = today;
+    const d       = today;
+    const mk      = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const mc      = MONTHLY_TARGETS[mk];
     const daysInM = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
-    const factor  = period === 'jour' ? 1 : period === 'semaine' ? 7 : daysInM;
+
+    if (mc && mc.gsm) {
+      // Target officiel du mois, proportionnel au nombre d'agents couverts
+      const nbAll       = Math.max(1, USERS.filter(u => u.role === 'agent' && u.statut === 'actif').length);
+      const monthlyProp = Math.round(mc.gsm * (nbAgents || 1) / nbAll);
+      if (period === 'jour')    return Math.round(monthlyProp / daysInM);
+      if (period === 'semaine') return Math.round(monthlyProp * 7 / daysInM);
+      return monthlyProp;
+    }
+
+    // Fallback : DFA_DAILY_TARGET si aucun target mensuel défini
+    const factor = period === 'jour' ? 1 : period === 'semaine' ? 7 : daysInM;
     return DFA_DAILY_TARGET * factor * (nbAgents || 1);
   }
 
@@ -9816,7 +9965,8 @@
   // -------------------- RAPPORT DFA --------------------
   function _buildRapportDFA(period, refDate) {
     const user  = _agentUser();
-    const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => s.dfaId === (user ? user.id : null)) : (agentPerfData || []);
+    const _aidR = (user ? user.id : '').toLowerCase().trim();
+    const mine  = SAISIES_DATA.length ? SAISIES_DATA.filter(s => (s.dfaId || '').toLowerCase().trim() === _aidR) : (agentPerfData || []);
     const fil   = _rapportFilter(mine, period, refDate);
     const ga    = _sumField(fil, 'grossAdd');
     const momo  = _sumField(fil, 'momoUser');
@@ -10129,7 +10279,7 @@
       ${hasStock && stk.supLines.length ? `
       <div class="card" style="margin-top:16px">
         <div class="card-header">
-          <div class="card-title"><i class="fa fa-boxes-stacked" style="color:var(--yellow)"></i> Stocks SIM P100 — Suivi par superviseur</div>
+          <div class="card-title">📦 Stocks SIM P100 — Suivi par superviseur</div>
           <span class="badge badge-black">${stk.stockRecu.toLocaleString('fr-FR')} SIM reçues</span>
         </div>
         <div class="card-body" style="padding:0">
@@ -10225,7 +10375,7 @@
       const btn = document.getElementById('rapport-copy-btn');
       if (btn) {
         const old = btn.innerHTML;
-        btn.innerHTML = '<i class="fa fa-check" style="margin-right:6px"></i>Copié !';
+        btn.innerHTML = '✅ Copié !';
         btn.style.background = '#22c55e';
         setTimeout(() => { btn.innerHTML = old; btn.style.background = ''; }, 2000);
       }
@@ -10238,7 +10388,7 @@
     const btn = document.getElementById('rapport-wa-btn');
     if (btn) {
       const old = btn.innerHTML;
-      btn.innerHTML = '<i class="fa fa-circle-notch fa-spin" style="margin-right:6px"></i>Ouverture…';
+      btn.innerHTML = '⏳ Ouverture…';
       setTimeout(() => { btn.innerHTML = old; }, 3000);
     }
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
