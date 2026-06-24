@@ -5674,13 +5674,43 @@
     const rangeSel = document.getElementById('detection-filter-range');
     if (rangeSel) {
       const savedRange = rangeSel.value;
-      rangeSel.innerHTML = isSup ? '' : '<option value="">Toutes les plages</option>';
-      visibleRanges.forEach(r => {
-        const o = document.createElement('option');
-        o.value = r.idx;
-        o.textContent = `${r.auteurNom} — ${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
-        rangeSel.appendChild(o);
-      });
+      rangeSel.innerHTML = '';
+
+      if (isSup) {
+        /* Superviseur : ses plages directement, sans option "Toutes" */
+        visibleRanges.forEach(r => {
+          const o = document.createElement('option');
+          o.value = r.idx;
+          o.textContent = `${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
+          rangeSel.appendChild(o);
+        });
+      } else {
+        /* RA / Admin : option "Toutes" + plages regroupées par auteur */
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'Toutes les plages';
+        rangeSel.appendChild(allOpt);
+
+        /* Grouper par auteur */
+        const byAuteur = {};
+        visibleRanges.forEach(r => {
+          if (!byAuteur[r.auteurId]) byAuteur[r.auteurId] = { nom: r.auteurNom, ranges: [] };
+          byAuteur[r.auteurId].ranges.push(r);
+        });
+
+        Object.values(byAuteur).forEach(group => {
+          const grp = document.createElement('optgroup');
+          grp.label = group.nom;
+          group.ranges.forEach(r => {
+            const o = document.createElement('option');
+            o.value = r.idx;
+            o.textContent = `${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
+            grp.appendChild(o);
+          });
+          rangeSel.appendChild(grp);
+        });
+      }
+
       /* Pré-sélectionner : superviseur → sa première plage, RA → préserver la sélection */
       if (isSup && visibleRanges.length > 0) {
         rangeSel.value = savedRange !== '' && visibleRanges.some(r => r.idx.toString() === savedRange)
