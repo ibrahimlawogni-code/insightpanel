@@ -42,6 +42,8 @@ function doPost(e) {
     if (data.action === 'getPerfSup')           return handleGetPerfSup(data);
     if (data.action === 'saveTransfert')        return handleSaveTransfert(data);
     if (data.action === 'getTransferts')        return handleGetTransferts(data);
+    if (data.action === 'acceptTransfert')      return handleAcceptTransfert(data);
+    if (data.action === 'rejectTransfert')      return handleRejectTransfert(data);
     if (data.action === 'migrateActivations')   return handleMigrateActivations();
     if (data.action === 'getActivations')       return handleGetActivations(data);
     if (data.action === 'deduplicateSaisies')   return handleDeduplicateSaisies(data);
@@ -881,7 +883,8 @@ function handleSaveTransfert(data) {
     data.simDebut  || '',
     data.simFin    || '',
     Number(data.quantite) || 0,
-    new Date().toLocaleString('fr-FR')
+    new Date().toLocaleString('fr-FR'),
+    'en_attente'
   ]);
 
   return jsonResponse({ success: true, message: 'Transfert enregistré.', id });
@@ -925,10 +928,87 @@ function handleGetTransferts(data) {
       simDebut:  r[6] ? r[6].toString().trim() : '',
       simFin:    r[7] ? r[7].toString().trim() : '',
       quantite:  Number(r[8]) || 0,
-      horodatage: r[9] ? r[9].toString().trim() : ''
+      horodatage: r[9] ? r[9].toString().trim() : '',
+      statut:    r[10] ? r[10].toString().trim() : 'accepté'
     });
   }
   return jsonResponse({ success: true, data: result });
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSFERTS — ACCEPTATION
+// Destinataire accepte : statut → 'accepté' + ligne créée dans StockSIM
+// ─────────────────────────────────────────────────────────────
+function handleAcceptTransfert(data) {
+  if (!data.userId || !data.transfertId) return jsonResponse({ success: false, error: 'Données manquantes.' });
+
+  const ss     = SpreadsheetApp.openById(SHEET_ID);
+  const tSheet = ss.getSheetByName('Transferts');
+  if (!tSheet) return jsonResponse({ success: false, error: 'Feuille Transferts introuvable.' });
+
+  const rows = tSheet.getDataRange().getValues();
+  let foundRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] && rows[i][0].toString() === data.transfertId) { foundRow = i + 1; break; }
+  }
+  if (foundRow === -1) return jsonResponse({ success: false, error: 'Transfert introuvable.' });
+
+  const row    = rows[foundRow - 1];
+  const destId = row[4] ? row[4].toString().trim() : '';
+  if (destId.toLowerCase() !== data.userId.toLowerCase()) return jsonResponse({ success: false, error: 'Non autorisé.' });
+
+  const currentStatut = row[10] ? row[10].toString().trim() : '';
+  if (currentStatut !== '' && currentStatut !== 'en_attente') return jsonResponse({ success: false, error: 'Ce transfert a déjà été traité.' });
+
+  /* Marquer accepté (colonne 11) */
+  tSheet.getRange(foundRow, 11).setValue('accepté');
+
+  /* Créer la plage dans StockSIM pour le destinataire */
+  let sSheet = ss.getSheetByName('StockSIM');
+  if (!sSheet) { sSheet = ss.insertSheet('StockSIM'); _initStockSIMSheet(sSheet); }
+
+  sSheet.appendRow([
+    row[1] ? row[1].toString().trim() : new Date().toLocaleDateString('fr-FR'),
+    row[6] ? row[6].toString().trim() : '',
+    row[7] ? row[7].toString().trim() : '',
+    Number(row[8]) || 0,
+    destId,
+    row[5] ? row[5].toString().trim() : '',
+    'superviseur',
+    new Date().toLocaleString('fr-FR'),
+    'transfert'
+  ]);
+
+  return jsonResponse({ success: true, message: 'Transfert accepté. La plage a été ajoutée à votre stock.' });
+}
+
+// ─────────────────────────────────────────────────────────────
+// TRANSFERTS — REFUS
+// ─────────────────────────────────────────────────────────────
+function handleRejectTransfert(data) {
+  if (!data.userId || !data.transfertId) return jsonResponse({ success: false, error: 'Données manquantes.' });
+
+  const ss     = SpreadsheetApp.openById(SHEET_ID);
+  const tSheet = ss.getSheetByName('Transferts');
+  if (!tSheet) return jsonResponse({ success: false, error: 'Feuille Transferts introuvable.' });
+
+  const rows = tSheet.getDataRange().getValues();
+  let foundRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] && rows[i][0].toString() === data.transfertId) { foundRow = i + 1; break; }
+  }
+  if (foundRow === -1) return jsonResponse({ success: false, error: 'Transfert introuvable.' });
+
+  const row    = rows[foundRow - 1];
+  const destId = row[4] ? row[4].toString().trim() : '';
+  if (destId.toLowerCase() !== data.userId.toLowerCase()) return jsonResponse({ success: false, error: 'Non autorisé.' });
+
+  const currentStatut = row[10] ? row[10].toString().trim() : '';
+  if (currentStatut !== '' && currentStatut !== 'en_attente') return jsonResponse({ success: false, error: 'Ce transfert a déjà été traité.' });
+
+  tSheet.getRange(foundRow, 11).setValue('refusé');
+
+  return jsonResponse({ success: true, message: 'Transfert refusé.' });
 }
 
 // ─────────────────────────────────────────────────────────────

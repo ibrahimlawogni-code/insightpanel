@@ -2469,10 +2469,10 @@
           <div class="card-body" style="overflow-x:auto">
             <table class="data-table">
               <thead><tr>
-                <th>Date</th><th>De</th><th>Vers</th><th>N° Début</th><th>N° Fin</th><th>Qté</th><th>Sens</th>
+                <th>Date</th><th>De</th><th>Vers</th><th>N° Début</th><th>N° Fin</th><th>Qté</th><th>Sens</th><th>Statut</th><th>Actions</th>
               </tr></thead>
               <tbody id="transferts-tbody">
-                <tr><td colspan="6" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>
+                <tr><td colspan="9" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>
               </tbody>
             </table>
           </div>
@@ -5940,7 +5940,7 @@
   async function loadTransferts() {
     if (!currentUser || !APPS_SCRIPT_URL.startsWith('https')) return;
     const tbody = document.getElementById('transferts-tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px"><i class="fa fa-spinner fa-spin"></i></td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px"><i class="fa fa-spinner fa-spin"></i></td></tr>';
 
     try {
       const payload = { action: 'getTransferts', userId: currentUser.id, role: currentUser.role };
@@ -5949,9 +5949,11 @@
       if (json.success) {
         TRANSFERT_DATA = json.data || [];
         _renderTransferts();
+      } else {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:20px">Erreur : ' + (json.error || 'Chargement échoué') + '</td></tr>';
       }
     } catch(e) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);padding:20px">Erreur de chargement</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);padding:20px">Erreur de connexion</td></tr>';
     }
   }
 
@@ -5972,16 +5974,35 @@
     const tbody = document.getElementById('transferts-tbody');
     if (!tbody) return;
     if (!TRANSFERT_DATA.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--gray-text);padding:20px">Aucun transfert enregistré</td></tr>';
       return;
     }
 
+    const globalRoles = ['ra','admin','dg','dga','dc','dcc'];
+    const isGlobal = globalRoles.includes(currentUser.role);
+
     tbody.innerHTML = TRANSFERT_DATA.map(t => {
-      const isSend = t.sourceId === currentUser.id;
-      const sens = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role) ? '' :
+      const isSend      = t.sourceId === currentUser.id;
+      const isRecipient = t.destId   === currentUser.id;
+      const statut      = t.statut   || 'accepté';
+      const isPending   = statut     === 'en_attente';
+
+      const sens = isGlobal ? '—' :
         isSend
           ? `<span style="color:var(--danger);font-weight:600"><i class="fa fa-arrow-right"></i> Envoyé</span>`
           : `<span style="color:var(--success);font-weight:600"><i class="fa fa-arrow-left"></i> Reçu</span>`;
+
+      const statutBadge = statut === 'en_attente'
+        ? `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">En attente</span>`
+        : statut === 'refusé'
+          ? `<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">Refusé</span>`
+          : `<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600">Accepté</span>`;
+
+      const actions = (isPending && isRecipient)
+        ? `<button onclick="acceptTransfert('${t.id}')" style="background:#22c55e;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px"><i class="fa fa-check"></i> Accepter</button>
+           <button onclick="rejectTransfert('${t.id}')" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px"><i class="fa fa-times"></i> Refuser</button>`
+        : '—';
+
       return `<tr>
         <td>${t.date}</td>
         <td>${t.sourceNom}</td>
@@ -5990,6 +6011,8 @@
         <td style="font-family:monospace">${t.simFin || '—'}</td>
         <td style="font-weight:700">${t.quantite}</td>
         <td>${sens}</td>
+        <td>${statutBadge}</td>
+        <td>${actions}</td>
       </tr>`;
     }).join('');
   }
@@ -6033,6 +6056,38 @@
     } catch(e) {
       showErr('Erreur réseau.');
     }
+  }
+
+  async function acceptTransfert(transfertId) {
+    if (!confirm('Accepter ce transfert ? La plage de SIMs sera ajoutée à votre stock et sera prise en compte dans la détection.')) return;
+    try {
+      const payload = { action: 'acceptTransfert', transfertId, userId: currentUser.id };
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.success) {
+        _stockFromSheets = false; _stockInFlight = null;
+        await loadTransferts();
+        _ensureStockLoaded();
+        alert(json.message || 'Transfert accepté.');
+      } else {
+        alert('Erreur : ' + (json.error || 'Impossible d\'accepter le transfert.'));
+      }
+    } catch(e) { alert('Erreur de connexion.'); }
+  }
+
+  async function rejectTransfert(transfertId) {
+    if (!confirm('Refuser ce transfert ?')) return;
+    try {
+      const payload = { action: 'rejectTransfert', transfertId, userId: currentUser.id };
+      const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (json.success) {
+        await loadTransferts();
+        alert(json.message || 'Transfert refusé.');
+      } else {
+        alert('Erreur : ' + (json.error || 'Impossible de refuser le transfert.'));
+      }
+    } catch(e) { alert('Erreur de connexion.'); }
   }
 
   /* ============================================================
