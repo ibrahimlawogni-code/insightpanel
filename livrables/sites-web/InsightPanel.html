@@ -5293,6 +5293,8 @@
     if (!force && _saisiesFromSheets && _stockFromSheets && SAISIES_DATA.length > 0 && STOCK_DATA.length > 0) {
       _renderSimVendues();
       _renderStockGestionnaire();
+      const filteredCache = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
+      _renderStockHistorique(filteredCache);
       return;
     }
     /* Rechargement frais depuis Sheets */
