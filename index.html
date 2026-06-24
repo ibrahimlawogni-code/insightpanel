@@ -2367,7 +2367,12 @@
         <div class="card">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
             <h3 style="margin:0;font-size:15px">Détection des SIMs externes</h3>
-            <button class="btn btn-secondary btn-sm" onclick="_initDetectionView()"><i class="fa fa-rotate-right"></i> Actualiser</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="exportDetectionExcel()" title="Exporter les SIMs externes en Excel">
+                <i class="fa fa-file-excel" style="color:#22c55e;margin-right:4px"></i> Exporter Excel
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="_initDetectionView()"><i class="fa fa-rotate-right"></i> Actualiser</button>
+            </div>
           </div>
           <div class="card-body">
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
@@ -5720,6 +5725,67 @@
         <td style="font-family:monospace">${r.simNum}</td>
         <td>${r.statut === 'off' ? badgeOff : r.statut === 'ext' ? badgeExt : badgeNr}</td>
       </tr>`).join('');
+  }
+
+  function exportDetectionExcel() {
+    if (typeof XLSX === 'undefined') {
+      showToast('Bibliothèque Excel non chargée. Vérifiez votre connexion.', 'error');
+      return;
+    }
+
+    /* Reprendre les mêmes filtres actifs que _renderDetection */
+    const supFilter = (document.getElementById('detection-filter-sup')  || {}).value || '';
+    const debFilter = (document.getElementById('detection-filter-debut') || {}).value || '';
+    const finFilter = (document.getElementById('detection-filter-fin')   || {}).value || '';
+
+    /* Filtrer et ne garder que les SIMs externes */
+    const rows = _detectionData.filter(r => {
+      if (r.statut !== 'ext') return false;
+      if (supFilter && r.supId !== supFilter) return false;
+      if (debFilter && r.isoDate && r.isoDate < debFilter) return false;
+      if (finFilter && r.isoDate && r.isoDate > finFilter) return false;
+      return true;
+    });
+
+    if (!rows.length) { showToast('Aucune SIM externe à exporter sur cette période.', 'error'); return; }
+
+    /* Construire le tableau Excel */
+    const headers = ['Date', 'DFA', 'Zone', 'N° SIM', 'Statut'];
+    const data = [
+      headers,
+      ...rows.map(r => [r.date, r.dfaNom, r.zone || '', r.simNum, 'Externe'])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    ws['!cols'] = [
+      { wch: 14 }, // Date
+      { wch: 24 }, // DFA
+      { wch: 22 }, // Zone
+      { wch: 16 }, // N° SIM
+      { wch: 12 }  // Statut
+    ];
+
+    /* En-têtes en rouge (couleur d'alerte externe) */
+    headers.forEach((_, ci) => {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: ci });
+      if (!ws[cellRef]) return;
+      ws[cellRef].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: 'DC2626' } },
+        alignment: { horizontal: 'center' }
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SIMs externes');
+
+    const now     = new Date();
+    const dateFmt = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const fileName = `SIMs_externes_${dateFmt}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
+    showToast(`${rows.length} SIM externe(s) exportée(s) vers ${fileName}`, 'success');
   }
 
   /* ============================================================
