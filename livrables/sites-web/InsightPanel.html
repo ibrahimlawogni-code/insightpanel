@@ -5631,8 +5631,11 @@
     return raw.toString().split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
   }
 
-  function _initDetectionView() {
+  async function _initDetectionView() {
     if (!currentUser) return;
+
+    /* S'assurer que STOCK_DATA et SAISIES_DATA sont chargés */
+    await Promise.all([_ensureStockLoaded(), loadSaisiesData()]);
 
     /* Alimenter le filtre superviseurs */
     const supSel = document.getElementById('detection-filter-sup');
