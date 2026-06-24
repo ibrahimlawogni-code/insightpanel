@@ -10472,6 +10472,52 @@
     const stk     = _stockRapportSup(supUser.id, zone);
     const hasStock = stk.recu > 0;
 
+    // ── Analyse stratégique ──────────────────────────────────────
+    const _todayA = new Date();
+    let ratioAttendu = 100;
+    if (period === 'mois') {
+      ratioAttendu = Math.round(_todayA.getDate() / new Date(_todayA.getFullYear(), _todayA.getMonth()+1, 0).getDate() * 100);
+    } else if (period === 'semaine') {
+      ratioAttendu = Math.min(100, Math.round((_todayA.getDay() || 7) / 6 * 100));
+    }
+    const indivTgtA = _rapportObjectif(period, 1);
+    const _pctAgA   = a => indivTgtA > 0 ? Math.round(a.ga / indivTgtA * 100) : 0;
+    const enAvanceA = agentsFil.filter(a => _pctAgA(a) >= ratioAttendu + 10);
+    const enRetardA = agentsFil.filter(a => _pctAgA(a) < Math.max(0, ratioAttendu - 15));
+    const stockAlerte = hasStock && stk.solde <= 50;
+    const recoA = [];
+    if (stockAlerte) recoA.push({ type:'danger', text:`Stock critique : ${stk.solde} SIM restantes — Demander réapprovisionnement` });
+    if (absents > 0) recoA.push({ type:'warning', text:`${absents} agent(s) absent(s) — Contacter pour identifier les freins` });
+    if (enRetardA.length > 0) {
+      const noms = enRetardA.slice(0,3).map(a=>a.nom).join(', ') + (enRetardA.length > 3 ? ' +'+(enRetardA.length-3) : '');
+      recoA.push(stockAlerte
+        ? { type:'danger', text:`Débloquer le stock avant de pousser la performance terrain` }
+        : { type:'warning', text:`Agents à la traîne : ${noms} — Visite terrain à planifier` }
+      );
+    }
+    if (enAvanceA.length > 0) recoA.push({ type:'success', text:`${enAvanceA.length} agent(s) en avance — Valoriser en réunion d'équipe` });
+    if (recoA.length === 0)   recoA.push({ type:'success', text:`Zone dans la trajectoire — Maintenir le rythme actuel` });
+    const analyseHtmlS = `
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <div class="card-title">🧭 Analyse stratégique</div>
+          <span class="badge badge-yellow" style="font-size:10px">Auto</span>
+        </div>
+        <div class="card-body" style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+          ${stockAlerte ? `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px"><b style="color:#dc2626">🚨 Stock critique</b> — ${stk.solde} SIM restantes</div>` : ''}
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Trajectoire — Attendu : ${ratioAttendu}% à ce stade</div>
+            ${enAvanceA.length ? `<div style="color:#16a34a;font-size:13px;margin-bottom:3px">🟢 En avance (${enAvanceA.length}) : ${enAvanceA.map(a=>a.nom).join(', ')}</div>` : ''}
+            ${enRetardA.length ? `<div style="color:#dc2626;font-size:13px;margin-bottom:3px">🔴 En retard (${enRetardA.length}) : ${enRetardA.map(a=>a.nom).join(', ')}</div>` : ''}
+            ${!enAvanceA.length && !enRetardA.length ? `<div style="color:#d97706;font-size:13px">🟡 Tous dans la trajectoire attendue</div>` : ''}
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px">
+            <b style="color:#15803d;font-size:12px">💡 RECOMMANDATIONS</b>
+            ${recoA.map(r=>`<div style="font-size:13px;margin-top:5px;color:${r.type==='danger'?'#dc2626':r.type==='warning'?'#d97706':'#15803d'}">• ${r.text}</div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+
     const kpiHtml = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:20px">
         <div class="card" style="text-align:center;padding:20px">
@@ -10541,10 +10587,18 @@
       '',
       `${pct >= 100 ? '✅ Objectif zone atteint !' : pct >= 80 ? '🟡 Bon rythme général.' : '🔴 Zone à mobiliser davantage.'}`,
       '',
+      '🧭 *ANALYSE STRATÉGIQUE :*',
+      ...(ratioAttendu < 100 ? [`  Trajectoire attendue : ${ratioAttendu}% à ce stade`] : []),
+      ...(stockAlerte ? [`🚨 Stock critique : ${stk.solde} SIM restantes`] : []),
+      ...(enRetardA.length > 0 ? [`🔴 En retard : ${enRetardA.slice(0,3).map(a=>a.nom).join(', ')}${enRetardA.length > 3 ? ' +'+(enRetardA.length-3) : ''}`] : []),
+      ...(enAvanceA.length > 0 ? [`🟢 En avance : ${enAvanceA.length} agent(s)`] : []),
+      '💡 Actions :',
+      ...recoA.map(r => `  • ${r.text}`),
+      '',
       '_Rapport généré automatiquement par InsightPanel_'
     ].join('\n');
 
-    return { kpiHtml, text };
+    return { kpiHtml: kpiHtml + analyseHtmlS, text };
   }
 
   // -------------------- HELPERS STOCKS RAPPORT --------------------
@@ -10623,6 +10677,50 @@
     // Données stocks
     const stk = _stockRapportRA();
     const hasStock = stk.stockRecu > 0;
+
+    // ── Analyse stratégique ──────────────────────────────────────
+    const _todayR = new Date();
+    let ratioAttenduR = 100;
+    if (period === 'mois') {
+      ratioAttenduR = Math.round(_todayR.getDate() / new Date(_todayR.getFullYear(), _todayR.getMonth()+1, 0).getDate() * 100);
+    } else if (period === 'semaine') {
+      ratioAttenduR = Math.min(100, Math.round((_todayR.getDay() || 7) / 6 * 100));
+    }
+    const stocksCritiques = stk.supLines.filter(s => s.recu > 0 && s.solde <= 50);
+    const enAvanceR = zones.filter(z => z.pct >= ratioAttenduR + 10);
+    const enRetardR = zones.filter(z => z.pct < Math.max(0, ratioAttenduR - 15));
+    const recoR = [];
+    if (stocksCritiques.length > 0) recoR.push({ type:'danger', text:`Réapprovisionner en urgence : ${stocksCritiques.map(s=>s.nom).join(', ')} — solde critique` });
+    enRetardR.forEach(z => {
+      const sc = stocksCritiques.find(s => s.nom === z.nom);
+      recoR.push(sc
+        ? { type:'danger',  text:`${z.zone} — Débloquer le stock avant la performance` }
+        : { type:'warning', text:`${z.zone} — Planifier un coaching avec ${z.nom}` }
+      );
+    });
+    if (enAvanceR.length > 0) recoR.push({ type:'success', text:`Zones en avance (${enAvanceR.map(z=>z.zone).join(', ')}) — Partager les bonnes pratiques` });
+    if (recoR.length === 0)   recoR.push({ type:'success', text:`Réseau dans la trajectoire — Maintenir le rythme` });
+    const analyseHtmlR = `
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <div class="card-title">🧭 Analyse stratégique</div>
+          <span class="badge badge-yellow" style="font-size:10px">Auto</span>
+        </div>
+        <div class="card-body" style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+          ${stocksCritiques.length > 0 ? `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px"><b style="color:#dc2626">🚨 Stock critique</b> — ${stocksCritiques.map(s=>s.nom+' ('+s.solde+' SIM)').join(', ')}</div>` : ''}
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Trajectoire — Attendu : ${ratioAttenduR}% à ce stade</div>
+            ${enAvanceR.length ? `<div style="color:#16a34a;font-size:13px;margin-bottom:3px">🟢 En avance : ${enAvanceR.map(z=>z.zone+' ('+z.pct+'%)').join(' — ')}</div>` : ''}
+            ${enRetardR.length ? `<div style="color:#dc2626;font-size:13px;margin-bottom:3px">🔴 En retard : ${enRetardR.map(z=>z.zone+' ('+z.pct+'%)').join(' — ')}</div>` : ''}
+            ${!enAvanceR.length && !enRetardR.length ? `<div style="color:#d97706;font-size:13px">🟡 Toutes les zones dans la trajectoire attendue</div>` : ''}
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px">
+            <b style="color:#15803d;font-size:12px">💡 RECOMMANDATIONS</b>
+            ${recoR.map(r=>`<div style="font-size:13px;margin-top:5px;color:${r.type==='danger'?'#dc2626':r.type==='warning'?'#d97706':'#15803d'}">• ${r.text}</div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+
     const stockSupHtml = stk.supLines.map(s => {
       const cls = s.taux >= 80 ? 'badge-green' : s.taux >= 50 ? 'badge-yellow' : 'badge-gray';
       return `<tr>
@@ -10711,10 +10809,18 @@
       '',
       `${pct >= 100 ? '✅ Objectif réseau atteint !' : pct >= 80 ? '🟡 Bon rythme global.' : '🔴 Mobilisation nécessaire sur le réseau.'}`,
       '',
+      '🧭 *ANALYSE STRATÉGIQUE :*',
+      ...(ratioAttenduR < 100 ? [`  Progression attendue : ${ratioAttenduR}%`] : []),
+      ...(stocksCritiques.length > 0 ? [`🚨 Stock critique : ${stocksCritiques.map(s=>s.nom+' ('+s.solde+' SIM)').join(', ')}`] : []),
+      ...(enRetardR.length > 0 ? [`🔴 Zones en retard : ${enRetardR.map(z=>z.zone+' ('+z.pct+'%)').join(', ')}`] : []),
+      ...(enAvanceR.length > 0 ? [`🟢 Zones en avance : ${enAvanceR.map(z=>z.zone+' ('+z.pct+'%)').join(', ')}`] : []),
+      '💡 Actions :',
+      ...recoR.map(r => `  • ${r.text}`),
+      '',
       '_Rapport généré automatiquement par InsightPanel_'
     ].filter(l => l !== null && l !== undefined).join('\n');
 
-    return { kpiHtml, text };
+    return { kpiHtml: kpiHtml + analyseHtmlR, text };
   }
 
   // -------------------- ENTRY POINT --------------------
