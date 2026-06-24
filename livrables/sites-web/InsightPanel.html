@@ -5293,7 +5293,7 @@
     if (!force && _saisiesFromSheets && _stockFromSheets && SAISIES_DATA.length > 0 && STOCK_DATA.length > 0) {
       _renderSimVendues();
       _renderStockGestionnaire();
-      const filteredCache = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
+      const filteredCache = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType || (r.type === 'transfert' && _stockViewType === 'p100'));
       _renderStockHistorique(filteredCache);
       return;
     }
@@ -5520,7 +5520,8 @@
     try {
       await _ensureStockLoaded();
       if (tbody) {
-        const filtered = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType);
+        /* Inclure les transferts reçus dans la vue P100 */
+        const filtered = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType || (r.type === 'transfert' && _stockViewType === 'p100'));
         _renderStockHistorique(filtered);
       }
       /* _renderStockGestionnaire() est appelé ici uniquement si SAISIES_DATA
@@ -5548,15 +5549,19 @@
       return;
     }
 
-    tbody.innerHTML = [...filtered].reverse().map(r => `
-      <tr>
+    tbody.innerHTML = [...filtered].reverse().map(r => {
+      const isTransfert = r.type === 'transfert';
+      const roleLabel   = isTransfert
+        ? `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">⇄ Transfert reçu</span>`
+        : `<span style="color:var(--gray-text)">${r.auteurRole || ''}</span>`;
+      return `<tr>
         <td>${r.date || '—'}</td>
         <td style="font-family:monospace">${r.simDebut || '—'}</td>
         <td style="font-family:monospace">${r.simFin || '—'}</td>
         <td><strong>${r.quantite ?? '—'}</strong></td>
-        <td style="font-size:11px">${r.auteurNom || '—'}<br><span style="color:var(--gray-text)">${r.auteurRole || ''}</span></td>
-      </tr>
-    `).join('');
+        <td style="font-size:11px">${r.auteurNom || '—'}<br>${roleLabel}</td>
+      </tr>`;
+    }).join('');
   }
 
   async function submitStockSIM() {
@@ -6070,9 +6075,14 @@
       const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await res.json();
       if (json.success) {
+        /* Invalider le cache STOCK_DATA et recharger depuis Sheets */
         _stockFromSheets = false; _stockInFlight = null;
-        await loadTransferts();
-        _ensureStockLoaded();
+        try { localStorage.removeItem(_STOCK_CACHE_KEY); } catch {}
+        await Promise.all([loadTransferts(), _ensureStockLoaded()]);
+        /* Mettre à jour l'affichage immédiatement */
+        _renderStockGestionnaire();
+        const filt = STOCK_DATA.filter(r => (r.type || 'p100') === _stockViewType || r.type === 'transfert');
+        _renderStockHistorique(filt);
         alert(json.message || 'Transfert accepté.');
       } else {
         alert('Erreur : ' + (json.error || 'Impossible d\'accepter le transfert.'));
