@@ -5649,8 +5649,11 @@
   async function _initDetectionView() {
     if (!currentUser) return;
 
-    /* S'assurer que STOCK_DATA et SAISIES_DATA sont chargés */
-    await Promise.all([_ensureStockLoaded(), loadSaisiesData()]);
+    /* Charger les données uniquement si pas encore en cache */
+    const toLoad = [];
+    if (!SAISIES_DATA.length) toLoad.push(loadSaisiesData());
+    if (!STOCK_DATA.length)   toLoad.push(_ensureStockLoaded());
+    if (toLoad.length) await Promise.all(toLoad);
 
     /* Alimenter le filtre superviseurs */
     const supSel = document.getElementById('detection-filter-sup');
