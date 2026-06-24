@@ -9005,17 +9005,42 @@
   const _CACHE_TTL         = 8 * 60 * 1000; /* 8 minutes */
 
   function _loadCache() {
+    /* Stale-while-revalidate : afficher le cache immédiatement même périmé.
+       Le flag _xxxFromSheets n'est mis à true que si le cache est frais
+       (évite de bloquer le fetch Sheets quand les données sont périmées). */
     try {
       const sc = localStorage.getItem(_SAISIES_CACHE_KEY);
-      if (sc) { const { data, ts } = JSON.parse(sc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { SAISIES_DATA = data; _saisiesFromSheets = true; _onSaisiesLoaded(); } }
+      if (sc) {
+        const { data, ts } = JSON.parse(sc);
+        if (Array.isArray(data) && data.length > 0) {
+          SAISIES_DATA = data;
+          if (Date.now() - ts < _CACHE_TTL) _saisiesFromSheets = true;
+          _onSaisiesLoaded();
+        }
+      }
     } catch {}
     try {
       const uc = localStorage.getItem(_USERS_CACHE_KEY);
-      if (uc) { const { data, ts } = JSON.parse(uc); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { USERS = data; _usersFromSheets = true; _renderSupNavItems(); } }
+      if (uc) {
+        const { data, ts } = JSON.parse(uc);
+        if (Array.isArray(data) && data.length > 0) {
+          USERS = data;
+          if (Date.now() - ts < _CACHE_TTL) _usersFromSheets = true;
+          _renderSupNavItems();
+        }
+      }
     } catch {}
     try {
       const stk = localStorage.getItem(_STOCK_CACHE_KEY);
-      if (stk) { const { data, ts } = JSON.parse(stk); if (Date.now() - ts < _CACHE_TTL && Array.isArray(data) && data.length > 0) { STOCK_DATA = data; _stockFromSheets = true; _renderSimVendues(); _renderStockGestionnaire(); } }
+      if (stk) {
+        const { data, ts } = JSON.parse(stk);
+        if (Array.isArray(data) && data.length > 0) {
+          STOCK_DATA = data;
+          if (Date.now() - ts < _CACHE_TTL) _stockFromSheets = true;
+          _renderSimVendues();
+          _renderStockGestionnaire();
+        }
+      }
     } catch {}
   }
 
