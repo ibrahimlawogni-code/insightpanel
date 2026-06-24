@@ -5908,7 +5908,7 @@
 
   let TRANSFERT_DATA = [];
 
-  function _initTransfertsView() {
+  async function _initTransfertsView() {
     if (!currentUser) return;
 
     /* Réappliquer data-roles dans le placeholder (filtrage post-login) */
@@ -5916,6 +5916,9 @@
       const allowed = el.getAttribute('data-roles').split(',');
       el.style.display = allowed.includes(currentUser.role) ? '' : 'none';
     });
+
+    /* Attendre que les utilisateurs réels soient chargés depuis Sheets */
+    await _ensureUsersLoaded();
 
     /* Remplir le sélecteur de superviseurs destinataires */
     const destSel = document.getElementById('transfert-dest');
