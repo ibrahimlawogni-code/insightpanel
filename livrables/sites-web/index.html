@@ -2134,7 +2134,7 @@
           <div class="page-title" id="stocks-page-title">Stocks &amp; Ressources</div>
           <div class="page-subtitle" id="stocks-page-subtitle">Suivi du stock SIM GSM reçu par zone</div>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="_refreshStocksView()">
+        <button class="btn btn-secondary btn-sm" onclick="_refreshStocksView(true)">
           <i class="fa fa-rotate-right"></i> Actualiser
         </button>
       </div>
@@ -5286,9 +5286,14 @@
     if (srchRes)   srchRes.innerHTML = '';
   }
 
-  async function _refreshStocksView() {
-    /* Ordre garanti : saisies d'abord, puis stock, puis rendu.
-       On réinitialise _stockFromSheets pour forcer un rechargement frais. */
+  async function _refreshStocksView(force = false) {
+    /* Si les données sont déjà en cache et qu'on ne force pas, re-rendre directement */
+    if (!force && _saisiesFromSheets && _stockFromSheets && SAISIES_DATA.length > 0 && STOCK_DATA.length > 0) {
+      _renderSimVendues();
+      _renderStockGestionnaire();
+      return;
+    }
+    /* Rechargement frais depuis Sheets */
     _stockFromSheets = false;
     _stockInFlight   = null;
     await loadSaisiesData();
