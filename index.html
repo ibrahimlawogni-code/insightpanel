@@ -2376,6 +2376,9 @@
           </div>
           <div class="card-body">
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+              <select id="detection-filter-range" onchange="_initDetectionView()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px;flex:2;min-width:200px">
+                <option value="">Toutes les plages</option>
+              </select>
               <select id="detection-filter-sup" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
                 <option value="">Tous superviseurs</option>
               </select>
@@ -5650,13 +5653,37 @@
     }
 
     /* Construire les plages SIM officielles depuis STOCK_DATA (p100 uniquement) */
-    const ranges = (STOCK_DATA || [])
+    const allRanges = (STOCK_DATA || [])
       .filter(r => (r.type || 'p100') === 'p100' && r.simDebut && r.simFin)
-      .map(r => ({ debut: r.simDebut.toString().trim(), fin: r.simFin.toString().trim() }));
+      .map((r, i) => ({
+        idx     : i,
+        debut   : r.simDebut.toString().trim(),
+        fin     : r.simFin.toString().trim(),
+        auteurNom: r.auteurNom || '—',
+        quantite : r.quantite  || ''
+      }));
+
+    /* Alimenter le sélecteur de plages (préserver la sélection courante) */
+    const rangeSel = document.getElementById('detection-filter-range');
+    if (rangeSel) {
+      const savedRange = rangeSel.value;
+      rangeSel.innerHTML = '<option value="">Toutes les plages</option>';
+      allRanges.forEach(r => {
+        const o = document.createElement('option');
+        o.value = r.idx;
+        o.textContent = `${r.auteurNom} — ${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
+        rangeSel.appendChild(o);
+      });
+      if (savedRange !== '') rangeSel.value = savedRange;
+    }
+
+    /* Déterminer quelles plages utiliser pour la détection */
+    const rangeIdx = rangeSel && rangeSel.value !== '' ? parseInt(rangeSel.value) : null;
+    const ranges   = rangeIdx !== null ? [allRanges[rangeIdx]] : allRanges;
 
     /* Avertissement si aucune plage disponible */
     const warningEl = document.getElementById('detection-no-ranges-warning');
-    if (warningEl) warningEl.style.display = ranges.length === 0 ? '' : 'none';
+    if (warningEl) warningEl.style.display = allRanges.length === 0 ? '' : 'none';
 
     /* Analyser chaque saisie qui a des numéros SIM */
     _detectionData = [];
