@@ -555,6 +555,24 @@ function handleGetNotifications(data) {
   return jsonResponse({ success: true, notifications });
 }
 
+// ─────────────────────────────────────────────────────────────
+// HELPER — Créer une notification dans la feuille Notifications
+// ─────────────────────────────────────────────────────────────
+function _pushNotification(ss, destId, expediteur, message) {
+  try {
+    let sheet = ss.getSheetByName('Notifications');
+    if (!sheet) {
+      sheet = ss.insertSheet('Notifications');
+      sheet.appendRow(['ID','Date','Destinataire ID','Expéditeur','Message','Lu','Horodatage']);
+      sheet.getRange(1,1,1,7).setBackground('#F6B924').setFontColor('#000000').setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+    const id = 'NOT-' + Date.now();
+    const now = new Date();
+    sheet.appendRow([id, now.toLocaleDateString('fr-FR'), destId, expediteur, message, '0', now.toLocaleString('fr-FR')]);
+  } catch(e) {}
+}
+
 function handleMarkNotificationRead(data) {
   const ss    = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('Notifications');
@@ -887,6 +905,14 @@ function handleSaveTransfert(data) {
     'en_attente'
   ]);
 
+  /* Notifier le destinataire */
+  if (data.destId) {
+    _pushNotification(
+      ss, data.destId, data.sourceNom || 'Un superviseur',
+      'Transfert en attente de ' + (data.sourceNom || '—') + ' : ' + (Number(data.quantite) || 0) + ' SIMs (' + (data.simDebut || '—') + ' → ' + (data.simFin || '—') + '). Allez dans Stocks → Transferts pour accepter.'
+    );
+  }
+
   return jsonResponse({ success: true, message: 'Transfert enregistré.', id });
 }
 
@@ -979,6 +1005,16 @@ function handleAcceptTransfert(data) {
     'transfert'
   ]);
 
+  /* Notifier l'émetteur */
+  const sourceId = row[2] ? row[2].toString().trim() : '';
+  const destNom  = row[5] ? row[5].toString().trim() : 'Le superviseur destinataire';
+  if (sourceId) {
+    _pushNotification(
+      ss, sourceId, destNom,
+      destNom + ' a accepté votre transfert de ' + (Number(row[8]) || 0) + ' SIMs (' + (row[6] || '—') + ' → ' + (row[7] || '—') + '). La plage est maintenant dans son stock.'
+    );
+  }
+
   return jsonResponse({ success: true, message: 'Transfert accepté. La plage a été ajoutée à votre stock.' });
 }
 
@@ -1007,6 +1043,16 @@ function handleRejectTransfert(data) {
   if (currentStatut !== '' && currentStatut !== 'en_attente') return jsonResponse({ success: false, error: 'Ce transfert a déjà été traité.' });
 
   tSheet.getRange(foundRow, 11).setValue('refusé');
+
+  /* Notifier l'émetteur */
+  const sourceId2 = row[2] ? row[2].toString().trim() : '';
+  const destNom2  = row[5] ? row[5].toString().trim() : 'Le superviseur destinataire';
+  if (sourceId2) {
+    _pushNotification(
+      ss, sourceId2, destNom2,
+      destNom2 + ' a refusé votre transfert de ' + (Number(row[8]) || 0) + ' SIMs (' + (row[6] || '—') + ' → ' + (row[7] || '—') + ').'
+    );
+  }
 
   return jsonResponse({ success: true, message: 'Transfert refusé.' });
 }
