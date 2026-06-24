@@ -3045,6 +3045,11 @@
       agent: 'agent'
     };
     const firstNav = document.querySelector(`.nav-item[data-roles*="${user.role}"]`);
+
+    /* 1. Charger le cache EN PREMIER pour que les données soient prêtes
+          avant l'affichage de la vue (évite le flash de zéros) */
+    _loadCache();
+
     showView(defaultView[user.role] || 'agent', firstNav);
 
     /* Restaurer les périodes et cibles de la session précédente */
@@ -3066,9 +3071,6 @@
 
     /* Initialiser le badge saisies en attente */
     _updatePendingBadge();
-
-    /* 1. Afficher immédiatement les données du cache (si dispo) */
-    _loadCache();
 
     /* 2. Rafraîchir saisies + users en parallèle depuis Sheets */
     setTimeout(() => { Promise.all([loadSaisiesData(), _ensureUsersLoaded()]); }, 0);
