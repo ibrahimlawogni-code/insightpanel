@@ -5677,7 +5677,11 @@
       rangeSel.innerHTML = '';
 
       if (isSup) {
-        /* Superviseur : ses plages directement, sans option "Toutes" */
+        /* Superviseur : option "Toutes mes plages" + ses plages individuelles */
+        const allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'Toutes mes plages';
+        rangeSel.appendChild(allOpt);
         visibleRanges.forEach(r => {
           const o = document.createElement('option');
           o.value = r.idx;
@@ -5711,14 +5715,8 @@
         });
       }
 
-      /* Pré-sélectionner : superviseur → sa première plage, RA → préserver la sélection */
-      if (isSup && visibleRanges.length > 0) {
-        rangeSel.value = savedRange !== '' && visibleRanges.some(r => r.idx.toString() === savedRange)
-          ? savedRange
-          : visibleRanges[0].idx.toString();
-      } else if (!isSup && savedRange !== '') {
-        rangeSel.value = savedRange;
-      }
+      /* Préserver la sélection si elle est encore valide */
+      if (savedRange !== '') rangeSel.value = savedRange;
     }
 
     /* Déterminer quelles plages utiliser pour la détection */
