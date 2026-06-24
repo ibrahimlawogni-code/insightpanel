@@ -5792,6 +5792,9 @@
       });
     });
 
+    /* Sauvegarder _detectionData en cache pour affichage immédiat au prochain refresh */
+    try { localStorage.setItem(_DETECTION_CACHE_KEY, JSON.stringify({ data: _detectionData, ts: Date.now() })); } catch {}
+
     _renderDetection();
   }
 
@@ -9004,9 +9007,10 @@
   }
 
   /* --- Chargement principal avec cache localStorage --- */
-  const _SAISIES_CACHE_KEY = 'ip_saisies_v1';
-  const _USERS_CACHE_KEY   = 'ip_users_v1';
-  const _STOCK_CACHE_KEY   = 'ip_stock_v1';
+  const _SAISIES_CACHE_KEY    = 'ip_saisies_v1';
+  const _USERS_CACHE_KEY      = 'ip_users_v1';
+  const _STOCK_CACHE_KEY      = 'ip_stock_v1';
+  const _DETECTION_CACHE_KEY  = 'ip_detection_v1';
   const _CACHE_TTL         = 8 * 60 * 1000; /* 8 minutes */
 
   function _loadCache() {
@@ -9044,6 +9048,16 @@
           if (Date.now() - ts < _CACHE_TTL) _stockFromSheets = true;
           _renderSimVendues();
           _renderStockGestionnaire();
+        }
+      }
+    } catch {}
+    try {
+      const det = localStorage.getItem(_DETECTION_CACHE_KEY);
+      if (det) {
+        const { data } = JSON.parse(det);
+        if (Array.isArray(data) && data.length > 0) {
+          _detectionData = data;
+          _renderDetection();
         }
       }
     } catch {}
