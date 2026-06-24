@@ -2385,6 +2385,9 @@
               <input type="date" id="detection-filter-debut" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
               <input type="date" id="detection-filter-fin" onchange="_renderDetection()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:13px">
             </div>
+            <div id="detection-range-info" style="display:none;font-size:12px;color:var(--gray-text);margin-bottom:12px;padding:6px 10px;background:var(--gray-bg);border-radius:6px">
+              🔍 Détection sur : <strong id="detection-range-label">—</strong>
+            </div>
             <div id="detection-no-ranges-warning" style="display:none;background:#fff3cd;border:1.5px solid #f6c23e;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#78350f">
               <i class="fa fa-triangle-exclamation" style="color:#f6c23e;margin-right:8px"></i>
               <strong>Aucune plage SIM enregistrée.</strong> La détection ne peut pas fonctionner correctement tant qu'aucune plage N° SIM Début / N° SIM Fin n'est saisie dans le stock P100. Toutes les SIMs ressortent "Externes" à tort.
@@ -5721,7 +5724,25 @@
 
     /* Déterminer quelles plages utiliser pour la détection */
     const rangeIdx = rangeSel && rangeSel.value !== '' ? parseInt(rangeSel.value) : null;
-    const ranges   = rangeIdx !== null ? [allRanges[rangeIdx]] : allRanges;
+    const ranges   = rangeIdx !== null
+      ? [allRanges[rangeIdx]]
+      : (isSup ? visibleRanges : allRanges);
+
+    /* Indicateur visuel de la plage active */
+    const infoEl    = document.getElementById('detection-range-info');
+    const labelEl   = document.getElementById('detection-range-label');
+    if (infoEl && labelEl) {
+      if (rangeIdx !== null && allRanges[rangeIdx]) {
+        const r = allRanges[rangeIdx];
+        labelEl.textContent = `${r.auteurNom} — ${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
+        infoEl.style.display = '';
+      } else if (ranges.length > 0) {
+        labelEl.textContent = isSup ? 'Toutes mes plages' : 'Toutes les plages (' + ranges.length + ')';
+        infoEl.style.display = '';
+      } else {
+        infoEl.style.display = 'none';
+      }
+    }
 
     /* Avertissement si aucune plage disponible */
     const warningEl = document.getElementById('detection-no-ranges-warning');
