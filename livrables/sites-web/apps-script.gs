@@ -47,6 +47,7 @@ function doPost(e) {
     if (data.action === 'migrateActivations')   return handleMigrateActivations();
     if (data.action === 'getActivations')       return handleGetActivations(data);
     if (data.action === 'deduplicateSaisies')   return handleDeduplicateSaisies(data);
+    if (data.action === 'updateSaisie')         return handleUpdateSaisie(data);
 
     // Compatibilité ancienne version (sans champ action)
     return handleSaisie(data);
@@ -1127,6 +1128,37 @@ function handleDeduplicateSaisies(data) {
 
   const msg = `Déduplication terminée — ${stats.saisies} saisie(s) et ${stats.activations} activation(s) en doublon supprimées.`;
   return jsonResponse({ success: true, message: msg, stats });
+}
+
+// Correction d'une saisie DFA par le superviseur ou le RA
+// Identifie la ligne par ts (col 11) + dfaId (col 1)
+function handleUpdateSaisie(data) {
+  const allowedRoles = ['superviseur', 'ra', 'admin'];
+  if (!allowedRoles.includes((data.requesterRole || '').toLowerCase())) {
+    return jsonResponse({ success: false, error: 'Accès non autorisé.' });
+  }
+  if (!data.ts || !data.dfaId) {
+    return jsonResponse({ success: false, error: 'Paramètres manquants.' });
+  }
+
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName('Saisies');
+  if (!sheet) return jsonResponse({ success: false, error: 'Feuille Saisies introuvable.' });
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const r      = rows[i];
+    const rowTs  = (r[11] || '').toString().trim();
+    const rowDfa = (r[1]  || '').toString().trim().toLowerCase();
+    if (rowTs === data.ts.toString().trim() && rowDfa === data.dfaId.toString().trim().toLowerCase()) {
+      sheet.getRange(i + 1, 5).setValue(Number(data.grossAdd) || 0); // col E : Gross Add
+      sheet.getRange(i + 1, 6).setValue(Number(data.momoUser) || 0); // col F : New MoMo User
+      sheet.getRange(i + 1, 7).setValue(Number(data.stockSIM) || 0); // col G : Stock SIM
+      sheet.getRange(i + 1, 9).setValue(data.obs || '');              // col I : Observation
+      return jsonResponse({ success: true, message: 'Saisie mise à jour avec succès.' });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Saisie introuvable.' });
 }
 
 function jsonResponse(obj) {

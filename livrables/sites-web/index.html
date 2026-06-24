@@ -1508,6 +1508,39 @@
           </div>
         </div>
       </div>
+
+      <!-- CORRECTIONS DE SAISIES -->
+      <div class="card" id="sup-corrections-card" style="margin-top:20px">
+        <div class="card-header">
+          <div class="card-title"><i class="fa fa-pen-to-square" style="margin-right:6px;color:var(--yellow)"></i>Corrections de saisies</div>
+          <span class="badge badge-black" id="sup-corrections-badge">—</span>
+        </div>
+        <div style="display:flex;gap:10px;padding:12px 16px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border)">
+          <select id="sup-corr-dfa-filter" class="input-field" style="width:auto;min-width:200px;padding:6px 10px;font-size:13px" onchange="_renderCorrections()">
+            <option value="">Tous les DFAs</option>
+          </select>
+          <input type="date" id="sup-corr-date-debut" class="input-field" style="width:140px;padding:6px 8px;font-size:13px" onchange="_renderCorrections()">
+          <span style="font-size:12px;color:var(--gray-text)">au</span>
+          <input type="date" id="sup-corr-date-fin" class="input-field" style="width:140px;padding:6px 8px;font-size:13px" onchange="_renderCorrections()">
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>DFA</th>
+                <th style="text-align:center">GA</th>
+                <th style="text-align:center">MoMo</th>
+                <th style="text-align:center">Stock</th>
+                <th>Observation</th>
+                <th style="text-align:center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="sup-corrections-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px"><i class="fa fa-spinner fa-spin"></i></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================
@@ -2771,7 +2804,7 @@
 
 <script>
   /* ---- URL Apps Script — À REMPLACER après déploiement ---- */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9cxDC-bPuGPzjqQO2bLE7D4CFC4OK-HopEI1k04BPYFaJ_vdDhryFVF4CBF_-1VGe/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYCbO9SHcA8IVgDBRzYZHw4a-odRpCLkmpwzVPKo-rFzwmGIEGh80k2qVWmDkjlUjt/exec';
 
   /* ============================================================
      SESSION PERSISTANTE (localStorage, expiration 24h)
@@ -6887,6 +6920,7 @@
       ? `<tr><td colspan="6" style="text-align:center;font-size:12px;color:var(--gray-text);padding:8px;border-top:1px dashed #ddd"><i class="fa fa-ellipsis" style="margin-right:5px"></i>${totalAgents - 10} DFA supplémentaire(s) non affiché(s) — total : ${totalAgents}</td></tr>`
       : '';
     tbody.innerHTML = agentRows + moreRow1 + agentFooter;
+    _renderCorrections();
   }
 
   function renderSuperviseurPerf() {
@@ -7559,6 +7593,123 @@
   }
 
   /* --- Alertes équipe dans Vue Superviseur --- */
+  // ── CORRECTIONS DE SAISIES ───────────────────────────────────
+  function _renderCorrections() {
+    const tbody = document.getElementById('sup-corrections-tbody');
+    const badge = document.getElementById('sup-corrections-badge');
+    if (!tbody || !currentUser) return;
+
+    const supId     = currentSupSelected || currentUser.id;
+    const sup       = (USERS || []).find(u => u.id === supId);
+    const zNorm     = sup ? _normZ(sup.zone) : null;
+    const zoneAgents = zNorm
+      ? (USERS || []).filter(u => u.role === 'agent' && u.statut === 'actif' && _normZ(u.zone) === zNorm)
+      : [];
+    const zoneIds   = zoneAgents.map(a => a.id);
+
+    // Remplir le sélecteur DFA une seule fois
+    const dfaSel = document.getElementById('sup-corr-dfa-filter');
+    if (dfaSel && dfaSel.options.length <= 1 && zoneAgents.length) {
+      zoneAgents.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id; opt.textContent = a.nom;
+        dfaSel.appendChild(opt);
+      });
+    }
+
+    const dfaFilter   = dfaSel?.value || '';
+    const dateDebut   = document.getElementById('sup-corr-date-debut')?.value || '';
+    const dateFin     = document.getElementById('sup-corr-date-fin')?.value   || '';
+
+    let rows = (SAISIES_DATA || []).filter(s => zoneIds.includes(s.dfaId));
+    if (dfaFilter) rows = rows.filter(s => s.dfaId === dfaFilter);
+    if (dateDebut) rows = rows.filter(s => { const d = _parseSaisieDate(s.date); return d && d >= _parseSaisieDate(dateDebut); });
+    if (dateFin)   rows = rows.filter(s => { const d = _parseSaisieDate(s.date); return d && d <= _parseSaisieDate(dateFin); });
+
+    rows = [...rows].sort((a, b) => {
+      const da = _parseSaisieDate(a.date), db = _parseSaisieDate(b.date);
+      return (db || 0) - (da || 0);
+    });
+
+    if (badge) badge.textContent = `${rows.length} saisie${rows.length !== 1 ? 's' : ''}`;
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucune saisie trouvée.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(s => {
+      const safeTs    = (s.ts    || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const safeDfaId = (s.dfaId || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<tr>
+        <td>${s.date || '—'}</td>
+        <td>${s.dfaNom || s.dfaId || '—'}</td>
+        <td style="text-align:center">${s.grossAdd ?? '—'}</td>
+        <td style="text-align:center">${s.momoUser ?? '—'}</td>
+        <td style="text-align:center">${s.stockSIM ?? '—'}</td>
+        <td style="font-size:12px;color:var(--gray-text);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(s.obs||'').replace(/"/g,'&quot;')}">${s.obs || '—'}</td>
+        <td style="text-align:center">
+          <button class="btn btn-secondary btn-sm" title="Corriger" onclick="openCorrectionModal('${safeTs}','${safeDfaId}')">
+            <i class="fa fa-pen"></i>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function openCorrectionModal(ts, dfaId) {
+    const s = (SAISIES_DATA || []).find(x => x.ts === ts && x.dfaId === dfaId);
+    if (!s) { alert('Saisie introuvable.'); return; }
+    document.getElementById('corr-ts').value       = ts;
+    document.getElementById('corr-dfaid').value    = dfaId;
+    document.getElementById('corr-grossadd').value = s.grossAdd ?? '';
+    document.getElementById('corr-momo').value     = s.momoUser ?? '';
+    document.getElementById('corr-stock').value    = s.stockSIM ?? '';
+    document.getElementById('corr-obs').value      = s.obs || '';
+    document.getElementById('corr-info').innerHTML = `<b>${s.dfaNom || dfaId}</b> &nbsp;·&nbsp; ${s.date || '—'}`;
+    const fb = document.getElementById('corr-feedback');
+    if (fb) fb.style.display = 'none';
+    document.getElementById('correction-modal').style.display = 'flex';
+  }
+
+  function closeCorrectionModal() {
+    document.getElementById('correction-modal').style.display = 'none';
+  }
+
+  async function submitCorrection() {
+    const ts       = document.getElementById('corr-ts').value;
+    const dfaId    = document.getElementById('corr-dfaid').value;
+    const grossAdd = Number(document.getElementById('corr-grossadd').value) || 0;
+    const momoUser = Number(document.getElementById('corr-momo').value)     || 0;
+    const stockSIM = Number(document.getElementById('corr-stock').value)    || 0;
+    const obs      = document.getElementById('corr-obs').value.trim();
+    if (!ts || !dfaId) return;
+
+    const btn = document.getElementById('corr-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Enregistrement…'; }
+    const fb = document.getElementById('corr-feedback');
+
+    try {
+      const res  = await fetch(APPS_SCRIPT_URL, { method:'POST', body: JSON.stringify({ action:'updateSaisie', ts, dfaId, grossAdd, momoUser, stockSIM, obs, requesterRole: currentUser?.role || '' }) });
+      const json = await res.json();
+      if (json.success) {
+        // Mettre à jour SAISIES_DATA localement
+        const idx = SAISIES_DATA.findIndex(x => x.ts === ts && x.dfaId === dfaId);
+        if (idx !== -1) SAISIES_DATA[idx] = { ...SAISIES_DATA[idx], grossAdd, momoUser, stockSIM, obs };
+        try { localStorage.removeItem(_SAISIES_CACHE_KEY); } catch {}
+        closeCorrectionModal();
+        _renderCorrections();
+        if (currentSupSelected) _renderSupView(currentSupSelected);
+      } else {
+        if (fb) { fb.style.display = ''; fb.style.background = '#fee2e2'; fb.style.color = '#dc2626'; fb.textContent = json.error || 'Erreur lors de la correction.'; }
+      }
+    } catch(e) {
+      if (fb) { fb.style.display = ''; fb.style.background = '#fee2e2'; fb.style.color = '#dc2626'; fb.textContent = 'Erreur de connexion.'; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa fa-check" style="margin-right:6px"></i>Enregistrer'; }
+    }
+  }
+
   function _renderSupAlertes(supId) {
     const container = document.getElementById('sup-alertes-body');
     const badgeEl   = document.getElementById('sup-alertes-badge');
@@ -11131,6 +11282,44 @@
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-secondary" onclick="closeResetPwdModal()">Annuler</button>
       <button class="btn btn-primary" onclick="confirmResetPwd()" style="background:var(--orange);border-color:var(--orange)"><i class="fa fa-floppy-disk"></i> Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL : CORRECTION DE SAISIE
+================================================================ -->
+<div id="correction-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--white);border-radius:16px;padding:28px;width:480px;max-width:96vw;box-shadow:0 24px 80px rgba(0,0,0,0.4)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-size:16px;font-weight:800"><i class="fa fa-pen-to-square" style="color:var(--yellow);margin-right:8px"></i>Corriger une saisie</div>
+      <button onclick="closeCorrectionModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-text);line-height:1"><i class="fa fa-xmark"></i></button>
+    </div>
+    <div id="corr-info" style="background:var(--gray-bg);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text)"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label class="input-label">Gross Add</label>
+        <input type="number" id="corr-grossadd" class="input-field" min="0">
+      </div>
+      <div>
+        <label class="input-label">New MoMo User</label>
+        <input type="number" id="corr-momo" class="input-field" min="0">
+      </div>
+      <div>
+        <label class="input-label">Stock SIM</label>
+        <input type="number" id="corr-stock" class="input-field" min="0">
+      </div>
+      <div style="grid-column:1/-1">
+        <label class="input-label">Observation</label>
+        <textarea id="corr-obs" class="input-field" rows="2" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="corr-ts">
+    <input type="hidden" id="corr-dfaid">
+    <div id="corr-feedback" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeCorrectionModal()">Annuler</button>
+      <button class="btn btn-yellow" id="corr-submit-btn" onclick="submitCorrection()"><i class="fa fa-check" style="margin-right:6px"></i>Enregistrer</button>
     </div>
   </div>
 </div>
