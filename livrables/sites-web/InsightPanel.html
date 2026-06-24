@@ -5656,25 +5656,39 @@
     const allRanges = (STOCK_DATA || [])
       .filter(r => (r.type || 'p100') === 'p100' && r.simDebut && r.simFin)
       .map((r, i) => ({
-        idx     : i,
-        debut   : r.simDebut.toString().trim(),
-        fin     : r.simFin.toString().trim(),
+        idx      : i,
+        debut    : r.simDebut.toString().trim(),
+        fin      : r.simFin.toString().trim(),
         auteurNom: r.auteurNom || '—',
+        auteurId : r.auteurId  || '',
         quantite : r.quantite  || ''
       }));
 
-    /* Alimenter le sélecteur de plages (préserver la sélection courante) */
+    /* Superviseur : ne voit que ses propres plages */
+    const isSup       = currentUser && currentUser.role === 'superviseur';
+    const visibleRanges = isSup
+      ? allRanges.filter(r => r.auteurId === currentUser.id)
+      : allRanges;
+
+    /* Alimenter le sélecteur de plages */
     const rangeSel = document.getElementById('detection-filter-range');
     if (rangeSel) {
       const savedRange = rangeSel.value;
-      rangeSel.innerHTML = '<option value="">Toutes les plages</option>';
-      allRanges.forEach(r => {
+      rangeSel.innerHTML = isSup ? '' : '<option value="">Toutes les plages</option>';
+      visibleRanges.forEach(r => {
         const o = document.createElement('option');
         o.value = r.idx;
         o.textContent = `${r.auteurNom} — ${r.debut} → ${r.fin}${r.quantite ? ' (' + r.quantite + ' kits)' : ''}`;
         rangeSel.appendChild(o);
       });
-      if (savedRange !== '') rangeSel.value = savedRange;
+      /* Pré-sélectionner : superviseur → sa première plage, RA → préserver la sélection */
+      if (isSup && visibleRanges.length > 0) {
+        rangeSel.value = savedRange !== '' && visibleRanges.some(r => r.idx.toString() === savedRange)
+          ? savedRange
+          : visibleRanges[0].idx.toString();
+      } else if (!isSup && savedRange !== '') {
+        rangeSel.value = savedRange;
+      }
     }
 
     /* Déterminer quelles plages utiliser pour la détection */
