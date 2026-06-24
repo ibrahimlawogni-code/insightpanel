@@ -5482,6 +5482,13 @@
         if (json.success && Array.isArray(json.data)) {
           STOCK_DATA = json.data;
           _stockFromSheets = true;
+          /* Re-rendre les vues dépendant du stock */
+          _renderSimVendues();
+          _renderStockGestionnaire();
+          try {
+            const vs = JSON.parse(sessionStorage.getItem('ip_view_state') || '{}');
+            if (vs.name === 'stocks' && vs.extra?.type === 'detection') _initDetectionView();
+          } catch(e) {}
         }
       })
       .catch(() => {})
@@ -9400,6 +9407,9 @@
     _renderAgentEvalCard();
     if (currentSupSelected) { _renderSupView(currentSupSelected); }
     _renderAgentSyncInfo();
+    /* Re-rendre la vue Stocks si active (SIM vendues + gestionnaire) */
+    _renderSimVendues();
+    _renderStockGestionnaire();
   }
 
   /* --- Période active des KPI cards dashboard --- */
