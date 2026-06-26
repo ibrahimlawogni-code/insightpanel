@@ -2804,7 +2804,7 @@
 
 <script>
   /* ---- URL Apps Script — À REMPLACER après déploiement ---- */
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYCbO9SHcA8IVgDBRzYZHw4a-odRpCLkmpwzVPKo-rFzwmGIEGh80k2qVWmDkjlUjt/exec';
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCwmxGpBnwKpQyjF2_oCW7EfIHsKrdzygkrb6ZM9b1jKWuPljKH7j6Fi3VlGjAskQO/exec';
 
   /* ============================================================
      SESSION PERSISTANTE (localStorage, expiration 24h)
@@ -6258,13 +6258,20 @@
         <div class="kpi-bg-icon"><i class="fa fa-layer-group"></i></div>
       </div>`;
 
-    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur');
+    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur' && r.type !== 'transfert_out');
     if (badge) badge.textContent = `${supEntries.length} superviseur${supEntries.length > 1 ? 's' : ''}`;
 
     if (!supEntries.length) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-text);padding:20px">Aucune entrée superviseur enregistrée.</td></tr>';
       return;
     }
+
+    /* Débits transferts sortants par superviseur */
+    const transfertOutBySup = new Map();
+    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
+      const curr = transfertOutBySup.get(r.auteurId) || 0;
+      transfertOutBySup.set(r.auteurId, curr + Math.abs(r.quantite || 0));
+    });
 
     tbody.innerHTML = supEntries.map(entry => {
       let vendu = 0;
@@ -6278,7 +6285,8 @@
       } else {
         vendu = _grossAddForSup(entry.auteurId || '');
       }
-      const solde = Math.max(0, (entry.quantite || 0) - vendu);
+      const debit = transfertOutBySup.get(entry.auteurId || '') || 0;
+      const solde = Math.max(0, (entry.quantite || 0) - vendu - debit);
       const taux  = entry.quantite > 0 ? Math.round(vendu / entry.quantite * 100) : 0;
       const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
       return `<tr>
@@ -6299,16 +6307,17 @@
     const kpiRow = document.getElementById('gestionnaire-sup-kpi-row');
     if (!tbody) return;
 
-    const supRanges = STOCK_DATA.filter(r => r.auteurId === currentUser.id);
-    const totalRecu = supRanges.reduce((s, r) => s + (r.quantite || 0), 0);
-    const myZoneN   = _normZ(currentUser.zone || '');
+    const supRanges  = STOCK_DATA.filter(r => r.auteurId === currentUser.id);
+    const totalRecu  = supRanges.reduce((s, r) => s + (r.quantite || 0), 0); // transfert_out négatifs inclus
+    const realRanges = supRanges.filter(r => r.type !== 'transfert_out');     // plages réelles uniquement
+    const myZoneN    = _normZ(currentUser.zone || '');
 
     /* SIM tracées par N° dans la plage */
     const dfaMap = new Map();
     let totalVenduSim = 0;
     for (const [sim, meta] of soldMap.entries()) {
       const n = Number(sim);
-      const inRange = supRanges.some(r => r.simDebut && r.simFin && n >= Number(r.simDebut) && n <= Number(r.simFin));
+      const inRange = realRanges.some(r => r.simDebut && r.simFin && n >= Number(r.simDebut) && n <= Number(r.simFin));
       if (!inRange) continue;
       totalVenduSim++;
       if (!dfaMap.has(meta.dfaId)) {
@@ -10759,14 +10768,20 @@
     const solde      = Math.max(0, stockRecu - venduTotal);
     const taux       = stockRecu > 0 ? Math.round(venduTotal / stockRecu * 100) : 0;
 
-    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur');
+    const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur' && r.type !== 'transfert_out');
+    const transfertOutBySup2 = new Map();
+    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
+      const curr = transfertOutBySup2.get(r.auteurId) || 0;
+      transfertOutBySup2.set(r.auteurId, curr + Math.abs(r.quantite || 0));
+    });
     const supLines   = supEntries.map(e => {
       const sup    = (USERS || []).find(u => u.id === e.auteurId);
       const supZN  = sup ? _normZ(sup.zone) : '';
       const vendu  = supZN
         ? (SAISIES_DATA || []).filter(s => _normZ(s.zone) === supZN).reduce((s, r) => s + (r.grossAdd || 0), 0)
         : 0;
-      const soldeS = Math.max(0, (e.quantite || 0) - vendu);
+      const debit  = transfertOutBySup2.get(e.auteurId || '') || 0;
+      const soldeS = Math.max(0, (e.quantite || 0) - vendu - debit);
       const tauxS  = e.quantite > 0 ? Math.round(vendu / e.quantite * 100) : 0;
       return { nom: e.auteurNom || '—', recu: e.quantite || 0, vendu, solde: soldeS, taux: tauxS };
     });

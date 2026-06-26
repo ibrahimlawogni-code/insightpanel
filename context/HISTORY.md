@@ -7,6 +7,46 @@
 
 ---
 
+## 2026-06-25
+
+### InsightPanel — Analyse stratégique dans les rapports + correction de saisies DFA
+
+- Analyse stratégique intégrée dans les rapports Superviseur et RA (suggestion Ibrahim, pas un nouveau menu)
+  - Trajectoire attendue selon la période (jour=100%, semaine=jour/6, mois=jour/jours du mois)
+  - Alertes stock critique (solde <= 50 SIMs), agents en retard/en avance
+  - Recommandations contextuelles : réappro urgent, visite terrain, valorisation
+  - Section HTML dans la carte KPI + texte dans le rapport WhatsApp/email
+- Fix KPI "Mon stock reçu" = 0 pour Pierre : transfert créé avant la mise à jour GAS (pas de colonne Statut donc pas de ligne StockSIM auto-créée). Résolution : ajout manuel d'une ligne dans StockSIM avec type='transfert' et auteurId=Pierre.id
+- Correction de saisies DFA ajoutée à la vue Superviseur
+  - Tableau filtrable par DFA et plage de dates, tri par date décroissante
+  - Modal de correction : GA, New MoMo User, Stock SIM, Observation (tous champs, tout l'historique)
+  - Accès : superviseur (zone uniquement), ra et admin (tout)
+  - GAS : endpoint updateSaisie, identifie la ligne par horodatage (ts) + dfaId
+  - Après correction : cache invalidé, données mises à jour localement sans rechargement de page
+- Nouveau déploiement GAS, nouvelle URL mise à jour dans InsightPanel
+
+---
+
+## 2026-06-24
+
+### InsightPanel — Corrections multiples + export Excel + migration GitHub Pages
+
+- Fix Détection SIMs : champs Début/Fin marqués requis (*), bannière d'avertissement si aucune plage P100 enregistrée
+- Fix rafraîchissement page : stocks et vue superviseur ne restauraient pas la bonne vue au reload (`saveViewState` + `_tryRestoreSession` étendus pour ces deux cas)
+- Fix rapports hebdomadaires : target affiché était mensuel, corrigé en target hebdo proportionnel via `MONTHLY_TARGETS`
+- Fix icônes rapports : FontAwesome CDN indisponible sur réseau lent, remplacé par emojis Unicode dans tous les boutons de rapport
+- Redesign carte "Progression mensuelle — Équipe" : barres de progression en dégradé, icônes KPI emoji, couleurs dynamiques, section projection en pointillés
+- Fix Vue Agent Terrain : données DFA vides à cause d'un écart de casse entre `USERS.id` et `s.dfaId`, normalisé avec `.toLowerCase().trim()` sur tous les points de comparaison
+- Fix Vue Superviseur : affichait une date passée (J-3) au lieu d'aujourd'hui, cause racine dans le bloc `showView('superviseur')` qui ne réinitialisait pas `supViewRefDate`
+- Migration hébergement : Netlify (crédits épuisés) vers GitHub Pages
+  - `index.html` copié à la racine du repo
+  - `bg-login.png` copié à la racine (fix fond noir page de connexion)
+  - Hook pre-commit mis à jour pour synchroniser les deux assets automatiquement
+  - URL active : https://ibrahimlawogni-code.github.io/insightpanel/
+- Export Excel SIMs vendues : bouton "Exporter Excel" dans la carte Stocks (SheetJS 0.18.5 via CDN), fichier .xlsx avec en-têtes stylisés, reprend les filtres actifs, export total sans limite de pagination, superviseur limité automatiquement à sa propre zone
+
+---
+
 ## 2026-06-21
 
 ### InsightPanel — Rapports stocks, profil utilisateur, fix Best Seller

@@ -990,6 +990,8 @@ function handleAcceptTransfert(data) {
   /* Marquer accepté (colonne 11) */
   tSheet.getRange(foundRow, 11).setValue('accepté');
 
+  const sourceId = row[2] ? row[2].toString().trim() : '';
+
   /* Créer la plage dans StockSIM pour le destinataire */
   let sSheet = ss.getSheetByName('StockSIM');
   if (!sSheet) { sSheet = ss.insertSheet('StockSIM'); _initStockSIMSheet(sSheet); }
@@ -1006,8 +1008,20 @@ function handleAcceptTransfert(data) {
     'transfert'
   ]);
 
+  /* Débit dans StockSIM pour la source (transfert sortant) */
+  sSheet.appendRow([
+    row[1] ? row[1].toString().trim() : new Date().toLocaleDateString('fr-FR'),
+    row[6] ? row[6].toString().trim() : '',
+    row[7] ? row[7].toString().trim() : '',
+    -(Number(row[8]) || 0),
+    sourceId,
+    row[3] ? row[3].toString().trim() : '',
+    'superviseur',
+    new Date().toLocaleString('fr-FR'),
+    'transfert_out'
+  ]);
+
   /* Notifier l'émetteur */
-  const sourceId = row[2] ? row[2].toString().trim() : '';
   const destNom  = row[5] ? row[5].toString().trim() : 'Le superviseur destinataire';
   if (sourceId) {
     _pushNotification(
