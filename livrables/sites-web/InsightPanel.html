@@ -6266,12 +6266,21 @@
       return;
     }
 
-    /* Débits transferts sortants par superviseur */
-    const transfertOutBySup = new Map();
-    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
-      const key  = (r.auteurId || '').toLowerCase().trim();
-      const curr = transfertOutBySup.get(key) || 0;
-      transfertOutBySup.set(key, curr + Math.abs(r.quantite || 0));
+    /* Débits transferts sortants — attribués à l'entrée source exacte (par plage SIM) */
+    const transfertOutByEntry = new Map();
+    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(t => {
+      const tId    = (t.auteurId || '').toLowerCase().trim();
+      const tStart = Number(t.simDebut);
+      const tEnd   = Number(t.simFin);
+      const source = supEntries.find(e =>
+        (e.auteurId || '').toLowerCase().trim() === tId &&
+        e.simDebut && e.simFin &&
+        Number(e.simDebut) <= tStart && Number(e.simFin) >= tEnd
+      );
+      const key = source
+        ? `${source.auteurId}-${source.simDebut}-${source.simFin}`
+        : `${t.auteurId}-nosim`;
+      transfertOutByEntry.set(key, (transfertOutByEntry.get(key) || 0) + Math.abs(t.quantite || 0));
     });
 
     tbody.innerHTML = supEntries.map(entry => {
@@ -6286,7 +6295,8 @@
       } else {
         vendu = _grossAddForSup(entry.auteurId || '');
       }
-      const debit = transfertOutBySup.get((entry.auteurId || '').toLowerCase().trim()) || 0;
+      const entryKey = `${entry.auteurId}-${entry.simDebut}-${entry.simFin}`;
+      const debit = transfertOutByEntry.get(entryKey) || 0;
       const solde = Math.max(0, (entry.quantite || 0) - vendu - debit);
       const taux  = entry.quantite > 0 ? Math.round(vendu / entry.quantite * 100) : 0;
       const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
@@ -10770,11 +10780,20 @@
     const taux       = stockRecu > 0 ? Math.round(venduTotal / stockRecu * 100) : 0;
 
     const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur' && r.type !== 'transfert_out');
-    const transfertOutBySup2 = new Map();
-    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
-      const key  = (r.auteurId || '').toLowerCase().trim();
-      const curr = transfertOutBySup2.get(key) || 0;
-      transfertOutBySup2.set(key, curr + Math.abs(r.quantite || 0));
+    const transfertOutByEntry2 = new Map();
+    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(t => {
+      const tId    = (t.auteurId || '').toLowerCase().trim();
+      const tStart = Number(t.simDebut);
+      const tEnd   = Number(t.simFin);
+      const source = supEntries.find(e =>
+        (e.auteurId || '').toLowerCase().trim() === tId &&
+        e.simDebut && e.simFin &&
+        Number(e.simDebut) <= tStart && Number(e.simFin) >= tEnd
+      );
+      const key = source
+        ? `${source.auteurId}-${source.simDebut}-${source.simFin}`
+        : `${t.auteurId}-nosim`;
+      transfertOutByEntry2.set(key, (transfertOutByEntry2.get(key) || 0) + Math.abs(t.quantite || 0));
     });
     const supLines   = supEntries.map(e => {
       const sup    = (USERS || []).find(u => u.id === e.auteurId);
@@ -10782,7 +10801,7 @@
       const vendu  = supZN
         ? (SAISIES_DATA || []).filter(s => _normZ(s.zone) === supZN).reduce((s, r) => s + (r.grossAdd || 0), 0)
         : 0;
-      const debit  = transfertOutBySup2.get((e.auteurId || '').toLowerCase().trim()) || 0;
+      const debit  = transfertOutByEntry2.get(`${e.auteurId}-${e.simDebut}-${e.simFin}`) || 0;
       const soldeS = Math.max(0, (e.quantite || 0) - vendu - debit);
       const tauxS  = e.quantite > 0 ? Math.round(vendu / e.quantite * 100) : 0;
       return { nom: e.auteurNom || '—', recu: e.quantite || 0, vendu, solde: soldeS, taux: tauxS };
