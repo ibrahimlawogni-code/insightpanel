@@ -6269,8 +6269,9 @@
     /* Débits transferts sortants par superviseur */
     const transfertOutBySup = new Map();
     STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
-      const curr = transfertOutBySup.get(r.auteurId) || 0;
-      transfertOutBySup.set(r.auteurId, curr + Math.abs(r.quantite || 0));
+      const key  = (r.auteurId || '').toLowerCase().trim();
+      const curr = transfertOutBySup.get(key) || 0;
+      transfertOutBySup.set(key, curr + Math.abs(r.quantite || 0));
     });
 
     tbody.innerHTML = supEntries.map(entry => {
@@ -6285,7 +6286,7 @@
       } else {
         vendu = _grossAddForSup(entry.auteurId || '');
       }
-      const debit = transfertOutBySup.get(entry.auteurId || '') || 0;
+      const debit = transfertOutBySup.get((entry.auteurId || '').toLowerCase().trim()) || 0;
       const solde = Math.max(0, (entry.quantite || 0) - vendu - debit);
       const taux  = entry.quantite > 0 ? Math.round(vendu / entry.quantite * 100) : 0;
       const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
@@ -10771,8 +10772,9 @@
     const supEntries = STOCK_DATA.filter(r => r.auteurRole === 'superviseur' && r.type !== 'transfert_out');
     const transfertOutBySup2 = new Map();
     STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(r => {
-      const curr = transfertOutBySup2.get(r.auteurId) || 0;
-      transfertOutBySup2.set(r.auteurId, curr + Math.abs(r.quantite || 0));
+      const key  = (r.auteurId || '').toLowerCase().trim();
+      const curr = transfertOutBySup2.get(key) || 0;
+      transfertOutBySup2.set(key, curr + Math.abs(r.quantite || 0));
     });
     const supLines   = supEntries.map(e => {
       const sup    = (USERS || []).find(u => u.id === e.auteurId);
@@ -10780,7 +10782,7 @@
       const vendu  = supZN
         ? (SAISIES_DATA || []).filter(s => _normZ(s.zone) === supZN).reduce((s, r) => s + (r.grossAdd || 0), 0)
         : 0;
-      const debit  = transfertOutBySup2.get(e.auteurId || '') || 0;
+      const debit  = transfertOutBySup2.get((e.auteurId || '').toLowerCase().trim()) || 0;
       const soldeS = Math.max(0, (e.quantite || 0) - vendu - debit);
       const tauxS  = e.quantite > 0 ? Math.round(vendu / e.quantite * 100) : 0;
       return { nom: e.auteurNom || '—', recu: e.quantite || 0, vendu, solde: soldeS, taux: tauxS };
