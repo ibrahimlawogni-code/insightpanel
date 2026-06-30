@@ -1029,6 +1029,9 @@
           <i class="fa fa-chevron-right nav-chevron" id="nav-chevron-stocks"></i>
         </div>
         <div class="nav-sub-items" id="nav-sub-stocks" style="display:none">
+          <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('dashboard', this)">
+            <i class="fa fa-circle-dot"></i> Dashboard
+          </div>
           <div class="nav-sub-item" data-roles="dg,dga,dcc,dc,ra,admin,superviseur" onclick="showStocksView('p100', this)">
             <i class="fa fa-circle-dot"></i> P100
           </div>
@@ -2396,6 +2399,62 @@
       </div>
 
       <!-- Détection SIMs — identifie les SIMs hors stock officiel -->
+      <!-- Dashboard stocks — vue consolidée avec sélecteur de date -->
+      <div id="stocks-dashboard-placeholder" style="display:none">
+
+        <!-- Sélecteur de période -->
+        <div class="card">
+          <div class="card-body" style="padding:14px 16px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:13px;font-weight:600;color:var(--text)">Période :</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap" id="dash-stock-period-btns">
+                <button class="btn btn-secondary btn-sm dash-stock-period-btn active" data-period="mois" onclick="_dashStockSetPeriod('mois',this)">Ce mois</button>
+                <button class="btn btn-secondary btn-sm dash-stock-period-btn" data-period="semaine" onclick="_dashStockSetPeriod('semaine',this)">Cette semaine</button>
+                <button class="btn btn-secondary btn-sm dash-stock-period-btn" data-period="today" onclick="_dashStockSetPeriod('today',this)">Aujourd'hui</button>
+                <button class="btn btn-secondary btn-sm dash-stock-period-btn" data-period="tout" onclick="_dashStockSetPeriod('tout',this)">Tout</button>
+                <button class="btn btn-secondary btn-sm dash-stock-period-btn" data-period="custom" onclick="_dashStockSetPeriod('custom',this)">Personnalisé</button>
+              </div>
+              <div id="dash-stock-custom-dates" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin-left:4px">
+                <input type="date" class="input-field" id="dash-stock-date-from" style="width:140px;padding:6px 10px">
+                <span style="color:var(--text-muted);font-size:13px">au</span>
+                <input type="date" class="input-field" id="dash-stock-date-to" style="width:140px;padding:6px 10px">
+                <button class="btn btn-primary btn-sm" onclick="_dashStockRender()"><i class="fa fa-filter"></i> Appliquer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div id="dash-stock-kpi-row" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
+
+        <!-- Tableau consolidé -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fa fa-table-list" style="color:var(--yellow)"></i> Réceptions de stock</div>
+            <span class="badge badge-yellow" id="dash-stock-badge">0 entrée</span>
+          </div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Superviseur</th>
+                  <th>Plage SIM</th>
+                  <th style="text-align:right">Reçues</th>
+                  <th style="text-align:right">Vendues</th>
+                  <th style="text-align:right">Solde</th>
+                  <th style="text-align:center">Écoulé</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="dash-stock-tbody">
+                <tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div id="stocks-detection-placeholder" style="display:none">
         <div class="card">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -5218,7 +5277,7 @@
     saveViewState('stocks', { type: _stockViewType });
     _clearNavActive();
     _markNavActive(el);
-    const stockTitles = { p100: 'P100', swap: 'SWAP', ressources: 'Ressources', detection: 'Détection SIMs', transferts: 'Transferts' };
+    const stockTitles = { dashboard: 'Dashboard', p100: 'P100', swap: 'SWAP', ressources: 'Ressources', detection: 'Détection SIMs', transferts: 'Transferts' };
     document.getElementById('topbar-title').textContent = 'Stocks & Ressources — ' + (stockTitles[type] || type);
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     const view = document.getElementById('view-stocks');
@@ -5231,10 +5290,11 @@
 
     /* Titres selon le type */
     const titles = {
-      p100: 'Stocks P100', swap: 'Stocks SWAP', ressources: 'Ressources',
+      dashboard: 'Dashboard Stocks', p100: 'Stocks P100', swap: 'Stocks SWAP', ressources: 'Ressources',
       detection: 'Détection SIMs', transferts: 'Transferts inter-superviseurs'
     };
     const subs = {
+      dashboard: 'Vue consolidée de tous les stocks reçus',
       p100: 'Suivi du stock SIM GSM — carte P100',
       swap: 'Suivi du stock SIM GSM — SWAP',
       ressources: '', detection: 'Identification des SIMs hors stock officiel',
@@ -5246,8 +5306,8 @@
     if (subEl)   subEl.textContent   = subs[_stockViewType]   || '';
 
     /* Placeholders spéciaux */
-    const specialIds = ['stocks-ressources-placeholder','stocks-detection-placeholder','stocks-transferts-placeholder'];
-    const specialMap = { ressources: 'stocks-ressources-placeholder', detection: 'stocks-detection-placeholder', transferts: 'stocks-transferts-placeholder' };
+    const specialIds = ['stocks-dashboard-placeholder','stocks-ressources-placeholder','stocks-detection-placeholder','stocks-transferts-placeholder'];
+    const specialMap = { dashboard: 'stocks-dashboard-placeholder', ressources: 'stocks-ressources-placeholder', detection: 'stocks-detection-placeholder', transferts: 'stocks-transferts-placeholder' };
     specialIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 
     /* Masquer/afficher les sections selon le type */
@@ -5258,6 +5318,7 @@
       });
       const target = document.getElementById(specialMap[_stockViewType]);
       if (target) target.style.display = '';
+      if (_stockViewType === 'dashboard')  _initDashboardStocksView();
       if (_stockViewType === 'detection')  _initDetectionView();
       if (_stockViewType === 'transferts') _initTransfertsView();
       return;
@@ -5940,6 +6001,186 @@
 
     XLSX.writeFile(wb, fileName);
     showToast(`${rows.length} SIM externe(s) exportée(s) vers ${fileName}`, 'success');
+  }
+
+  /* ============================================================
+     DASHBOARD STOCKS
+  ============================================================ */
+
+  let _dashStockPeriod = 'mois';
+
+  async function _initDashboardStocksView() {
+    await Promise.all([_ensureStockLoaded(), _ensureSaisiesLoaded()]);
+    _dashStockRender();
+  }
+
+  function _dashStockSetPeriod(period, btn) {
+    _dashStockPeriod = period;
+    document.querySelectorAll('.dash-stock-period-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const customDiv = document.getElementById('dash-stock-custom-dates');
+    if (customDiv) customDiv.style.display = period === 'custom' ? 'flex' : 'none';
+    if (period !== 'custom') _dashStockRender();
+  }
+
+  function _dashStockDateRange() {
+    const now   = new Date();
+    const yISO  = d => d.toISOString().slice(0, 10);
+    if (_dashStockPeriod === 'today')   return { from: yISO(now), to: yISO(now) };
+    if (_dashStockPeriod === 'semaine') {
+      const day = now.getDay() || 7;
+      const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { from: yISO(mon), to: yISO(sun) };
+    }
+    if (_dashStockPeriod === 'mois') {
+      return { from: yISO(new Date(now.getFullYear(), now.getMonth(), 1)), to: yISO(now) };
+    }
+    if (_dashStockPeriod === 'custom') {
+      return {
+        from: document.getElementById('dash-stock-date-from')?.value || '',
+        to:   document.getElementById('dash-stock-date-to')?.value   || ''
+      };
+    }
+    return { from: '', to: '' }; // tout
+  }
+
+  function _dashStockParseDate(str) {
+    if (!str) return null;
+    /* Formats : DD/MM/YYYY, YYYY-MM-DD, Date.toString() */
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+    const m = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    const d = new Date(str);
+    return isNaN(d) ? null : d.toISOString().slice(0, 10);
+  }
+
+  function _dashStockRender() {
+    const tbody  = document.getElementById('dash-stock-tbody');
+    const badge  = document.getElementById('dash-stock-badge');
+    const kpiRow = document.getElementById('dash-stock-kpi-row');
+    if (!tbody) return;
+
+    const { from, to } = _dashStockDateRange();
+    const soldMap = _buildSoldMap();
+
+    /* Débits transferts sortants par entrée */
+    const transfertOutByEntry = new Map();
+    STOCK_DATA.filter(r => r.type === 'transfert_out').forEach(t => {
+      const tId    = (t.auteurId || '').toLowerCase().trim();
+      const tStart = Number(t.simDebut);
+      const tEnd   = Number(t.simFin);
+      const source = STOCK_DATA.find(e =>
+        e.type !== 'transfert_out' && e.auteurRole === 'superviseur' &&
+        (e.auteurId || '').toLowerCase().trim() === tId &&
+        e.simDebut && e.simFin &&
+        Number(e.simDebut) <= tStart && Number(e.simFin) >= tEnd
+      );
+      const key = source
+        ? `${source.auteurId}-${source.simDebut}-${source.simFin}`
+        : `${t.auteurId}-nosim`;
+      transfertOutByEntry.set(key, (transfertOutByEntry.get(key) || 0) + Math.abs(t.quantite || 0));
+    });
+
+    /* Filtrer les entrées (exclure transfert_out, filtrer par rôle et date) */
+    const isSup = currentUser?.role === 'superviseur';
+    let entries = STOCK_DATA.filter(r => r.type !== 'transfert_out');
+    if (isSup) entries = entries.filter(r => r.auteurId === currentUser.id);
+
+    if (from || to) {
+      entries = entries.filter(r => {
+        const d = _dashStockParseDate(r.date);
+        if (!d) return true;
+        if (from && d < from) return false;
+        if (to   && d > to)   return false;
+        return true;
+      });
+    }
+
+    /* Trier par date décroissante */
+    entries = [...entries].sort((a, b) => {
+      const da = _dashStockParseDate(a.date) || '';
+      const db = _dashStockParseDate(b.date) || '';
+      return db.localeCompare(da);
+    });
+
+    /* Calcul solde par entrée */
+    const rows = entries.map(entry => {
+      let vendu = 0;
+      if (soldMap.size > 0 && entry.simDebut && entry.simFin) {
+        const debut = Number(entry.simDebut);
+        const fin   = Number(entry.simFin);
+        for (const sim of soldMap.keys()) {
+          const n = Number(sim);
+          if (n >= debut && n <= fin) vendu++;
+        }
+      } else {
+        vendu = _grossAddForSup(entry.auteurId || '');
+      }
+      const entryKey = `${entry.auteurId}-${entry.simDebut}-${entry.simFin}`;
+      const debit    = transfertOutByEntry.get(entryKey) || 0;
+      const recu     = entry.quantite || 0;
+      const solde    = Math.max(0, recu - vendu - debit);
+      const taux     = recu > 0 ? Math.round(vendu / recu * 100) : 0;
+      return { entry, vendu, debit, recu, solde, taux };
+    });
+
+    /* KPI globaux */
+    const totalRecu  = rows.reduce((s, r) => s + r.recu,  0);
+    const totalVendu = rows.reduce((s, r) => s + r.vendu, 0);
+    const totalSolde = rows.reduce((s, r) => s + r.solde, 0);
+    const tauxGlobal = totalRecu > 0 ? Math.round(totalVendu / totalRecu * 100) : 0;
+
+    if (kpiRow) kpiRow.innerHTML = `
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Total reçu</div>
+        <div class="kpi-value">${totalRecu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta neutral"><i class="fa fa-boxes-stacked"></i> ${rows.length} entrée${rows.length > 1 ? 's' : ''}</div>
+        <div class="kpi-bg-icon"><i class="fa fa-boxes-stacked"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Total vendu</div>
+        <div class="kpi-value">${totalVendu.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta positive"><i class="fa fa-check-circle"></i> ${tauxGlobal} % écoulé</div>
+        <div class="kpi-bg-icon"><i class="fa fa-sim-card"></i></div>
+      </div>
+      <div class="kpi-card" style="flex:1;min-width:130px">
+        <div class="kpi-label">Solde disponible</div>
+        <div class="kpi-value">${totalSolde.toLocaleString('fr-FR')}</div>
+        <div class="kpi-delta ${totalSolde < 100 ? 'negative' : 'neutral'}">
+          <i class="fa fa-${totalSolde < 100 ? 'triangle-exclamation' : 'circle-check'}"></i>
+          ${100 - tauxGlobal} % restant
+        </div>
+        <div class="kpi-bg-icon"><i class="fa fa-layer-group"></i></div>
+      </div>`;
+
+    if (badge) badge.textContent = `${rows.length} entrée${rows.length > 1 ? 's' : ''}`;
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-text);padding:20px">Aucune entrée pour cette période.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(({ entry, vendu, recu, solde, taux, debit }) => {
+      const dateAff  = _dashStockParseDate(entry.date) || entry.date || '—';
+      const typeLabel = entry.type === 'transfert'
+        ? `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600">⇄ Transfert reçu</span>`
+        : `<span style="background:var(--yellow);color:#000;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600">${(entry.type || 'p100').toUpperCase()}</span>`;
+      const tauxBadge = taux >= 80 ? 'badge-green' : taux >= 50 ? 'badge-yellow' : 'badge-gray';
+      const debitBadge = debit > 0
+        ? `<br><span style="font-size:10px;color:#dc2626">-${debit} transféré${debit > 1 ? 's' : ''}</span>`
+        : '';
+      return `<tr>
+        <td style="font-size:12px;white-space:nowrap">${dateAff}</td>
+        <td><strong>${entry.auteurNom || entry.auteurId || '—'}</strong></td>
+        <td style="font-family:monospace;font-size:11px;white-space:nowrap">${entry.simDebut || '—'} → ${entry.simFin || '—'}</td>
+        <td style="text-align:right">${recu.toLocaleString('fr-FR')}${debitBadge}</td>
+        <td style="text-align:right">${vendu.toLocaleString('fr-FR')}</td>
+        <td style="text-align:right"><strong style="color:${solde < 20 ? '#721c24' : 'inherit'}">${solde.toLocaleString('fr-FR')}</strong></td>
+        <td style="text-align:center"><span class="badge ${tauxBadge}">${taux} %</span></td>
+        <td>${typeLabel}</td>
+      </tr>`;
+    }).join('');
   }
 
   /* ============================================================
