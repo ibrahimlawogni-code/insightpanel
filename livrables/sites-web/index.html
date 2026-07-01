@@ -6721,12 +6721,16 @@
 
   async function _valleeSaveSaisie() {
     if (!VALLEE_URL) { showToast('Configuration', 'VALLEE_URL non configurée.', true); return; }
-    const isRa  = currentUser && ['ra', 'admin'].includes(currentUser.role);
-    const sup   = isRa
-      ? VALLEE_SUPS.find(s => s.id === document.getElementById('vallee-saisie-sup-select')?.value)
-      : VALLEE_SUPS.find(s => s.id === currentUser?.id);
+    const isRa = currentUser && ['ra', 'admin'].includes(currentUser.role);
+    let sup;
+    if (isRa) {
+      sup = VALLEE_SUPS.find(s => s.id === document.getElementById('vallee-saisie-sup-select')?.value);
+    } else {
+      /* Superviseur : utilise directement le compte connecté */
+      sup = { id: currentUser.id, nom: currentUser.nom, zone: currentUser.zone || '' };
+    }
 
-    if (!sup) { showToast('Erreur', 'Aucun superviseur sélectionné.', true); return; }
+    if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
 
     const date = document.getElementById('vallee-saisie-date')?.value;
     const ga   = parseInt(document.getElementById('vallee-saisie-ga')?.value || '0', 10);
