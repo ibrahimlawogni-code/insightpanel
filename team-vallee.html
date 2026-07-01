@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Team Vallée — ZEPHIR GROUP</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --mtn-yellow: #f8c200;
+    --mtn-dark:   #1a1a1a;
+    --mtn-gray:   #2d2d2d;
+    --mtn-light:  #f5f5f5;
+    --success:    #16a34a;
+    --danger:     #dc2626;
+    --warning:    #d97706;
+    --info:       #2563eb;
+    --text:       #1a1a1a;
+    --text-muted: #6b7280;
+    --border:     #e5e7eb;
+    --card-bg:    #ffffff;
+    --bg:         #f3f4f6;
+    --sidebar-w:  240px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── TOAST ── */
+  #toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { display: flex; align-items: flex-start; gap: 10px; background: #fff; border-left: 4px solid var(--mtn-yellow); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,.18); min-width: 280px; max-width: 380px; animation: slideIn .25s ease; }
+  .toast.error { border-left-color: var(--danger); }
+  .toast-icon { font-size: 18px; margin-top: 1px; color: var(--mtn-yellow); }
+  .toast.error .toast-icon { color: var(--danger); }
+  .toast-body { flex: 1; }
+  .toast-title { font-weight: 700; font-size: 14px; }
+  .toast-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── LOGIN ── */
+  #screen-login { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--mtn-dark) url('bg-login.png') center/cover no-repeat; }
+  .login-card { background: #fff; border-radius: 16px; padding: 40px 36px; width: 360px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .login-logo { text-align: center; margin-bottom: 24px; }
+  .login-logo .brand { font-size: 22px; font-weight: 900; color: var(--mtn-dark); letter-spacing: -0.5px; }
+  .login-logo .brand span { color: var(--mtn-yellow); }
+  .login-logo .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .login-field { margin-bottom: 16px; }
+  .login-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+  .login-field input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; }
+  .login-field input:focus { border-color: var(--mtn-yellow); }
+  .pwd-wrap { position: relative; }
+  .pwd-wrap input { padding-right: 40px; }
+  .toggle-pwd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 15px; }
+  .btn-login { width: 100%; padding: 12px; background: var(--mtn-yellow); border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--mtn-dark); transition: opacity .2s; }
+  .btn-login:hover { opacity: .9; }
+  .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+  .login-error { display: none; background: #fef2f2; color: var(--danger); border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 12px; }
+
+  /* ── APP SHELL ── */
+  #screen-app { display: none; min-height: 100vh; }
+  .app-layout { display: flex; min-height: 100vh; }
+
+  /* ── SIDEBAR ── */
+  .sidebar { width: var(--sidebar-w); background: var(--mtn-dark); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; transition: transform .3s; }
+  .sidebar-brand { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .sidebar-brand .app-name { font-size: 15px; font-weight: 900; color: var(--mtn-yellow); line-height: 1.2; }
+  .sidebar-brand .app-sub { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 3px; }
+  .sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--mtn-yellow); color: var(--mtn-dark); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .user-info { overflow: hidden; }
+  .user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-role { font-size: 11px; color: rgba(255,255,255,.5); }
+  nav.sidebar-nav { flex: 1; padding: 12px 8px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,.75); transition: background .15s, color .15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .nav-item.active { background: var(--mtn-yellow); color: var(--mtn-dark); font-weight: 700; }
+  .nav-item i { width: 18px; text-align: center; }
+  .sidebar-footer { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,.1); }
+
+  /* ── MAIN CONTENT ── */
+  .main-content { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { background: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .topbar-title { font-size: 17px; font-weight: 700; }
+  .topbar-date { font-size: 13px; color: var(--text-muted); }
+  .page-body { padding: 24px; flex: 1; }
+
+  /* ── CARDS ── */
+  .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 16px; }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title i { color: var(--mtn-yellow); }
+
+  /* ── KPI ROW ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border-top: 3px solid var(--mtn-yellow); }
+  .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi-value { font-size: 28px; font-weight: 800; margin: 4px 0; color: var(--mtn-dark); }
+  .kpi-target { font-size: 12px; color: var(--text-muted); }
+  .kpi-pct { font-size: 13px; font-weight: 700; }
+  .kpi-pct.good { color: var(--success); }
+  .kpi-pct.warn { color: var(--warning); }
+  .kpi-pct.bad  { color: var(--danger); }
+
+  /* ── PERIOD SELECTOR ── */
+  .period-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 16px; width: fit-content; }
+  .period-tab { padding: 6px 14px; border-radius: 6px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); transition: background .15s; }
+  .period-tab.active { background: #fff; color: var(--mtn-dark); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+  /* ── TABLES ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #f9fafb; padding: 10px 12px; text-align: left; font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fafafa; }
+  .tfoot-total td { font-weight: 700; background: #fffbeb; border-top: 2px solid var(--mtn-yellow); }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .form-group input, .form-group select, .form-group textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; font-family: inherit; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--mtn-yellow); }
+  .form-group textarea { resize: vertical; min-height: 72px; }
+  .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .2s; }
+  .btn:hover { opacity: .88; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--mtn-yellow); color: var(--mtn-dark); }
+  .btn-secondary { background: #e5e7eb; color: var(--text); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .form-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+  /* ── PROGRESS BAR ── */
+  .prog-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
+  .prog-bar-fill { height: 100%; border-radius: 99px; background: var(--mtn-yellow); transition: width .4s; }
+  .prog-bar-fill.good { background: var(--success); }
+  .prog-bar-fill.warn { background: var(--warning); }
+  .prog-bar-fill.bad  { background: var(--danger); }
+
+  /* ── BADGE ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-green  { background: #dcfce7; color: #15803d; }
+  .badge-red    { background: #fee2e2; color: #991b1b; }
+  .badge-gray   { background: #f3f4f6; color: #6b7280; }
+
+  /* ── SPINNER ── */
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2.5px solid #e5e7eb; border-top-color: var(--mtn-yellow); border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-row { text-align: center; padding: 30px; color: var(--text-muted); }
+
+  /* ── MOBILE ── */
+  .hamburger { display: none; background: none; border: none; cursor: pointer; font-size: 22px; padding: 4px; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display: block; }
+    .main-content { margin-left: 0; }
+    .hamburger { display: block; }
+    .form-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ══ LOGIN ══ -->
+<div id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="brand">TEAM <span>VALLÉE</span></div>
+      <div class="subtitle">Performance — ZEPHIR GROUP / MTN Bénin</div>
+    </div>
+    <div class="login-field">
+      <label>Identifiant</label>
+      <input type="text" id="login-id" placeholder="Prenom.Nom" autocomplete="username" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <div class="login-field">
+      <label>Mot de passe</label>
+      <div class="pwd-wrap">
+        <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+        <button class="toggle-pwd" onclick="togglePwd()" tabindex="-1"><i class="fa fa-eye" id="toggle-pwd-icon"></i></button>
+      </div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">Se connecter</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="screen-app">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="app-name">TEAM VALLÉE</div>
+        <div class="app-sub">Performance quotidienne</div>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-role" id="user-role">—</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" id="nav-dashboard" onclick="showView('dashboard', this)">
+          <i class="fa fa-chart-line"></i> Tableau de bord
+        </button>
+        <button class="nav-item" id="nav-saisie" onclick="showView('saisie', this)">
+          <i class="fa fa-pen-to-square"></i> Saisie du jour
+        </button>
+        <button class="nav-item" id="nav-stocks" onclick="showView('stocks', this)">
+          <i class="fa fa-boxes-stacked"></i> Stocks SIM
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
+          <i class="fa fa-right-from-bracket"></i> Déconnexion
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main-content">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="hamburger" onclick="openSidebar()"><i class="fa fa-bars"></i></button>
+          <span class="topbar-title" id="topbar-title">Tableau de bord</span>
+        </div>
+        <span class="topbar-date" id="topbar-date"></span>
+      </div>
+      <div class="page-body">
+
+        <!-- VUE DASHBOARD -->
+        <div id="view-dashboard">
+          <div class="period-tabs">
+            <button class="period-tab active" onclick="setDashPeriod('jour', this)">Aujourd'hui</button>
+            <button class="period-tab" onclick="setDashPeriod('semaine', this)">Semaine</button>
+            <button class="period-tab" onclick="setDashPeriod('mois', this)">Mois</button>
+          </div>
+          <div class="kpi-grid" id="kpi-grid"></div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-table"></i> Performance par superviseur</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Superviseur</th><th>Zone</th>
+                  <th style="text-align:right">Gross Add</th><th style="text-align:center">% GA</th>
+                  <th style="text-align:right">MoMo</th><th style="text-align:center">% MoMo</th>
+                </tr></thead>
+                <tbody id="dash-tbody"></tbody>
+                <tfoot><tr class="tfoot-total" id="dash-tfoot"></tr></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VUE SAISIE -->
+        <div id="view-saisie" style="display:none">
+          <div class="card">
+            <div class="card-title"><i class="fa fa-pen-to-square"></i> Nouvelle saisie</div>
+            <div class="form-grid">
+              <div class="form-group" id="saisie-sup-selector" style="display:none">
+                <label>Superviseur</label>
+                <select id="saisie-sup-select"></select>
+              </div>
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="saisie-date">
+              </div>
+              <div class="form-group">
+                <label>Gross Add (GA)</label>
+                <input type="number" id="saisie-ga" min="0" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>New MoMo User</label>
+                <input type="number" id="saisie-momo" min="0" placeholder="0">
+              </div>
+              <div class="form-group full">
+                <label>Observation</label>
+                <textarea id="saisie-obs" placeholder="Remarques, problèmes terrain…"></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveSaisie()" id="btn-save-saisie">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+              <button class="btn btn-secondary" onclick="resetSaisieForm()">Réinitialiser</button>
+            </div>
+            <div id="saisie-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-clock-rotate-left"></i> Historique des saisies</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Date</th><th>Superviseur</th><th>Zone</th>
+                  <th style="text-align:right">GA</th><th style="text-align:right">MoMo</th>
+                  <th>Observation</th><th>Horodatage</th><th></th>
+                </tr></thead>
+                <tbody id="saisie-hist-tbody"><tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VUE STOCKS -->
+        <div id="view-stocks" style="display:none">
+          <div class="card">
+            <div class="card-title"><i class="fa fa-plus"></i> Enregistrer une réception</div>
+            <div class="form-grid">
+              <div class="form-group" id="stock-sup-selector" style="display:none">
+                <label>Superviseur concerné</label>
+                <select id="stock-sup-select"></select>
+              </div>
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="stock-date">
+              </div>
+              <div class="form-group">
+                <label>N° SIM Début</label>
+                <input type="text" id="stock-sim-debut" maxlength="11" placeholder="22967xxxxxxx" oninput="calcStockQte()">
+              </div>
+              <div class="form-group">
+                <label>N° SIM Fin</label>
+                <input type="text" id="stock-sim-fin" maxlength="11" placeholder="22967xxxxxxx" oninput="calcStockQte()">
+              </div>
+              <div class="form-group">
+                <label>Quantité (auto)</label>
+                <input type="text" id="stock-quantite" readonly placeholder="—">
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select id="stock-type">
+                  <option value="p100">P100</option>
+                  <option value="autres">Autres</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveStock()" id="btn-save-stock">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-list"></i> Historique des réceptions</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Date</th><th>Superviseur</th>
+                  <th>SIM Début</th><th>SIM Fin</th>
+                  <th style="text-align:right">Quantité</th><th>Type</th><th>Horodatage</th>
+                </tr></thead>
+                <tbody id="stock-tbody"><tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /page-body -->
+    </div><!-- /main-content -->
+  </div><!-- /app-layout -->
+</div><!-- /screen-app -->
+
+<script>
+/* ── CONFIG ── */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCwmxGpBnwKpQyjF2_oCW7EfIHsKrdzygkrb6ZM9b1jKWuPljKH7j6Fi3VlGjAskQO/exec';
+const VALLEE_URL      = 'https://script.google.com/macros/s/AKfycbyxKgFQrBokXmJ9FndnC_-PW_k8rw1s7VLPWEvUKyVATp_-YOt-ty2nncadVnpf9HzGHA/exec';
+
+const VALLEE_SUPS = [
+  { id: 'Alphonse.Djokpe',    nom: 'Alphonse DJOKPE',    zone: 'Bonou - Adjohoun',  initiales: 'AD' },
+  { id: 'Missimahou.Honkou',  nom: 'Missimahou HONKOU',  zone: 'Aguégués - Dangbo', initiales: 'MH' },
+  { id: 'Ghislain.Bah',       nom: 'Ghislain BAH',       zone: 'Akpro - Missérété', initiales: 'GB' },
+  { id: 'Loukmane.Yessoufou', nom: 'Loukmane YESSOUFOU', zone: 'Adjarra',           initiales: 'LY' },
+  { id: 'François.Dansou',    nom: 'François DANSOU',    zone: 'Avrankou',          initiales: 'FD' },
+];
+
+const VALLEE_TEAM_TARGET = { ga: 18660, momo: 16794 };
+const VALLEE_SUP_TARGET  = { ga: Math.round(18660 / 5), momo: Math.round(16794 / 5) };
+
+const USERS_SEED = [
+  { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
+  { id: 'Admin.Zephir',        pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin',       zone: 'Toutes zones', initiales: 'ADM' },
+  { id: 'Dg.Zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',          zone: 'Toutes zones', initiales: 'DG'  },
+  { id: 'Dga.Zephir',          pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga',         zone: 'Toutes zones', initiales: 'DGA' },
+  { id: 'Marcel.Tchikpe',      pwd: 'Zephir@2026', nom: 'Marcel TCHIKPE',            role: 'dc',          zone: 'Toutes zones', initiales: 'MT'  },
+  { id: 'Didier.Fadegnon',     pwd: 'Zephir@2026', nom: 'Didier FADEGNON',           role: 'dcc',         zone: 'Toutes zones', initiales: 'DF'  },
+  { id: 'Alphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',           role: 'superviseur', zone: 'Bonou - Adjohoun',  initiales: 'AD' },
+  { id: 'Missimahou.Honkou',   pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',         role: 'superviseur', zone: 'Aguégués - Dangbo', initiales: 'MH' },
+  { id: 'Ghislain.Bah',        pwd: 'Zephir@2026', nom: 'Ghislain BAH',              role: 'superviseur', zone: 'Akpro - Missérété', initiales: 'GB' },
+  { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',       role: 'superviseur', zone: 'Adjarra',           initiales: 'LY' },
+  { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
+];
+
+const ALLOWED_ROLES = ['superviseur', 'ra', 'admin', 'dg', 'dga', 'dc', 'dcc'];
+
+const ROLE_LABELS = {
+  admin: 'Administrateur', dg: 'Directeur Général', dga: 'Dir. Général Adjoint',
+  dcc: 'DCC', dc: 'Directeur Commercial', ra: 'Responsable Acquisition',
+  superviseur: 'Superviseur MPOS', agent: 'Agent Terrain'
+};
+
+/* ── STATE ── */
+let currentUser    = null;
+let VALLEE_SAISIES = [];
+let VALLEE_STOCK   = [];
+let _saisiesLoaded = false;
+let _stockLoaded   = false;
+let _saisiesInFlight = null;
+let _stockInFlight   = null;
+let _dashPeriod    = 'mois';
+let _editingTs     = null;
+
+/* ── INIT DATE ── */
+const today    = new Date();
+const todayISO = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+document.getElementById('topbar-date').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+/* ── TOAST ── */
+function showToast(title, sub, isError) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.innerHTML = `<i class="fa ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'} toast-icon"></i>
+    <div class="toast-body"><div class="toast-title">${title}</div>${sub ? `<div class="toast-sub">${sub}</div>` : ''}</div>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+/* ── SIDEBAR ── */
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('open'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
+
+/* ── PASSWORD TOGGLE ── */
+function togglePwd() {
+  const inp  = document.getElementById('login-pwd');
+  const icon = document.getElementById('toggle-pwd-icon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fa fa-eye-slash'; }
+  else                         { inp.type = 'password'; icon.className = 'fa fa-eye'; }
+}
+
+/* ── AUTH ── */
+function normalizeId(raw) {
+  return raw.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join('.');
+}
+
+async function doLogin() {
+  const identifiant = normalizeId(document.getElementById('login-id').value.trim());
+  const password    = document.getElementById('login-pwd').value;
+  const errEl       = document.getElementById('login-error');
+  const btn         = document.querySelector('.btn-login');
+
+  errEl.style.display = 'none';
+  if (!identifiant || !password) {
+    errEl.innerHTML = '<i class="fa fa-circle-exclamation"></i> Veuillez remplir tous les champs.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  let user = null;
+
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login', id: identifiant, pwd: password }) });
+    const json = await res.json();
+    if (json.success && json.user) {
+      const seed = USERS_SEED.find(u => u.id.toLowerCase() === json.user.id.toLowerCase());
+      user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
+    }
+  } catch (_) {}
+
+  if (!user) {
+    user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password) || null;
+  }
+
+  btn.disabled = false; btn.textContent = 'Se connecter';
+
+  if (!user) {
+    errEl.innerHTML = '<i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.';
+    errEl.style.display = 'block';
+    document.getElementById('login-pwd').value = '';
+    return;
+  }
+
+  if (!ALLOWED_ROLES.includes(user.role)) {
+    errEl.innerHTML = '<i class="fa fa-circle-exclamation"></i> Accès non autorisé pour ce rôle.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  startSession(user);
+}
+
+function startSession(user) {
+  const seed = USERS_SEED.find(u => u.id.toLowerCase() === user.id.toLowerCase());
+  currentUser = { ...user, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role };
+
+  try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
+
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'block';
+
+  document.getElementById('user-name').textContent    = currentUser.nom;
+  document.getElementById('user-role').textContent    = ROLE_LABELS[currentUser.role] || currentUser.role;
+  document.getElementById('user-avatar').textContent  = currentUser.initiales || '?';
+
+  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser.role);
+
+  /* Pré-remplir sélecteurs superviseur */
+  const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
+  document.getElementById('saisie-sup-select').innerHTML = supOpts;
+  document.getElementById('stock-sup-select').innerHTML  = supOpts;
+  document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
+  document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
+
+  /* Dates par défaut */
+  document.getElementById('saisie-date').value = todayISO;
+  document.getElementById('stock-date').value  = todayISO;
+
+  showView('dashboard', document.getElementById('nav-dashboard'));
+  loadSaisies();
+  loadStock();
+}
+
+function doLogout() {
+  try { sessionStorage.removeItem('tv_session'); } catch (_) {}
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = [];
+  _saisiesLoaded = false; _stockLoaded = false;
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
+}
+
+/* ── RESTORE SESSION ── */
+(function tryRestore() {
+  try {
+    const raw = sessionStorage.getItem('tv_session');
+    if (!raw) return;
+    const u = JSON.parse(raw);
+    if (u && u.id && ALLOWED_ROLES.includes(u.role)) startSession(u);
+  } catch (_) {}
+})();
+
+/* ── VIEWS ── */
+function showView(name, el) {
+  ['dashboard', 'saisie', 'stocks'].forEach(v => {
+    document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM' };
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  closeSidebar();
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'saisie')    renderSaisieHist();
+  if (name === 'stocks')    renderStockTable();
+}
+
+/* ── DATA LOADING ── */
+async function loadSaisies() {
+  if (_saisiesLoaded) return;
+  if (_saisiesInFlight) return _saisiesInFlight;
+  _saisiesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisiesVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) { VALLEE_SAISIES = json.data || []; _saisiesLoaded = true; renderDashboard(); renderSaisieHist(); }
+    })
+    .catch(() => {})
+    .finally(() => { _saisiesInFlight = null; });
+  return _saisiesInFlight;
+}
+
+async function loadStock() {
+  if (_stockLoaded) return;
+  if (_stockInFlight) return _stockInFlight;
+  _stockInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); }
+    })
+    .catch(() => {})
+    .finally(() => { _stockInFlight = null; });
+  return _stockInFlight;
+}
+
+async function ensureSaisies() {
+  if (!_saisiesLoaded) await loadSaisies();
+}
+
+async function ensureStock() {
+  if (!_stockLoaded) await loadStock();
+}
+
+/* ── DATE HELPERS ── */
+function parseSaisieDate(str) {
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return new Date(str + 'T00:00:00');
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+    const [d, m, y] = str.split('/');
+    return new Date(`${y}-${m}-${d}T00:00:00`);
+  }
+  const d = new Date(str); return isNaN(d) ? null : d;
+}
+
+function isoToFR(iso) {
+  if (!iso) return iso;
+  const d = parseSaisieDate(iso);
+  if (!d) return iso;
+  return d.toLocaleDateString('fr-FR');
+}
+
+function filterByPeriod(data, period) {
+  const now   = new Date(today);
+  const yy = now.getFullYear(), mm = now.getMonth(), dd = now.getDate();
+
+  if (period === 'jour') {
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm && d.getDate() === dd; });
+  }
+  if (period === 'semaine') {
+    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    const weekStart = new Date(now); weekStart.setDate(dd - dayOfWeek); weekStart.setHours(0,0,0,0);
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= weekStart && d <= now; });
+  }
+  if (period === 'mois') {
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
+  }
+  return data;
+}
+
+/* ── DASHBOARD ── */
+function setDashPeriod(period, el) {
+  _dashPeriod = period;
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const filtered = filterByPeriod(VALLEE_SAISIES, _dashPeriod);
+
+  /* Agrégation par superviseur */
+  const totals = {};
+  VALLEE_SUPS.forEach(s => { totals[s.id] = { ga: 0, momo: 0 }; });
+  filtered.forEach(r => {
+    if (totals[r.supId]) {
+      totals[r.supId].ga   += Number(r.grossAdd) || 0;
+      totals[r.supId].momo += Number(r.momoUser) || 0;
+    }
+  });
+
+  const teamGA   = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].ga,   0);
+  const teamMomo = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].momo, 0);
+
+  /* Cibles selon période */
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const weekDays    = 6;
+  let targetGA, targetMomo;
+  if      (_dashPeriod === 'jour')    { targetGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth);   targetMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth); }
+  else if (_dashPeriod === 'semaine') { targetGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth * weekDays); targetMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth * weekDays); }
+  else                                { targetGA = VALLEE_TEAM_TARGET.ga; targetMomo = VALLEE_TEAM_TARGET.momo; }
+  const targetGASup   = Math.round(targetGA   / 5);
+  const targetMomoSup = Math.round(targetMomo / 5);
+
+  /* KPI cards */
+  const pctGA   = targetGA   > 0 ? Math.round(teamGA   / targetGA   * 100) : 0;
+  const pctMomo = targetMomo > 0 ? Math.round(teamMomo / targetMomo * 100) : 0;
+  const pctClass = pct => pct >= 100 ? 'good' : pct >= 70 ? 'warn' : 'bad';
+
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Gross Add — Équipe</div>
+      <div class="kpi-value">${teamGA.toLocaleString('fr-FR')}</div>
+      <div class="kpi-target">Cible : ${targetGA.toLocaleString('fr-FR')}</div>
+      <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctGA)}" style="width:${Math.min(pctGA,100)}%"></div></div>
+      <div class="kpi-pct ${pctClass(pctGA)}" style="margin-top:4px">${pctGA} %</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">MoMo User — Équipe</div>
+      <div class="kpi-value">${teamMomo.toLocaleString('fr-FR')}</div>
+      <div class="kpi-target">Cible : ${targetMomo.toLocaleString('fr-FR')}</div>
+      <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctMomo)}" style="width:${Math.min(pctMomo,100)}%"></div></div>
+      <div class="kpi-pct ${pctClass(pctMomo)}" style="margin-top:4px">${pctMomo} %</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Superviseurs actifs</div>
+      <div class="kpi-value">${VALLEE_SUPS.filter(s => totals[s.id].ga > 0 || totals[s.id].momo > 0).length} / 5</div>
+      <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
+    </div>
+  `;
+
+  /* Table */
+  const tbody = document.getElementById('dash-tbody');
+  tbody.innerHTML = VALLEE_SUPS.map(sup => {
+    const { ga, momo } = totals[sup.id];
+    const pgaRaw  = targetGASup   > 0 ? Math.round(ga   / targetGASup   * 100) : 0;
+    const pmoRaw  = targetMomoSup > 0 ? Math.round(momo / targetMomoSup * 100) : 0;
+    const cls = pct => pct >= 100 ? 'badge-green' : pct >= 70 ? 'badge-yellow' : 'badge-red';
+    return `<tr>
+      <td><strong>${sup.nom}</strong></td>
+      <td style="color:var(--text-muted);font-size:12px">${sup.zone}</td>
+      <td style="text-align:right;font-weight:700">${ga.toLocaleString('fr-FR')}</td>
+      <td style="text-align:center"><span class="badge ${cls(pgaRaw)}">${pgaRaw} %</span></td>
+      <td style="text-align:right;font-weight:700">${momo.toLocaleString('fr-FR')}</td>
+      <td style="text-align:center"><span class="badge ${cls(pmoRaw)}">${pmoRaw} %</span></td>
+    </tr>`;
+  }).join('');
+
+  const pgaTeam  = targetGA   > 0 ? Math.round(teamGA   / targetGA   * 100) : 0;
+  const pmoTeam  = targetMomo > 0 ? Math.round(teamMomo / targetMomo * 100) : 0;
+  document.getElementById('dash-tfoot').innerHTML = `
+    <td colspan="2"><strong>TOTAL ÉQUIPE</strong></td>
+    <td style="text-align:right"><strong>${teamGA.toLocaleString('fr-FR')}</strong></td>
+    <td style="text-align:center"><strong>${pgaTeam} %</strong></td>
+    <td style="text-align:right"><strong>${teamMomo.toLocaleString('fr-FR')}</strong></td>
+    <td style="text-align:center"><strong>${pmoTeam} %</strong></td>
+  `;
+}
+
+/* ── SAISIE ── */
+function resetSaisieForm() {
+  _editingTs = null;
+  document.getElementById('saisie-date').value = todayISO;
+  document.getElementById('saisie-ga').value   = '';
+  document.getElementById('saisie-momo').value  = '';
+  document.getElementById('saisie-obs').value   = '';
+  const msg = document.getElementById('saisie-msg'); msg.style.display = 'none';
+  const btn = document.getElementById('btn-save-saisie');
+  btn.innerHTML = '<i class="fa fa-floppy-disk"></i> Enregistrer';
+  btn.classList.remove('btn-danger'); btn.classList.add('btn-primary');
+}
+
+function editSaisie(horodatage, supId) {
+  const entry = VALLEE_SAISIES.find(r => r.horodatage === horodatage && r.supId === supId);
+  if (!entry) return;
+  _editingTs = horodatage;
+  document.getElementById('saisie-date').value  = entry.date ? (parseSaisieDate(entry.date) ? entry.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1') : entry.date) : todayISO;
+  document.getElementById('saisie-ga').value    = entry.grossAdd || '';
+  document.getElementById('saisie-momo').value  = entry.momoUser || '';
+  document.getElementById('saisie-obs').value   = entry.observation || '';
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
+  if (isRa && document.getElementById('saisie-sup-select')) {
+    document.getElementById('saisie-sup-select').value = supId;
+  }
+  const btn = document.getElementById('btn-save-saisie');
+  btn.innerHTML = '<i class="fa fa-pen"></i> Modifier';
+  btn.classList.remove('btn-primary'); btn.classList.add('btn-danger');
+  document.getElementById('view-saisie').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveSaisie() {
+  if (!currentUser) return;
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
+  let sup;
+  if (isRa) {
+    const selId = document.getElementById('saisie-sup-select')?.value;
+    sup = VALLEE_SUPS.find(s => s.id === selId);
+  } else {
+    sup = { id: currentUser.id, nom: currentUser.nom, zone: currentUser.zone || '' };
+  }
+
+  if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
+
+  const date = document.getElementById('saisie-date').value;
+  const ga   = Number(document.getElementById('saisie-ga').value)   || 0;
+  const momo = Number(document.getElementById('saisie-momo').value) || 0;
+  const obs  = document.getElementById('saisie-obs').value.trim();
+
+  if (!date) { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
+
+  const btn = document.getElementById('btn-save-saisie');
+  btn.disabled = true;
+
+  try {
+    let payload, action;
+    if (_editingTs) {
+      action  = 'updateSaisieVallee';
+      payload = { action, supId: sup.id, horodatage: _editingTs, grossAdd: ga, momoUser: momo, observation: obs };
+    } else {
+      action  = 'saveSaisieVallee';
+      payload = { action, date, supId: sup.id, supNom: sup.nom, zone: sup.zone, grossAdd: ga, momoUser: momo, observation: obs };
+    }
+
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+
+    if (json.success) {
+      showToast(_editingTs ? 'Saisie modifiée' : 'Saisie enregistrée', json.message || '', false);
+      /* Invalider le cache et recharger */
+      _saisiesLoaded = false; _saisiesInFlight = null;
+      await loadSaisies();
+      renderDashboard(); renderSaisieHist();
+      resetSaisieForm();
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderSaisieHist() {
+  const tbody = document.getElementById('saisie-hist-tbody');
+  if (!tbody) return;
+
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
+  const data  = isRa
+    ? [...VALLEE_SAISIES]
+    : VALLEE_SAISIES.filter(r => r.supId === currentUser?.id);
+
+  const sorted = data.sort((a, b) => {
+    const da = parseSaisieDate(a.date), db = parseSaisieDate(b.date);
+    return (db || 0) - (da || 0);
+  });
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Aucune saisie enregistrée</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(r => {
+    const canEdit = isRa || r.supId === currentUser?.id;
+    const editBtn = canEdit ? `<button class="btn btn-sm btn-secondary" onclick="editSaisie('${r.horodatage}','${r.supId}')"><i class="fa fa-pen"></i></button>` : '—';
+    return `<tr>
+      <td>${isoToFR(r.date) || r.date}</td>
+      <td>${r.supNom || r.supId}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${r.zone || '—'}</td>
+      <td style="text-align:right;font-weight:700">${(r.grossAdd || 0).toLocaleString('fr-FR')}</td>
+      <td style="text-align:right;font-weight:700">${(r.momoUser || 0).toLocaleString('fr-FR')}</td>
+      <td style="max-width:200px;font-size:12px">${r.observation || '—'}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+      <td>${editBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── STOCKS ── */
+function calcStockQte() {
+  const d = document.getElementById('stock-sim-debut')?.value.trim();
+  const f = document.getElementById('stock-sim-fin')?.value.trim();
+  const q = document.getElementById('stock-quantite');
+  if (!q) return;
+  if (d && f && d.length >= 11 && f.length >= 11) {
+    const n = Number(f) - Number(d) + 1;
+    q.value = n > 0 ? n : '—';
+  } else {
+    q.value = '—';
+  }
+}
+
+async function saveStock() {
+  if (!currentUser) return;
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
+  let sup;
+  if (isRa) {
+    const selId = document.getElementById('stock-sup-select')?.value;
+    sup = VALLEE_SUPS.find(s => s.id === selId);
+  } else {
+    sup = { id: currentUser.id, nom: currentUser.nom, zone: currentUser.zone || '' };
+  }
+
+  if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
+
+  const date   = document.getElementById('stock-date').value;
+  const debut  = document.getElementById('stock-sim-debut').value.trim();
+  const fin    = document.getElementById('stock-sim-fin').value.trim();
+  const type   = document.getElementById('stock-type').value;
+
+  if (!date)            { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
+  if (debut.length < 8) { showToast('Champ requis', 'N° SIM Début invalide.', true); return; }
+  if (fin.length < 8)   { showToast('Champ requis', 'N° SIM Fin invalide.', true); return; }
+
+  const quantite = Number(fin) - Number(debut) + 1;
+  if (quantite <= 0) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
+
+  const btn = document.getElementById('btn-save-stock');
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      action: 'saveStockVallee', date, simDebut: debut, simFin: fin, quantite,
+      auteurId: sup.id, auteurNom: sup.nom, auteurRole: currentUser.role, type
+    };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Stock enregistré', json.message || '', false);
+      _stockLoaded = false; _stockInFlight = null;
+      await loadStock();
+      renderStockTable();
+      ['stock-sim-debut','stock-sim-fin','stock-quantite'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderStockTable() {
+  const tbody = document.getElementById('stock-tbody');
+  if (!tbody) return;
+
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
+  const data  = isRa
+    ? [...VALLEE_STOCK]
+    : VALLEE_STOCK.filter(r => r.auteurId === currentUser?.id);
+
+  const sorted = data.sort((a, b) => {
+    const da = parseSaisieDate(a.date), db = parseSaisieDate(b.date);
+    return (db || 0) - (da || 0);
+  });
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun stock enregistré</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(r => {
+    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>' : '<span class="badge badge-gray">Autres</span>';
+    const supNom    = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
+    return `<tr>
+      <td>${isoToFR(r.date) || r.date}</td>
+      <td>${supNom}</td>
+      <td style="font-family:monospace;font-size:12px">${r.simDebut || '—'}</td>
+      <td style="font-family:monospace;font-size:12px">${r.simFin   || '—'}</td>
+      <td style="text-align:right;font-weight:700">${(r.quantite || 0).toLocaleString('fr-FR')}</td>
+      <td>${typeLabel}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
