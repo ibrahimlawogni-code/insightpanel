@@ -96,19 +96,25 @@ function handleSaveSaisieVallee(data) {
   const sheet = _getOrCreateSaisiesVallee(ss);
   const ts    = new Date().toLocaleString('fr-FR');
 
-  sheet.appendRow([
-    data.date        || _todayFR(),
-    data.supId       || '',
-    data.supNom      || '',
-    data.zone        || '',
-    Number(data.grossAdd)  || 0,
-    Number(data.momoUser)  || 0,
-    Number(data.totalDfa)  || 0,
-    Number(data.dfaActif)  || 0,
-    data.observation || '',
-    ts
-  ]);
+  /* Lire les en-têtes réels pour insérer dans les bonnes colonnes */
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
 
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+
+  set('date',        data.date || _todayFR());
+  set('supid',       data.supId       || '');
+  set('supnom',      data.supNom      || '');
+  set('zone',        data.zone        || '');
+  set('grossadd',    Number(data.grossAdd)  || 0);
+  set('momouser',    Number(data.momoUser)  || 0);
+  set('totaldfa',    Number(data.totalDfa)  || 0);
+  set('dfaactif',    Number(data.dfaActif)  || 0);
+  set('observation', data.observation || '');
+  set('horodatage',  ts);
+
+  sheet.appendRow(row);
   return jsonResponse({ success: true, message: 'Saisie enregistrée.', horodatage: ts });
 }
 
@@ -227,16 +233,30 @@ function _getOrCreateSaisiesVallee(ss) {
     const hdr = sheet.getRange(1, 1, 1, headers.length);
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1,  110);
-    sheet.setColumnWidth(2,  160);
-    sheet.setColumnWidth(3,  180);
-    sheet.setColumnWidth(4,  150);
-    sheet.setColumnWidth(5,  100);
-    sheet.setColumnWidth(6,  110);
-    sheet.setColumnWidth(7,  100);
-    sheet.setColumnWidth(8,  100);
-    sheet.setColumnWidth(9,  250);
-    sheet.setColumnWidth(10, 160);
+    [110, 160, 180, 150, 100, 110, 100, 100, 250, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  } else {
+    /* Migration : ajouter TotalDFA et DFAActif si absents */
+    const lastCol = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+      .map(h => h.toString().toLowerCase().trim());
+
+    const toAdd = [
+      { name: 'TotalDFA', key: 'totaldfa' },
+      { name: 'DFAActif', key: 'dfaactif' }
+    ];
+    toAdd.forEach(col => {
+      if (headers.indexOf(col.key) < 0) {
+        /* Insérer avant "observation" */
+        const obsIdx = headers.indexOf('observation');
+        const pos    = obsIdx >= 0 ? obsIdx + 1 : headers.length + 1;
+        sheet.insertColumnBefore(pos);
+        const cell = sheet.getRange(1, pos);
+        cell.setValue(col.name);
+        cell.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+        sheet.setColumnWidth(pos, 100);
+        headers.splice(pos - 1, 0, col.key);
+      }
+    });
   }
   return sheet;
 }
