@@ -43,7 +43,7 @@ function doGet(e) {
 
 // ─────────────────────────────────────────────────────────────
 // SAISIES — lecture
-// Colonnes : Date | SupID | SupNom | Zone | GrossAdd | MoMoUser | Observation | Horodatage
+// Colonnes : Date | SupID | SupNom | Zone | GrossAdd | MoMoUser | TotalDFA | DFAActif | Observation | Horodatage
 // ─────────────────────────────────────────────────────────────
 function handleGetSaisiesVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
@@ -60,6 +60,8 @@ function handleGetSaisiesVallee(data) {
     zone:        headers.indexOf('zone'),
     grossAdd:    headers.indexOf('grossadd'),
     momoUser:    headers.indexOf('momouser'),
+    totalDfa:    headers.indexOf('totaldfa'),
+    dfaActif:    headers.indexOf('dfaactif'),
     observation: headers.indexOf('observation'),
     horodatage:  headers.indexOf('horodatage')
   };
@@ -75,6 +77,8 @@ function handleGetSaisiesVallee(data) {
       zone:        _cellStr(row[COL.zone]),
       grossAdd:    Number(row[COL.grossAdd])  || 0,
       momoUser:    Number(row[COL.momoUser])  || 0,
+      totalDfa:    COL.totalDfa >= 0 ? (Number(row[COL.totalDfa]) || 0) : null,
+      dfaActif:    COL.dfaActif >= 0 ? (Number(row[COL.dfaActif]) || 0) : null,
       observation: _cellStr(row[COL.observation]),
       horodatage:  _cellStr(row[COL.horodatage]),
       _row:        i + 1
@@ -99,6 +103,8 @@ function handleSaveSaisieVallee(data) {
     data.zone        || '',
     Number(data.grossAdd)  || 0,
     Number(data.momoUser)  || 0,
+    Number(data.totalDfa)  || 0,
+    Number(data.dfaActif)  || 0,
     data.observation || '',
     ts
   ]);
@@ -120,6 +126,8 @@ function handleUpdateSaisieVallee(data) {
     horodatage:  headers.indexOf('horodatage'),
     grossAdd:    headers.indexOf('grossadd'),
     momoUser:    headers.indexOf('momouser'),
+    totalDfa:    headers.indexOf('totaldfa'),
+    dfaActif:    headers.indexOf('dfaactif'),
     observation: headers.indexOf('observation')
   };
 
@@ -130,6 +138,8 @@ function handleUpdateSaisieVallee(data) {
       const rowNum = i + 1;
       sheet.getRange(rowNum, COL.grossAdd + 1).setValue(Number(data.grossAdd) || 0);
       sheet.getRange(rowNum, COL.momoUser + 1).setValue(Number(data.momoUser) || 0);
+      if (COL.totalDfa >= 0) sheet.getRange(rowNum, COL.totalDfa + 1).setValue(Number(data.totalDfa) || 0);
+      if (COL.dfaActif >= 0) sheet.getRange(rowNum, COL.dfaActif + 1).setValue(Number(data.dfaActif) || 0);
       sheet.getRange(rowNum, COL.observation + 1).setValue(data.observation || '');
       return jsonResponse({ success: true, message: 'Saisie mise à jour.' });
     }
@@ -212,19 +222,21 @@ function _getOrCreateSaisiesVallee(ss) {
   let sheet = ss.getSheetByName('SaisiesVallee');
   if (!sheet) {
     sheet = ss.insertSheet('SaisiesVallee');
-    const headers = ['Date', 'SupID', 'SupNom', 'Zone', 'GrossAdd', 'MoMoUser', 'Observation', 'Horodatage'];
+    const headers = ['Date', 'SupID', 'SupNom', 'Zone', 'GrossAdd', 'MoMoUser', 'TotalDFA', 'DFAActif', 'Observation', 'Horodatage'];
     sheet.appendRow(headers);
     const hdr = sheet.getRange(1, 1, 1, headers.length);
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1, 110);
-    sheet.setColumnWidth(2, 160);
-    sheet.setColumnWidth(3, 180);
-    sheet.setColumnWidth(4, 150);
-    sheet.setColumnWidth(5, 100);
-    sheet.setColumnWidth(6, 110);
-    sheet.setColumnWidth(7, 250);
-    sheet.setColumnWidth(8, 160);
+    sheet.setColumnWidth(1,  110);
+    sheet.setColumnWidth(2,  160);
+    sheet.setColumnWidth(3,  180);
+    sheet.setColumnWidth(4,  150);
+    sheet.setColumnWidth(5,  100);
+    sheet.setColumnWidth(6,  110);
+    sheet.setColumnWidth(7,  100);
+    sheet.setColumnWidth(8,  100);
+    sheet.setColumnWidth(9,  250);
+    sheet.setColumnWidth(10, 160);
   }
   return sheet;
 }
