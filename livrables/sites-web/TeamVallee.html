@@ -488,6 +488,11 @@ const ROLE_LABELS = {
   superviseur: 'Superviseur MPOS', agent: 'Agent Terrain'
 };
 
+/* ── INIT DATE ── */
+const today    = new Date();
+const todayISO = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+document.getElementById('topbar-date').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
 /* ── STATE ── */
 let currentUser    = null;
 let VALLEE_SAISIES = [];
@@ -501,11 +506,6 @@ let _dashRefDate     = new Date(today);
 let _dashRangeDebut  = null;
 let _dashRangeFin    = null;
 let _editingTs       = null;
-
-/* ── INIT DATE ── */
-const today    = new Date();
-const todayISO = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-document.getElementById('topbar-date').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
