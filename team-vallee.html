@@ -243,10 +243,26 @@
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard">
-          <div class="period-tabs">
-            <button class="period-tab active" onclick="setDashPeriod('jour', this)">Aujourd'hui</button>
-            <button class="period-tab" onclick="setDashPeriod('semaine', this)">Semaine</button>
-            <button class="period-tab" onclick="setDashPeriod('mois', this)">Mois</button>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
+            <div class="period-tabs" id="dash-kpi-tabs">
+              <button class="period-tab active" onclick="setDashPeriod('jour',this)">Jour</button>
+              <button class="period-tab" onclick="setDashPeriod('periode',this)">Période</button>
+              <button class="period-tab" onclick="setDashPeriod('semaine',this)">Semaine</button>
+              <button class="period-tab" onclick="setDashPeriod('mois',this)">Mois</button>
+              <button class="period-tab" onclick="setDashPeriod('annee',this)">Année</button>
+            </div>
+            <div id="dash-ctrl-date" style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="dash-ref-date" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashRefDateChanged()">
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)"><i class="fa fa-chevron-right"></i></button>
+            </div>
+            <div id="dash-ctrl-range" style="display:none;align-items:center;gap:5px">
+              <span style="font-size:12px;color:var(--text-muted)">Du</span>
+              <input type="date" id="dash-range-debut" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
+              <span style="font-size:12px;color:var(--text-muted)">au</span>
+              <input type="date" id="dash-range-fin" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
+              <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><i class="fa fa-check"></i> Appliquer</button>
+            </div>
           </div>
           <div class="kpi-grid" id="kpi-grid"></div>
           <div class="card">
@@ -428,8 +444,11 @@ let _saisiesLoaded = false;
 let _stockLoaded   = false;
 let _saisiesInFlight = null;
 let _stockInFlight   = null;
-let _dashPeriod    = 'mois';
-let _editingTs     = null;
+let _dashPeriod      = 'jour';
+let _dashRefDate     = new Date(today);
+let _dashRangeDebut  = null;
+let _dashRangeFin    = null;
+let _editingTs       = null;
 
 /* ── INIT DATE ── */
 const today    = new Date();
@@ -537,7 +556,9 @@ function startSession(user) {
   document.getElementById('saisie-date').value = todayISO;
   document.getElementById('stock-date').value  = todayISO;
 
+  _dashRefDate = new Date(today);
   showView('dashboard', document.getElementById('nav-dashboard'));
+  _updateDashControls();
   loadSaisies();
   loadStock();
 }
@@ -631,19 +652,28 @@ function isoToFR(iso) {
 }
 
 function filterByPeriod(data, period) {
-  const now   = new Date(today);
-  const yy = now.getFullYear(), mm = now.getMonth(), dd = now.getDate();
+  const ref = new Date(_dashRefDate); ref.setHours(0,0,0,0);
+  const yy  = ref.getFullYear(), mm = ref.getMonth(), dd = ref.getDate();
 
   if (period === 'jour') {
     return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm && d.getDate() === dd; });
   }
   if (period === 'semaine') {
-    const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
-    const weekStart = new Date(now); weekStart.setDate(dd - dayOfWeek); weekStart.setHours(0,0,0,0);
-    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= weekStart && d <= now; });
+    const dayOfWeek = ref.getDay() === 0 ? 6 : ref.getDay() - 1;
+    const weekStart = new Date(ref); weekStart.setDate(dd - dayOfWeek);
+    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23,59,59,999);
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= weekStart && d <= weekEnd; });
   }
   if (period === 'mois') {
     return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
+  }
+  if (period === 'annee') {
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy; });
+  }
+  if (period === 'periode' && _dashRangeDebut && _dashRangeFin) {
+    const deb = new Date(_dashRangeDebut + 'T00:00:00');
+    const fin = new Date(_dashRangeFin   + 'T23:59:59');
+    return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= deb && d <= fin; });
   }
   return data;
 }
@@ -651,9 +681,78 @@ function filterByPeriod(data, period) {
 /* ── DASHBOARD ── */
 function setDashPeriod(period, el) {
   _dashPeriod = period;
-  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#dash-kpi-tabs .period-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
+  _updateDashControls();
   renderDashboard();
+}
+
+function _updateDashControls() {
+  const ctrlDate  = document.getElementById('dash-ctrl-date');
+  const ctrlRange = document.getElementById('dash-ctrl-range');
+  if (!ctrlDate || !ctrlRange) return;
+  if (_dashPeriod === 'periode') {
+    ctrlDate.style.display  = 'none';
+    ctrlRange.style.display = 'flex';
+    const deb = document.getElementById('dash-range-debut');
+    const fin = document.getElementById('dash-range-fin');
+    if (deb && !deb.value) {
+      const lun = new Date(today); lun.setDate(today.getDate() - ((today.getDay() || 7) - 1));
+      deb.value = lun.getFullYear() + '-' + String(lun.getMonth()+1).padStart(2,'0') + '-' + String(lun.getDate()).padStart(2,'0');
+    }
+    if (fin && !fin.value) fin.value = todayISO;
+  } else {
+    ctrlDate.style.display  = 'flex';
+    ctrlRange.style.display = 'none';
+    const inp = document.getElementById('dash-ref-date');
+    if (inp) inp.value = _dashRefDate.getFullYear() + '-' + String(_dashRefDate.getMonth()+1).padStart(2,'0') + '-' + String(_dashRefDate.getDate()).padStart(2,'0');
+  }
+}
+
+function dashNavDate(dir) {
+  const d = new Date(_dashRefDate);
+  if      (_dashPeriod === 'jour')    d.setDate(d.getDate() + dir);
+  else if (_dashPeriod === 'semaine') d.setDate(d.getDate() + dir * 7);
+  else if (_dashPeriod === 'mois')    d.setMonth(d.getMonth() + dir);
+  else if (_dashPeriod === 'annee')   d.setFullYear(d.getFullYear() + dir);
+  _dashRefDate = d;
+  const inp = document.getElementById('dash-ref-date');
+  if (inp) inp.value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  renderDashboard();
+}
+
+function dashRefDateChanged() {
+  const inp = document.getElementById('dash-ref-date');
+  if (!inp || !inp.value) return;
+  _dashRefDate = new Date(inp.value + 'T00:00:00');
+  renderDashboard();
+}
+
+function applyDashRange() {
+  const deb = document.getElementById('dash-range-debut');
+  const fin = document.getElementById('dash-range-fin');
+  if (!deb?.value || !fin?.value) return;
+  if (deb.value > fin.value) { showToast('Erreur', 'La date de début doit être avant la date de fin.', true); return; }
+  _dashRangeDebut = deb.value;
+  _dashRangeFin   = fin.value;
+  renderDashboard();
+}
+
+function _periodLabel() {
+  const ref = _dashRefDate;
+  const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (_dashPeriod === 'jour')    return fmt(ref);
+  if (_dashPeriod === 'semaine') {
+    const day = ref.getDay() === 0 ? 6 : ref.getDay() - 1;
+    const lun = new Date(ref); lun.setDate(ref.getDate() - day);
+    const dim = new Date(lun); dim.setDate(lun.getDate() + 6);
+    return fmt(lun) + ' – ' + fmt(dim);
+  }
+  if (_dashPeriod === 'mois')    return ref.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  if (_dashPeriod === 'annee')   return ref.getFullYear().toString();
+  if (_dashPeriod === 'periode' && _dashRangeDebut && _dashRangeFin)
+    return fmt(new Date(_dashRangeDebut + 'T00:00:00')) + ' – ' + fmt(new Date(_dashRangeFin + 'T00:00:00'));
+  return 'Période personnalisée';
 }
 
 function renderDashboard() {
@@ -707,7 +806,7 @@ function renderDashboard() {
       <div class="kpi-card">
         <div class="kpi-label">Superviseurs actifs</div>
         <div class="kpi-value">${VALLEE_SUPS.filter(s => totals[s.id].ga > 0 || totals[s.id].momo > 0).length} / 5</div>
-        <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
+        <div class="kpi-target">Période : ${_periodLabel()}</div>
       </div>
     `;
 
@@ -763,7 +862,7 @@ function renderDashboard() {
       <div class="kpi-card">
         <div class="kpi-label">Ma zone</div>
         <div class="kpi-value" style="font-size:18px;line-height:1.3">${mySup.zone}</div>
-        <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
+        <div class="kpi-target">Période : ${_periodLabel()}</div>
       </div>
     `;
 
