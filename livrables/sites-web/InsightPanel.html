@@ -6720,21 +6720,21 @@
   }
 
   async function _valleeSaveSaisie() {
-    if (!VALLEE_URL) { _showToast('VALLEE_URL non configuré.', 'error'); return; }
+    if (!VALLEE_URL) { showToast('Configuration', 'VALLEE_URL non configurée.', true); return; }
     const isRa  = currentUser && ['ra', 'admin'].includes(currentUser.role);
     const sup   = isRa
       ? VALLEE_SUPS.find(s => s.id === document.getElementById('vallee-saisie-sup-select')?.value)
       : VALLEE_SUPS.find(s => s.id === currentUser?.id);
 
-    if (!sup) { _showToast('Aucun superviseur sélectionné.', 'error'); return; }
+    if (!sup) { showToast('Erreur', 'Aucun superviseur sélectionné.', true); return; }
 
     const date = document.getElementById('vallee-saisie-date')?.value;
     const ga   = parseInt(document.getElementById('vallee-saisie-ga')?.value || '0', 10);
     const momo = parseInt(document.getElementById('vallee-saisie-momo')?.value || '0', 10);
     const obs  = document.getElementById('vallee-saisie-obs')?.value || '';
 
-    if (!date) { _showToast('Veuillez renseigner la date.', 'error'); return; }
-    if (isNaN(ga) || ga < 0) { _showToast('Gross Add invalide.', 'error'); return; }
+    if (!date) { showToast('Erreur', 'Veuillez renseigner la date.', true); return; }
+    if (isNaN(ga) || ga < 0) { showToast('Erreur', 'Gross Add invalide.', true); return; }
 
     const payload = {
       action:      'saveSaisieVallee',
@@ -6751,16 +6751,15 @@
       const resp = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await resp.json();
       if (json.success) {
-        _showToast('Saisie enregistrée !', 'success');
-        /* Mise à jour locale */
+        showToast('Succès', 'Saisie enregistrée !', false);
         VALLEE_SAISIES.push({ ...payload, horodatage: json.horodatage || '' });
         _valleeResetSaisieForm();
         _renderValleeSaisieHist();
       } else {
-        _showToast('Erreur : ' + (json.error || 'inconnue'), 'error');
+        showToast('Erreur', json.error || 'Erreur inconnue.', true);
       }
     } catch (e) {
-      _showToast('Erreur réseau : ' + e.message, 'error');
+      showToast('Erreur réseau', e.message, true);
     }
   }
 
@@ -6855,7 +6854,7 @@
   }
 
   async function _valleeSaveStock() {
-    if (!VALLEE_URL) { _showToast('VALLEE_URL non configuré.', 'error'); return; }
+    if (!VALLEE_URL) { showToast('Configuration', 'VALLEE_URL non configurée.', true); return; }
     const sel    = document.getElementById('vallee-stock-sup');
     const opt    = sel?.options[sel.selectedIndex];
     const supId  = sel?.value || '';
@@ -6867,10 +6866,10 @@
     const qty    = parseInt(document.getElementById('vallee-stock-qty')?.value || '0', 10);
     const type   = document.getElementById('vallee-stock-type')?.value || 'p100';
 
-    if (!supId)  { _showToast('Sélectionner un superviseur.', 'error'); return; }
-    if (!date)   { _showToast('Renseigner la date.', 'error'); return; }
-    if (!debut || !fin) { _showToast('Renseigner la plage SIM.', 'error'); return; }
-    if (!qty || qty <= 0) { _showToast('Quantité invalide.', 'error'); return; }
+    if (!supId)           { showToast('Erreur', 'Sélectionner un superviseur.', true); return; }
+    if (!date)            { showToast('Erreur', 'Renseigner la date.', true); return; }
+    if (!debut || !fin)   { showToast('Erreur', 'Renseigner la plage SIM.', true); return; }
+    if (!qty || qty <= 0) { showToast('Erreur', 'Quantité invalide.', true); return; }
 
     const payload = {
       action:     'saveStockVallee',
@@ -6888,19 +6887,18 @@
       const resp = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
       const json = await resp.json();
       if (json.success) {
-        _showToast('Stock enregistré !', 'success');
+        showToast('Succès', 'Stock enregistré !', false);
         VALLEE_STOCK_DATA.push({ ...payload, horodatage: json.horodatage || '' });
-        /* Réinitialiser */
         ['vallee-stock-debut', 'vallee-stock-fin', 'vallee-stock-qty'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
         _renderValleeStockTable();
       } else {
-        _showToast('Erreur : ' + (json.error || 'inconnue'), 'error');
+        showToast('Erreur', json.error || 'Erreur inconnue.', true);
       }
     } catch (e) {
-      _showToast('Erreur réseau : ' + e.message, 'error');
+      showToast('Erreur réseau', e.message, true);
     }
   }
 
