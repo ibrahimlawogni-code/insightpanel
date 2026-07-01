@@ -6650,15 +6650,13 @@
   // ── SAISIE DU JOUR ────────────────────────────────────────────
 
   async function _initValleeSaisie() {
-    await _ensureValleeLoaded();
-
-    /* Sélecteur superviseur (RA/admin seulement) */
-    const selectorCard = document.getElementById('vallee-saisie-sup-selector');
-    const supSelect    = document.getElementById('vallee-saisie-sup-select');
     const isRa = currentUser && ['ra', 'admin'].includes(currentUser.role);
 
+    /* Sélecteur superviseur — populé immédiatement, sans attendre le fetch */
+    const selectorCard = document.getElementById('vallee-saisie-sup-selector');
+    const supSelect    = document.getElementById('vallee-saisie-sup-select');
     if (selectorCard) selectorCard.style.display = isRa ? '' : 'none';
-    if (supSelect && isRa) {
+    if (supSelect && isRa && !supSelect.options.length) {
       supSelect.innerHTML = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
     }
 
@@ -6669,6 +6667,8 @@
     /* Badge date */
     _valleeUpdateSaisieForm();
 
+    /* Chargement des données (peut être lent) */
+    await _ensureValleeLoaded();
     _renderValleeSaisieHist();
   }
 
