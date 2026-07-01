@@ -29,6 +29,8 @@ function doPost(e) {
     if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data);
     if (data.action === 'getStockVallee')      return handleGetStockVallee(data);
     if (data.action === 'saveStockVallee')     return handleSaveStockVallee(data);
+    if (data.action === 'getDysfVallee')       return handleGetDysfVallee(data);
+    if (data.action === 'saveDysfVallee')      return handleSaveDysfVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -279,6 +281,98 @@ function _getOrCreateStockVallee(ss) {
     sheet.setColumnWidth(7, 130);
     sheet.setColumnWidth(8, 160);
     sheet.setColumnWidth(9, 100);
+  }
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DYSFONCTIONNEMENTS — lecture
+// Colonnes : Date | Localite | Nature | HeureDebut | HeureFin | Duree | Impact | AuteurId | AuteurNom | Horodatage
+// ─────────────────────────────────────────────────────────────
+function handleGetDysfVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateDysfVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    date:       headers.indexOf('date'),
+    localite:   headers.indexOf('localite'),
+    nature:     headers.indexOf('nature'),
+    heureDebut: headers.indexOf('heuredebut'),
+    heureFin:   headers.indexOf('heurefin'),
+    duree:      headers.indexOf('duree'),
+    impact:     headers.indexOf('impact'),
+    auteurId:   headers.indexOf('auteurid'),
+    auteurNom:  headers.indexOf('auteurnom'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.date] && !row[COL.nature]) continue;
+    entries.push({
+      date:       _cellStr(row[COL.date]),
+      localite:   _cellStr(row[COL.localite]),
+      nature:     _cellStr(row[COL.nature]),
+      heureDebut: _cellStr(row[COL.heureDebut]),
+      heureFin:   _cellStr(row[COL.heureFin]),
+      duree:      _cellStr(row[COL.duree]),
+      impact:     _cellStr(row[COL.impact]),
+      auteurId:   _cellStr(row[COL.auteurId]),
+      auteurNom:  _cellStr(row[COL.auteurNom]),
+      horodatage: _cellStr(row[COL.horodatage]),
+      _row: i + 1
+    });
+  }
+
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// DYSFONCTIONNEMENTS — écriture
+// ─────────────────────────────────────────────────────────────
+function handleSaveDysfVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateDysfVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+
+  set('date',       data.date        || _todayFR());
+  set('localite',   data.localite    || '');
+  set('nature',     data.nature      || '');
+  set('heuredebut', data.heureDebut  || '');
+  set('heurefin',   data.heureFin    || '');
+  set('duree',      data.duree       || '');
+  set('impact',     data.impact      || '');
+  set('auteurid',   data.auteurId    || '');
+  set('auteurnom',  data.auteurNom   || '');
+  set('horodatage', ts);
+
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, message: 'Dysfonctionnement enregistré.', horodatage: ts });
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRÉATION AUTOMATIQUE — feuille DysfVallee
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateDysfVallee(ss) {
+  let sheet = ss.getSheetByName('DysfVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('DysfVallee');
+    const headers = ['Date', 'Localite', 'Nature', 'HeureDebut', 'HeureFin', 'Duree', 'Impact', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [110, 150, 300, 90, 90, 80, 90, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
   return sheet;
 }

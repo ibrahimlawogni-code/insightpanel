@@ -259,6 +259,9 @@
         <button class="nav-item" id="nav-stocks" onclick="showView('stocks', this)">
           <i class="fa fa-boxes-stacked"></i> Stocks SIM
         </button>
+        <button class="nav-item" id="nav-dysf" onclick="showView('dysfonctionnement', this)">
+          <i class="fa fa-triangle-exclamation"></i> Dysfonctionnements
+        </button>
       </nav>
       <div class="sidebar-footer">
         <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
@@ -441,6 +444,75 @@
           </div>
         </div>
 
+        <!-- VUE DYSFONCTIONNEMENTS -->
+        <div id="view-dysfonctionnement" style="display:none">
+          <div class="card">
+            <div class="card-title"><i class="fa fa-triangle-exclamation"></i> Signaler un dysfonctionnement</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="dysf-date">
+              </div>
+              <div class="form-group">
+                <label>Localité</label>
+                <select id="dysf-localite">
+                  <option value="">— Sélectionner —</option>
+                  <option value="Akpro - Missérété">Akpro - Missérété</option>
+                  <option value="Aguégués - Dangbo">Aguégués - Dangbo</option>
+                  <option value="Adjarra">Adjarra</option>
+                  <option value="Avrankou">Avrankou</option>
+                  <option value="Bonou - Adjohoun">Bonou - Adjohoun</option>
+                </select>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Nature du dysfonctionnement</label>
+                <textarea id="dysf-nature" rows="3" placeholder="Décrivez le dysfonctionnement observé..." style="resize:vertical;width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Heure de début</label>
+                <input type="time" id="dysf-heure-debut" onchange="calcDureeDysf()">
+              </div>
+              <div class="form-group">
+                <label>Heure de fin</label>
+                <input type="time" id="dysf-heure-fin" onchange="calcDureeDysf()">
+              </div>
+              <div class="form-group">
+                <label>Durée (calculée)</label>
+                <input type="text" id="dysf-duree" readonly placeholder="—" style="background:var(--bg)">
+              </div>
+              <div class="form-group">
+                <label>Impact</label>
+                <select id="dysf-impact">
+                  <option value="">— Sélectionner —</option>
+                  <option value="Faible">Faible</option>
+                  <option value="Moyen">Moyen</option>
+                  <option value="Élevé">Élevé</option>
+                  <option value="Critique">Critique</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveDysf()" id="btn-save-dysf">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-list"></i> Historique des dysfonctionnements</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Date</th><th>Localité</th><th>Nature</th>
+                  <th style="text-align:center">Début</th><th style="text-align:center">Fin</th>
+                  <th style="text-align:center">Durée</th><th style="text-align:center">Impact</th>
+                  <th>Saisi par</th>
+                </tr></thead>
+                <tbody id="dysf-tbody"><tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div><!-- /page-body -->
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
@@ -502,6 +574,9 @@ let _dashRefDate     = new Date(today);
 let _dashRangeDebut  = null;
 let _dashRangeFin    = null;
 let _editingTs       = null;
+let VALLEE_DYSF      = [];
+let _dysfLoaded      = false;
+let _dysfInFlight    = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -603,18 +678,30 @@ function startSession(user) {
   /* Dates par défaut */
   document.getElementById('saisie-date').value = todayISO;
   document.getElementById('stock-date').value  = todayISO;
+  document.getElementById('dysf-date').value   = todayISO;
+  /* Verrouiller localité pour superviseur */
+  const dysfLoc = document.getElementById('dysf-localite');
+  const seedSup = VALLEE_SUPS.find(s => s.id === (seed?.id || user.id));
+  if (!['ra','admin','dg','dga','dc','dcc'].includes(user.role) && seedSup) {
+    dysfLoc.value    = seedSup.zone;
+    dysfLoc.disabled = true;
+  } else {
+    dysfLoc.disabled = false;
+    dysfLoc.value    = '';
+  }
 
   _dashRefDate = new Date(today);
   showView('dashboard', document.getElementById('nav-dashboard'));
   _updateDashControls();
   loadSaisies();
   loadStock();
+  loadDysf();
 }
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = [];
-  _saisiesLoaded = false; _stockLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false;
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
@@ -632,18 +719,19 @@ function doLogout() {
 
 /* ── VIEWS ── */
 function showView(name, el) {
-  ['dashboard', 'saisie', 'stocks'].forEach(v => {
+  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement'].forEach(v => {
     document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
-  if (name === 'dashboard') renderDashboard();
-  if (name === 'saisie')    renderSaisieHist();
-  if (name === 'stocks')    renderStockTable();
+  if (name === 'dashboard')        renderDashboard();
+  if (name === 'saisie')           renderSaisieHist();
+  if (name === 'stocks')           renderStockTable();
+  if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
 }
 
 /* ── DATA LOADING ── */
@@ -1333,6 +1421,98 @@ function renderStockTable() {
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
     </tr>`;
   }).join('');
+}
+
+/* ── DYSFONCTIONNEMENTS ── */
+function calcDureeDysf() {
+  const debut   = document.getElementById('dysf-heure-debut').value;
+  const fin     = document.getElementById('dysf-heure-fin').value;
+  const dureeEl = document.getElementById('dysf-duree');
+  if (!debut || !fin) { dureeEl.value = ''; return; }
+  const [dh, dm] = debut.split(':').map(Number);
+  const [fh, fm] = fin.split(':').map(Number);
+  let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
+  if (diffMin < 0) diffMin += 24 * 60;
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  dureeEl.value = `${String(h).padStart(2,'0')}h${String(m).padStart(2,'0')}`;
+}
+
+async function loadDysf() {
+  if (_dysfLoaded) return;
+  if (_dysfInFlight) return _dysfInFlight;
+  _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
+    .then(r => r.json())
+    .then(json => { if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); } })
+    .catch(() => {})
+    .finally(() => { _dysfInFlight = null; });
+  return _dysfInFlight;
+}
+
+async function saveDysf() {
+  if (!currentUser) return;
+  const date       = document.getElementById('dysf-date').value;
+  const localite   = document.getElementById('dysf-localite').value;
+  const nature     = document.getElementById('dysf-nature').value.trim();
+  const heureDebut = document.getElementById('dysf-heure-debut').value;
+  const heureFin   = document.getElementById('dysf-heure-fin').value;
+  const duree      = document.getElementById('dysf-duree').value;
+  const impact     = document.getElementById('dysf-impact').value;
+
+  if (!date)     { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
+  if (!localite) { showToast('Champ requis', 'Veuillez sélectionner une localité.', true); return; }
+  if (!nature)   { showToast('Champ requis', 'Veuillez décrire le dysfonctionnement.', true); return; }
+  if (!impact)   { showToast('Champ requis', 'Veuillez sélectionner un impact.', true); return; }
+
+  const btn = document.getElementById('btn-save-dysf');
+  btn.disabled = true;
+  try {
+    const payload = { action: 'saveDysfVallee', date, localite, nature, heureDebut, heureFin, duree, impact, auteurId: currentUser.id, auteurNom: currentUser.nom };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Dysfonctionnement enregistré', '', false);
+      _dysfLoaded = false; _dysfInFlight = null;
+      await loadDysf();
+      document.getElementById('dysf-nature').value      = '';
+      document.getElementById('dysf-heure-debut').value = '';
+      document.getElementById('dysf-heure-fin').value   = '';
+      document.getElementById('dysf-duree').value       = '';
+      document.getElementById('dysf-impact').value      = '';
+      document.getElementById('dysf-date').value        = todayISO;
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderDysfHist() {
+  const isRa  = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
+  const myId  = currentUser?.id;
+  let data    = isRa ? [...VALLEE_DYSF] : VALLEE_DYSF.filter(r => r.auteurId === myId);
+  data.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.heureDebut || '').localeCompare(a.heureDebut || ''));
+
+  const impactBadge = imp => {
+    const cls = (imp === 'Critique' || imp === 'Élevé') ? 'badge-red' : imp === 'Moyen' ? 'badge-yellow' : 'badge-green';
+    return imp ? `<span class="badge ${cls}">${imp}</span>` : '—';
+  };
+
+  document.getElementById('dysf-tbody').innerHTML = data.length
+    ? data.map(r => `<tr>
+        <td>${r.date || '—'}</td>
+        <td>${r.localite || '—'}</td>
+        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.nature||'').replace(/"/g,'&quot;')}">${r.nature || '—'}</td>
+        <td style="text-align:center">${r.heureDebut || '—'}</td>
+        <td style="text-align:center">${r.heureFin   || '—'}</td>
+        <td style="text-align:center;font-weight:700">${r.duree || '—'}</td>
+        <td style="text-align:center">${impactBadge(r.impact)}</td>
+        <td style="color:var(--text-muted);font-size:12px">${r.auteurNom || '—'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Aucun dysfonctionnement enregistré.</td></tr>';
 }
 </script>
 </body>
