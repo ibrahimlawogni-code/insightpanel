@@ -309,10 +309,6 @@
           <div class="card" style="margin-bottom:16px">
             <div class="card-title" style="margin-bottom:0">
               <i class="fa fa-bullseye"></i> Objectifs
-              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;color:var(--text-muted)">
-                <i class="fa fa-calendar-days"></i> Date de référence
-                <input type="date" id="obj-ref-date" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none" onchange="renderDashboard()">
-              </div>
             </div>
             <div id="objectifs-body" style="margin-top:16px"></div>
           </div>
@@ -609,8 +605,6 @@ function startSession(user) {
   document.getElementById('stock-date').value  = todayISO;
 
   _dashRefDate = new Date(today);
-  const objEl = document.getElementById('obj-ref-date');
-  if (objEl) objEl.value = todayISO;
   showView('dashboard', document.getElementById('nav-dashboard'));
   _updateDashControls();
   loadSaisies();
@@ -958,8 +952,7 @@ function renderDashboard() {
     </div>`;
 
   /* ── 3. Objectifs Journalier / Hebdo / Mensuel ── */
-  const objRefInput = document.getElementById('obj-ref-date');
-  const objRef  = objRefInput?.value ? new Date(objRefInput.value + 'T00:00:00') : new Date(today);
+  const objRef  = new Date(_dashRefDate);
   const objDim  = new Date(objRef.getFullYear(), objRef.getMonth()+1, 0).getDate();
   const baseGA  = isRa ? teamMonthGA : supMonthGA;
   const baseMo  = isRa ? teamMonthMo : supMonthMo;
