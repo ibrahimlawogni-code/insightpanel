@@ -648,84 +648,135 @@ function setDashPeriod(period, el) {
 }
 
 function renderDashboard() {
+  const isRa     = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
   const filtered = filterByPeriod(VALLEE_SAISIES, _dashPeriod);
+  const pctClass = pct => pct >= 100 ? 'good' : pct >= 70 ? 'warn' : 'bad';
+
+  /* Cibles selon période */
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const weekDays    = 6;
+  let baseGA, baseMomo;
+  if      (_dashPeriod === 'jour')    { baseGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth);                 baseMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth); }
+  else if (_dashPeriod === 'semaine') { baseGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth * weekDays);      baseMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth * weekDays); }
+  else                                { baseGA = VALLEE_TEAM_TARGET.ga;                                           baseMomo = VALLEE_TEAM_TARGET.momo; }
+
+  const targetGASup   = Math.round(baseGA   / 5);
+  const targetMomoSup = Math.round(baseMomo / 5);
 
   /* Agrégation par superviseur */
   const totals = {};
   VALLEE_SUPS.forEach(s => { totals[s.id] = { ga: 0, momo: 0 }; });
   filtered.forEach(r => {
-    if (totals[r.supId]) {
+    if (totals[r.supId] !== undefined) {
       totals[r.supId].ga   += Number(r.grossAdd) || 0;
       totals[r.supId].momo += Number(r.momoUser) || 0;
     }
   });
 
-  const teamGA   = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].ga,   0);
-  const teamMomo = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].momo, 0);
+  if (isRa) {
+    /* ── VUE RA / ADMIN : équipe complète ── */
+    const teamGA   = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].ga,   0);
+    const teamMomo = VALLEE_SUPS.reduce((s, sup) => s + totals[sup.id].momo, 0);
+    const pctGA    = baseGA   > 0 ? Math.round(teamGA   / baseGA   * 100) : 0;
+    const pctMomo  = baseMomo > 0 ? Math.round(teamMomo / baseMomo * 100) : 0;
 
-  /* Cibles selon période */
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const weekDays    = 6;
-  let targetGA, targetMomo;
-  if      (_dashPeriod === 'jour')    { targetGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth);   targetMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth); }
-  else if (_dashPeriod === 'semaine') { targetGA = Math.round(VALLEE_TEAM_TARGET.ga / daysInMonth * weekDays); targetMomo = Math.round(VALLEE_TEAM_TARGET.momo / daysInMonth * weekDays); }
-  else                                { targetGA = VALLEE_TEAM_TARGET.ga; targetMomo = VALLEE_TEAM_TARGET.momo; }
-  const targetGASup   = Math.round(targetGA   / 5);
-  const targetMomoSup = Math.round(targetMomo / 5);
+    document.getElementById('kpi-grid').innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label">Gross Add — Équipe</div>
+        <div class="kpi-value">${teamGA.toLocaleString('fr-FR')}</div>
+        <div class="kpi-target">Cible : ${baseGA.toLocaleString('fr-FR')}</div>
+        <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctGA)}" style="width:${Math.min(pctGA,100)}%"></div></div>
+        <div class="kpi-pct ${pctClass(pctGA)}" style="margin-top:4px">${pctGA} %</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">MoMo User — Équipe</div>
+        <div class="kpi-value">${teamMomo.toLocaleString('fr-FR')}</div>
+        <div class="kpi-target">Cible : ${baseMomo.toLocaleString('fr-FR')}</div>
+        <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctMomo)}" style="width:${Math.min(pctMomo,100)}%"></div></div>
+        <div class="kpi-pct ${pctClass(pctMomo)}" style="margin-top:4px">${pctMomo} %</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Superviseurs actifs</div>
+        <div class="kpi-value">${VALLEE_SUPS.filter(s => totals[s.id].ga > 0 || totals[s.id].momo > 0).length} / 5</div>
+        <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
+      </div>
+    `;
 
-  /* KPI cards */
-  const pctGA   = targetGA   > 0 ? Math.round(teamGA   / targetGA   * 100) : 0;
-  const pctMomo = targetMomo > 0 ? Math.round(teamMomo / targetMomo * 100) : 0;
-  const pctClass = pct => pct >= 100 ? 'good' : pct >= 70 ? 'warn' : 'bad';
+    document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
+      const { ga, momo } = totals[sup.id];
+      const pgaRaw = targetGASup   > 0 ? Math.round(ga   / targetGASup   * 100) : 0;
+      const pmoRaw = targetMomoSup > 0 ? Math.round(momo / targetMomoSup * 100) : 0;
+      const cls    = pct => pct >= 100 ? 'badge-green' : pct >= 70 ? 'badge-yellow' : 'badge-red';
+      return `<tr>
+        <td><strong>${sup.nom}</strong></td>
+        <td style="color:var(--text-muted);font-size:12px">${sup.zone}</td>
+        <td style="text-align:right;font-weight:700">${ga.toLocaleString('fr-FR')}</td>
+        <td style="text-align:center"><span class="badge ${cls(pgaRaw)}">${pgaRaw} %</span></td>
+        <td style="text-align:right;font-weight:700">${momo.toLocaleString('fr-FR')}</td>
+        <td style="text-align:center"><span class="badge ${cls(pmoRaw)}">${pmoRaw} %</span></td>
+      </tr>`;
+    }).join('');
 
-  document.getElementById('kpi-grid').innerHTML = `
-    <div class="kpi-card">
-      <div class="kpi-label">Gross Add — Équipe</div>
-      <div class="kpi-value">${teamGA.toLocaleString('fr-FR')}</div>
-      <div class="kpi-target">Cible : ${targetGA.toLocaleString('fr-FR')}</div>
-      <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctGA)}" style="width:${Math.min(pctGA,100)}%"></div></div>
-      <div class="kpi-pct ${pctClass(pctGA)}" style="margin-top:4px">${pctGA} %</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">MoMo User — Équipe</div>
-      <div class="kpi-value">${teamMomo.toLocaleString('fr-FR')}</div>
-      <div class="kpi-target">Cible : ${targetMomo.toLocaleString('fr-FR')}</div>
-      <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctMomo)}" style="width:${Math.min(pctMomo,100)}%"></div></div>
-      <div class="kpi-pct ${pctClass(pctMomo)}" style="margin-top:4px">${pctMomo} %</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Superviseurs actifs</div>
-      <div class="kpi-value">${VALLEE_SUPS.filter(s => totals[s.id].ga > 0 || totals[s.id].momo > 0).length} / 5</div>
-      <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
-    </div>
-  `;
+    const pgaTeam = baseGA   > 0 ? Math.round(teamGA   / baseGA   * 100) : 0;
+    const pmoTeam = baseMomo > 0 ? Math.round(teamMomo / baseMomo * 100) : 0;
+    document.getElementById('dash-tfoot').innerHTML = `
+      <td colspan="2"><strong>TOTAL ÉQUIPE</strong></td>
+      <td style="text-align:right"><strong>${teamGA.toLocaleString('fr-FR')}</strong></td>
+      <td style="text-align:center"><strong>${pgaTeam} %</strong></td>
+      <td style="text-align:right"><strong>${teamMomo.toLocaleString('fr-FR')}</strong></td>
+      <td style="text-align:center"><strong>${pmoTeam} %</strong></td>
+    `;
 
-  /* Table */
-  const tbody = document.getElementById('dash-tbody');
-  tbody.innerHTML = VALLEE_SUPS.map(sup => {
-    const { ga, momo } = totals[sup.id];
-    const pgaRaw  = targetGASup   > 0 ? Math.round(ga   / targetGASup   * 100) : 0;
-    const pmoRaw  = targetMomoSup > 0 ? Math.round(momo / targetMomoSup * 100) : 0;
+  } else {
+    /* ── VUE SUPERVISEUR : ses données uniquement ── */
+    const myId   = currentUser.id;
+    const myGa   = totals[myId]?.ga   || 0;
+    const myMomo = totals[myId]?.momo || 0;
+    const pctGA  = targetGASup   > 0 ? Math.round(myGa   / targetGASup   * 100) : 0;
+    const pctMomo= targetMomoSup > 0 ? Math.round(myMomo / targetMomoSup * 100) : 0;
+    const mySup  = VALLEE_SUPS.find(s => s.id === myId) || { nom: currentUser.nom, zone: currentUser.zone || '—' };
+
+    document.getElementById('kpi-grid').innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label">Mon Gross Add</div>
+        <div class="kpi-value">${myGa.toLocaleString('fr-FR')}</div>
+        <div class="kpi-target">Ma cible : ${targetGASup.toLocaleString('fr-FR')}</div>
+        <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctGA)}" style="width:${Math.min(pctGA,100)}%"></div></div>
+        <div class="kpi-pct ${pctClass(pctGA)}" style="margin-top:4px">${pctGA} %</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mon MoMo User</div>
+        <div class="kpi-value">${myMomo.toLocaleString('fr-FR')}</div>
+        <div class="kpi-target">Ma cible : ${targetMomoSup.toLocaleString('fr-FR')}</div>
+        <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctMomo)}" style="width:${Math.min(pctMomo,100)}%"></div></div>
+        <div class="kpi-pct ${pctClass(pctMomo)}" style="margin-top:4px">${pctMomo} %</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ma zone</div>
+        <div class="kpi-value" style="font-size:18px;line-height:1.3">${mySup.zone}</div>
+        <div class="kpi-target">Période : ${_dashPeriod === 'jour' ? "Aujourd'hui" : _dashPeriod.charAt(0).toUpperCase() + _dashPeriod.slice(1)}</div>
+      </div>
+    `;
+
+    /* Table : une seule ligne, la sienne */
     const cls = pct => pct >= 100 ? 'badge-green' : pct >= 70 ? 'badge-yellow' : 'badge-red';
-    return `<tr>
-      <td><strong>${sup.nom}</strong></td>
-      <td style="color:var(--text-muted);font-size:12px">${sup.zone}</td>
-      <td style="text-align:right;font-weight:700">${ga.toLocaleString('fr-FR')}</td>
-      <td style="text-align:center"><span class="badge ${cls(pgaRaw)}">${pgaRaw} %</span></td>
-      <td style="text-align:right;font-weight:700">${momo.toLocaleString('fr-FR')}</td>
-      <td style="text-align:center"><span class="badge ${cls(pmoRaw)}">${pmoRaw} %</span></td>
+    document.getElementById('dash-tbody').innerHTML = `<tr>
+      <td><strong>${mySup.nom}</strong></td>
+      <td style="color:var(--text-muted);font-size:12px">${mySup.zone}</td>
+      <td style="text-align:right;font-weight:700">${myGa.toLocaleString('fr-FR')}</td>
+      <td style="text-align:center"><span class="badge ${cls(pctGA)}">${pctGA} %</span></td>
+      <td style="text-align:right;font-weight:700">${myMomo.toLocaleString('fr-FR')}</td>
+      <td style="text-align:center"><span class="badge ${cls(pctMomo)}">${pctMomo} %</span></td>
     </tr>`;
-  }).join('');
 
-  const pgaTeam  = targetGA   > 0 ? Math.round(teamGA   / targetGA   * 100) : 0;
-  const pmoTeam  = targetMomo > 0 ? Math.round(teamMomo / targetMomo * 100) : 0;
-  document.getElementById('dash-tfoot').innerHTML = `
-    <td colspan="2"><strong>TOTAL ÉQUIPE</strong></td>
-    <td style="text-align:right"><strong>${teamGA.toLocaleString('fr-FR')}</strong></td>
-    <td style="text-align:center"><strong>${pgaTeam} %</strong></td>
-    <td style="text-align:right"><strong>${teamMomo.toLocaleString('fr-FR')}</strong></td>
-    <td style="text-align:center"><strong>${pmoTeam} %</strong></td>
-  `;
+    document.getElementById('dash-tfoot').innerHTML = `
+      <td colspan="2"><strong>MA CIBLE</strong></td>
+      <td style="text-align:right"><strong>${targetGASup.toLocaleString('fr-FR')}</strong></td>
+      <td style="text-align:center">—</td>
+      <td style="text-align:right"><strong>${targetMomoSup.toLocaleString('fr-FR')}</strong></td>
+      <td style="text-align:center">—</td>
+    `;
+  }
 }
 
 /* ── SAISIE ── */
