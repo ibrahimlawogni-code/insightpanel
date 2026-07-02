@@ -524,28 +524,37 @@
 
         <!-- VUE PARAMETRES -->
         <div id="view-parametres" style="display:none">
-          <div class="card">
-            <div class="card-title"><i class="fa fa-gear"></i> Paramètres</div>
-            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:24px">
-              Définissez les objectifs mensuels de l'équipe. Les cibles journalières, hebdomadaires, trimestrielles et annuelles sont calculées automatiquement à partir de ces valeurs.
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title"><i class="fa fa-gear"></i> Objectifs mensuels — équipe</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:18px">
+              Renseignez les cibles équipe mois par mois. Laissez vide pour utiliser la valeur par défaut
+              (<span id="param-default-hint"></span>).
             </p>
-            <div style="display:grid;gap:20px;max-width:500px">
-              <div class="form-group">
-                <label>Cible mensuelle Gross Add — équipe</label>
-                <input type="number" id="param-ga" min="1" step="1" placeholder="ex. 18660" oninput="_updateParamHints()">
-                <div id="param-ga-hint" style="font-size:12px;color:var(--text-muted);margin-top:5px"></div>
-              </div>
-              <div class="form-group">
-                <label>Cible mensuelle MoMo User — équipe</label>
-                <input type="number" id="param-momo" min="1" step="1" placeholder="ex. 16794" oninput="_updateParamHints()">
-                <div id="param-momo-hint" style="font-size:12px;color:var(--text-muted);margin-top:5px"></div>
-              </div>
-              <div>
-                <button class="btn btn-primary" onclick="saveParametres()">
-                  <i class="fa fa-floppy-disk"></i> Sauvegarder
-                </button>
-              </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:340px">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border)">
+                    <th style="text-align:left;padding:6px 12px 10px 0;font-size:13px">Mois</th>
+                    <th style="text-align:right;padding:6px 6px 10px;font-size:13px">Gross Add</th>
+                    <th style="text-align:right;padding:6px 0 10px 6px;font-size:13px">MoMo User</th>
+                  </tr>
+                </thead>
+                <tbody id="param-months-tbody"></tbody>
+              </table>
             </div>
+            <div style="margin-top:16px">
+              <button class="btn btn-primary" onclick="saveParametres()">
+                <i class="fa fa-floppy-disk"></i> Sauvegarder
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-chart-pie"></i> Répartition DFA Actifs — mois en cours</div>
+            <p style="font-size:12px;color:var(--text-muted);margin:4px 0 14px">
+              Cibles par superviseur calculées automatiquement selon leur part de DFA Actifs du mois en cours.
+              Si aucune donnée DFA, la répartition est égale entre les 5 superviseurs.
+            </p>
+            <div id="param-dfa-weights"></div>
           </div>
         </div>
 
@@ -567,14 +576,23 @@ const VALLEE_SUPS = [
   { id: 'François.Dansou',    nom: 'François DANSOU',    zone: 'Avrankou',          initiales: 'FD' },
 ];
 
-let VALLEE_TEAM_TARGET = { ga: 18660, momo: 16794 };
+let VALLEE_TEAM_TARGET    = { ga: 18660, momo: 16794 }; // fallback par défaut
+let VALLEE_MONTHLY_TARGETS = {};                          // { 'YYYY-MM': { ga, momo } }
 
 (function loadTargets() {
   try {
     const saved = localStorage.getItem('tv_targets');
     if (saved) { const p = JSON.parse(saved); if (p && p.ga > 0 && p.momo > 0) VALLEE_TEAM_TARGET = p; }
+    const savedM = localStorage.getItem('tv_monthly_targets');
+    if (savedM) { VALLEE_MONTHLY_TARGETS = JSON.parse(savedM) || {}; }
   } catch (_) {}
 })();
+
+/* Retourne la cible équipe pour un mois donné (mois : 0-indexé) */
+function getMonthTarget(year, month0) {
+  const key = `${year}-${String(month0 + 1).padStart(2, '0')}`;
+  return VALLEE_MONTHLY_TARGETS[key] || VALLEE_TEAM_TARGET;
+}
 
 const USERS_SEED = [
   { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
@@ -758,28 +776,130 @@ function startSession(user) {
 }
 
 /* ── PARAMÈTRES ── */
+const FR_MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
 function renderParametres() {
-  document.getElementById('param-ga').value   = VALLEE_TEAM_TARGET.ga;
-  document.getElementById('param-momo').value = VALLEE_TEAM_TARGET.momo;
-  _updateParamHints();
+  const now = new Date(_dashRefDate);
+  const hint = document.getElementById('param-default-hint');
+  if (hint) hint.textContent = `GA : ${VALLEE_TEAM_TARGET.ga.toLocaleString('fr-FR')} · MoMo : ${VALLEE_TEAM_TARGET.momo.toLocaleString('fr-FR')}`;
+
+  const tbody = document.getElementById('param-months-tbody');
+  if (!tbody) return;
+
+  const months = [];
+  for (let i = 0; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month0: d.getMonth() });
+  }
+
+  tbody.innerHTML = months.map(({ year, month0 }) => {
+    const key   = `${year}-${String(month0 + 1).padStart(2, '0')}`;
+    const saved = VALLEE_MONTHLY_TARGETS[key];
+    const isCur = (year === now.getFullYear() && month0 === now.getMonth());
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px 8px 0;font-size:13px;white-space:nowrap">
+        ${FR_MONTHS[month0]} ${year}${isCur ? ' <span style="font-size:11px;color:var(--primary);font-weight:600">← actuel</span>' : ''}
+      </td>
+      <td style="padding:8px 6px;text-align:right">
+        <input type="number" class="param-month-ga" data-key="${key}" min="1" step="1"
+               value="${saved ? saved.ga : ''}" placeholder="${VALLEE_TEAM_TARGET.ga}"
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+      </td>
+      <td style="padding:8px 0 8px 6px;text-align:right">
+        <input type="number" class="param-month-momo" data-key="${key}" min="1" step="1"
+               value="${saved ? saved.momo : ''}" placeholder="${VALLEE_TEAM_TARGET.momo}"
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+      </td>
+    </tr>`;
+  }).join('');
+
+  _renderDfaWeights();
 }
 
-function _updateParamHints() {
-  const ga   = Number(document.getElementById('param-ga').value)   || 0;
-  const momo = Number(document.getElementById('param-momo').value) || 0;
+function _renderDfaWeights() {
+  const el = document.getElementById('param-dfa-weights');
+  if (!el) return;
+  const now  = new Date(_dashRefDate);
+  const yy   = now.getFullYear();
+  const mm   = now.getMonth();
+  const tgt  = getMonthTarget(yy, mm);
   const nSup = VALLEE_SUPS.length;
-  document.getElementById('param-ga-hint').textContent   = ga   ? `→ Par superviseur : ${Math.round(ga / nSup).toLocaleString('fr-FR')} GA / mois`   : '';
-  document.getElementById('param-momo-hint').textContent = momo ? `→ Par superviseur : ${Math.round(momo / nSup).toLocaleString('fr-FR')} MoMo / mois` : '';
+
+  const monthRows = VALLEE_SAISIES.filter(r => {
+    const d = parseSaisieDate(r.date);
+    return d && d.getFullYear() === yy && d.getMonth() === mm;
+  });
+  const dfaMap = {};
+  [...monthRows].sort((a, b) => parseSaisieDate(b.date) - parseSaisieDate(a.date))
+    .forEach(r => { if (r.supId && dfaMap[r.supId] === undefined) dfaMap[r.supId] = Number(r.dfaActif) || 0; });
+  const totalDfa = Object.values(dfaMap).reduce((s, v) => s + v, 0);
+
+  if (!VALLEE_SAISIES.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Chargez les données d\'abord pour voir la répartition DFA.</p>';
+    return;
+  }
+
+  el.innerHTML = `
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+      ${FR_MONTHS[mm]} ${yy} · ${totalDfa > 0 ? 'Répartition proportionnelle aux DFA Actifs' : 'Données DFA absentes — répartition égale'}
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:4px 8px 8px 0">Superviseur</th>
+          <th style="text-align:right;padding:4px 6px 8px;font-size:12px">DFA Actifs</th>
+          <th style="text-align:right;padding:4px 6px 8px;font-size:12px">Part</th>
+          <th style="text-align:right;padding:4px 0 8px 6px;font-size:12px">Cible GA</th>
+          <th style="text-align:right;padding:4px 0 8px 6px;font-size:12px">Cible MoMo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${VALLEE_SUPS.map(sup => {
+          const dfa  = totalDfa > 0 ? (dfaMap[sup.id] ?? 0) : null;
+          const part = totalDfa > 0 ? (dfaMap[sup.id] ?? 0) / totalDfa : 1 / nSup;
+          const cGa   = Math.round(tgt.ga   * part);
+          const cMomo = Math.round(tgt.momo * part);
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:7px 8px 7px 0">${sup.nom}</td>
+            <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger,#e74c3c)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
+            <td style="text-align:right;padding:7px 6px;color:var(--text-muted)">${(part * 100).toFixed(1)}%</td>
+            <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cGa.toLocaleString('fr-FR')}</td>
+            <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cMomo.toLocaleString('fr-FR')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);font-weight:600">
+          <td style="padding:8px 0 4px">Total équipe</td>
+          <td style="text-align:right;padding:8px 6px 4px">${totalDfa > 0 ? totalDfa.toLocaleString('fr-FR') : '—'}</td>
+          <td style="text-align:right;padding:8px 6px 4px;color:var(--text-muted)">100%</td>
+          <td style="text-align:right;padding:8px 0 4px 6px">${tgt.ga.toLocaleString('fr-FR')}</td>
+          <td style="text-align:right;padding:8px 0 4px 6px">${tgt.momo.toLocaleString('fr-FR')}</td>
+        </tr>
+      </tfoot>
+    </table>`;
 }
 
 function saveParametres() {
-  const ga   = Number(document.getElementById('param-ga').value);
-  const momo = Number(document.getElementById('param-momo').value);
-  if (!ga || !momo || ga < 1 || momo < 1) { showToast('Erreur', 'Les cibles doivent être supérieures à 0.', true); return; }
-  VALLEE_TEAM_TARGET = { ga, momo };
-  try { localStorage.setItem('tv_targets', JSON.stringify(VALLEE_TEAM_TARGET)); } catch (_) {}
-  showToast('Sauvegardé', 'Objectifs mensuels mis à jour.', false);
+  const gaInputs = document.querySelectorAll('.param-month-ga');
+  let changed = 0;
+  gaInputs.forEach(inp => {
+    const key     = inp.dataset.key;
+    const gaV     = Number(inp.value) || 0;
+    const momoInp = document.querySelector(`.param-month-momo[data-key="${key}"]`);
+    const momoV   = Number(momoInp?.value) || 0;
+    if (gaV > 0 && momoV > 0) {
+      VALLEE_MONTHLY_TARGETS[key] = { ga: gaV, momo: momoV };
+      changed++;
+    } else if (!gaV && !momoV && VALLEE_MONTHLY_TARGETS[key]) {
+      delete VALLEE_MONTHLY_TARGETS[key];
+      changed++;
+    }
+  });
+  try { localStorage.setItem('tv_monthly_targets', JSON.stringify(VALLEE_MONTHLY_TARGETS)); } catch (_) {}
+  showToast('Sauvegardé', `${changed} mois mis à jour.`, false);
   renderDashboard();
+  _renderDfaWeights();
 }
 
 function doLogout() {
@@ -1098,29 +1218,38 @@ function renderDashboard() {
 
   console.log('[renderDashboard] VALLEE_SAISIES:', VALLEE_SAISIES.length, '| filtered:', filtered.length, '| myId:', myId, '| isRa:', isRa, '| period:', _dashPeriod);
 
-  /* Cibles mensuelles de base */
+  /* Cibles mensuelles — par mois ou fallback sur le défaut */
   const refDate     = new Date(_dashRefDate);
-  const dim         = new Date(refDate.getFullYear(), refDate.getMonth()+1, 0).getDate();
-  const teamMonthGA = VALLEE_TEAM_TARGET.ga;
-  const teamMonthMo = VALLEE_TEAM_TARGET.momo;
-  const supMonthGA  = Math.round(teamMonthGA / 5);
-  const supMonthMo  = Math.round(teamMonthMo / 5);
+  const yy          = refDate.getFullYear();
+  const mm          = refDate.getMonth();
+  const dim         = new Date(yy, mm + 1, 0).getDate();
   const weekDays    = 6;
+  const monthTgt    = getMonthTarget(yy, mm);
+  const teamMonthGA = monthTgt.ga;
+  const teamMonthMo = monthTgt.momo;
 
-  function periodTarget(monthly) {
-    if (_dashPeriod === 'jour')       return Math.round(monthly / dim);
-    if (_dashPeriod === 'semaine')    return Math.round(monthly / dim * weekDays);
-    if (_dashPeriod === 'trimestre')  return monthly * 3;
-    if (_dashPeriod === 'annee')      return monthly * 12;
+  /* Cible équipe pour la période sélectionnée (somme des cibles mensuelles réelles pour Q/A) */
+  function periodTarget(metric) {
+    const monthly = getMonthTarget(yy, mm)[metric];
+    if (_dashPeriod === 'jour')    return Math.round(monthly / dim);
+    if (_dashPeriod === 'semaine') return Math.round(monthly / dim * weekDays);
+    if (_dashPeriod === 'mois')    return monthly;
+    if (_dashPeriod === 'trimestre') {
+      const qStart = Math.floor(mm / 3) * 3;
+      return [0, 1, 2].reduce((s, i) => s + getMonthTarget(yy, qStart + i)[metric], 0);
+    }
+    if (_dashPeriod === 'annee') {
+      return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].reduce((s, i) => s + getMonthTarget(yy, i)[metric], 0);
+    }
     if (_dashPeriod === 'periode' && _dashRangeDebut && _dashRangeFin) {
-      const days = Math.round((new Date(_dashRangeFin+'T00:00:00') - new Date(_dashRangeDebut+'T00:00:00')) / 86400000) + 1;
+      const days = Math.round((new Date(_dashRangeFin + 'T00:00:00') - new Date(_dashRangeDebut + 'T00:00:00')) / 86400000) + 1;
       return Math.round(monthly / dim * days);
     }
     return monthly;
   }
 
-  const targetGA   = periodTarget(isRa ? teamMonthGA : supMonthGA);
-  const targetMomo = periodTarget(isRa ? teamMonthMo : supMonthMo);
+  const teamTargetGA   = periodTarget('ga');
+  const teamTargetMomo = periodTarget('momo');
 
   /* Agrégation courante */
   let curGA = 0, curMomo = 0;
@@ -1131,13 +1260,30 @@ function renderDashboard() {
     if (r.supId) activeSups.add(r.supId);
   });
 
-  /* DFA : snapshot — dernière valeur par superviseur dans la période (pas un cumul) */
+  /* DFA : snapshot période + snapshot mensuel pour pondération des cibles */
   const latestDfa = {};
   [...filtered]
     .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
     .forEach(r => { if (r.supId && latestDfa[r.supId] === undefined) latestDfa[r.supId] = { totalDfa: Number(r.totalDfa)||0, dfaActif: Number(r.dfaActif)||0 }; });
   const curTotalDfa = Object.values(latestDfa).reduce((s, v) => s + v.totalDfa, 0);
   const curDfaActif = Object.values(latestDfa).reduce((s, v) => s + v.dfaActif, 0);
+
+  /* DFA Actifs du mois de référence (pour la pondération des cibles par superviseur) */
+  const monthRows = VALLEE_SAISIES.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
+  const monthDfaMap = {};
+  [...monthRows].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+    .forEach(r => { if (r.supId && monthDfaMap[r.supId] === undefined) monthDfaMap[r.supId] = Number(r.dfaActif) || 0; });
+  const totalMonthDfa = Object.values(monthDfaMap).reduce((s, v) => s + v, 0);
+
+  /* Cible proportionnelle d'un superviseur (pondérée par DFA Actifs du mois) */
+  function supPropTarget(teamPeriodTarget, supId) {
+    if (!teamPeriodTarget) return 0;
+    if (totalMonthDfa === 0) return Math.round(teamPeriodTarget / VALLEE_SUPS.length);
+    return Math.round(teamPeriodTarget * (monthDfaMap[supId] || 0) / totalMonthDfa);
+  }
+
+  const targetGA   = isRa ? teamTargetGA   : supPropTarget(teamTargetGA,   myId);
+  const targetMomo = isRa ? teamTargetMomo : supPropTarget(teamTargetMomo, myId);
 
   /* Agrégation précédente pour delta */
   let prevGA = 0, prevMomo = 0;
@@ -1227,8 +1373,8 @@ function renderDashboard() {
   /* ── 3. Objectifs Journalier / Hebdo / Mensuel ── */
   const objRef  = new Date(_dashRefDate);
   const objDim  = new Date(objRef.getFullYear(), objRef.getMonth()+1, 0).getDate();
-  const baseGA  = isRa ? teamMonthGA : supMonthGA;
-  const baseMo  = isRa ? teamMonthMo : supMonthMo;
+  const baseGA  = isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId);
+  const baseMo  = isRa ? teamMonthMo : supPropTarget(teamMonthMo, myId);
 
   function filterByObjPeriod(p) {
     const oyy = objRef.getFullYear(), omm = objRef.getMonth(), odd = objRef.getDate();
@@ -1313,8 +1459,6 @@ function renderDashboard() {
     }
   });
 
-  const tGASup   = isRa ? Math.round(targetGA   / 5) : targetGA;
-  const tMomoSup = isRa ? Math.round(targetMomo / 5) : targetMomo;
   const badgeCls = pct => pct >= 100 ? 'badge-green' : pct >= 70 ? 'badge-yellow' : 'badge-red';
 
   function deltaBadge(cur, prev) {
@@ -1328,8 +1472,11 @@ function renderDashboard() {
 
   if (isRa) {
     document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
-      const { ga, momo }         = totals[sup.id];
+      const { ga, momo }           = totals[sup.id];
       const { ga: pGa, momo: pMo } = prevTotals[sup.id];
+      /* Cible individuelle pondérée par DFA Actifs */
+      const tGASup   = supPropTarget(teamTargetGA,   sup.id);
+      const tMomoSup = supPropTarget(teamTargetMomo, sup.id);
       const pgaRaw = tGASup   > 0 ? Math.round(ga   / tGASup   * 100) : 0;
       const pmoRaw = tMomoSup > 0 ? Math.round(momo / tMomoSup * 100) : 0;
       return `<tr>
@@ -1343,8 +1490,8 @@ function renderDashboard() {
         <td style="text-align:center"><span class="badge ${badgeCls(pmoRaw)}">${pmoRaw} %</span></td>
       </tr>`;
     }).join('');
-    const pgaTeam = targetGA   > 0 ? Math.round(curGA   / targetGA   * 100) : 0;
-    const pmoTeam = targetMomo > 0 ? Math.round(curMomo / targetMomo * 100) : 0;
+    const pgaTeam = teamTargetGA   > 0 ? Math.round(curGA   / teamTargetGA   * 100) : 0;
+    const pmoTeam = teamTargetMomo > 0 ? Math.round(curMomo / teamTargetMomo * 100) : 0;
     document.getElementById('dash-tfoot').innerHTML = `
       <td colspan="2"><strong>TOTAL ÉQUIPE</strong></td>
       <td style="text-align:right"><strong>${curGA.toLocaleString('fr-FR')}</strong></td>
@@ -1352,7 +1499,7 @@ function renderDashboard() {
       <td style="text-align:center"><strong>${pgaTeam} %</strong></td>
       <td style="text-align:right"><strong>${curMomo.toLocaleString('fr-FR')}</strong></td>
       <td style="text-align:center">${deltaBadge(curMomo, prevMomo)}</td>
-      <td style="text-align:center"><strong>${pmoTeam} %</strong></td>`;
+      <td style="text-align:center"><strong>${pmoTeam} %</strong> <span style="font-size:10px;color:var(--text-muted);font-weight:400">${totalMonthDfa > 0 ? '· DFA' : '· égal'}</span></td>`;
   } else {
     const mySup    = VALLEE_SUPS.find(s => s.id === myId) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
     const myGA     = totals[myId]?.ga     || 0;
