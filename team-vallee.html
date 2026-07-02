@@ -648,6 +648,20 @@ function normalizeId(raw) {
   return raw.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join('.');
 }
 
+/* Recherche d'un utilisateur dans USERS_SEED avec fallback par nom de famille */
+function _findSeed(gasId) {
+  if (!gasId) return null;
+  /* Correspondance exacte (insensible à la casse) */
+  let s = USERS_SEED.find(u => u.id.toLowerCase() === gasId.toLowerCase());
+  if (s) return s;
+  /* Fallback : l'ID GAS se termine par le nom de famille d'un seed (ex. "Dbah" → "Ghislain.Bah") */
+  const lower = gasId.toLowerCase();
+  return USERS_SEED.find(u => {
+    const lastName = u.id.split('.').pop().toLowerCase();
+    return lower.endsWith(lastName);
+  }) || null;
+}
+
 async function doLogin() {
   const identifiant = normalizeId(document.getElementById('login-id').value.trim());
   const password    = document.getElementById('login-pwd').value;
@@ -668,8 +682,8 @@ async function doLogin() {
     const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login', id: identifiant, pwd: password }) });
     const json = await res.json();
     if (json.success && json.user) {
-      const seed = USERS_SEED.find(u => u.id.toLowerCase() === json.user.id.toLowerCase());
-      user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
+      const seed = _findSeed(json.user.id);
+      user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role, zone: seed.zone || json.user.zone } : json.user;
     }
   } catch (_) {}
 
@@ -696,8 +710,8 @@ async function doLogin() {
 }
 
 function startSession(user) {
-  const seed = USERS_SEED.find(u => u.id.toLowerCase() === user.id.toLowerCase());
-  currentUser = { ...user, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role };
+  const seed = _findSeed(user.id);
+  currentUser = { ...user, id: seed?.id || user.id, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role, zone: seed?.zone || user.zone };
 
   try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
 
