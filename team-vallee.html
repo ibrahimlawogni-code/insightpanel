@@ -768,7 +768,10 @@ function startSession(user) {
   }
 
   _dashRefDate = new Date(today);
-  showView('dashboard', document.getElementById('nav-dashboard'));
+  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', parametres: 'nav-parametres' };
+  const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
+  const _view     = (_lastView && _navMap[_lastView] && (isRa || _lastView !== 'parametres')) ? _lastView : 'dashboard';
+  showView(_view, document.getElementById(_navMap[_view]));
   _updateDashControls();
   loadSaisies();
   loadStock();
@@ -904,7 +907,7 @@ function saveParametres() {
 }
 
 function doLogout() {
-  try { sessionStorage.removeItem('tv_session'); } catch (_) {}
+  try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
   currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = [];
   _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false;
   document.getElementById('screen-app').style.display = 'none';
@@ -929,6 +932,7 @@ function showView(name, el) {
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
+  try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
   const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
