@@ -962,15 +962,21 @@ function renderDashboard() {
   const targetMomo = periodTarget(isRa ? teamMonthMo : supMonthMo);
 
   /* Agrégation courante */
-  let curGA = 0, curMomo = 0, curTotalDfa = 0, curDfaActif = 0;
+  let curGA = 0, curMomo = 0;
   const activeSups = new Set();
   filtered.forEach(r => {
-    curGA       += Number(r.grossAdd) || 0;
-    curMomo     += Number(r.momoUser) || 0;
-    curTotalDfa += Number(r.totalDfa) || 0;
-    curDfaActif += Number(r.dfaActif) || 0;
+    curGA   += Number(r.grossAdd) || 0;
+    curMomo += Number(r.momoUser) || 0;
     if (r.supId) activeSups.add(r.supId);
   });
+
+  /* DFA : snapshot — dernière valeur par superviseur dans la période (pas un cumul) */
+  const latestDfa = {};
+  [...filtered]
+    .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+    .forEach(r => { if (r.supId && latestDfa[r.supId] === undefined) latestDfa[r.supId] = { totalDfa: Number(r.totalDfa)||0, dfaActif: Number(r.dfaActif)||0 }; });
+  const curTotalDfa = Object.values(latestDfa).reduce((s, v) => s + v.totalDfa, 0);
+  const curDfaActif = Object.values(latestDfa).reduce((s, v) => s + v.dfaActif, 0);
 
   /* Agrégation précédente pour delta */
   let prevGA = 0, prevMomo = 0;
