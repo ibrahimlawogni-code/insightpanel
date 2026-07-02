@@ -311,6 +311,8 @@
               <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><i class="fa fa-check"></i> Appliquer</button>
             </div>
           </div>
+          <!-- Bandeau info / chargement / données vides -->
+          <div id="dash-no-data" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--text-muted);align-items:center;gap:8px"></div>
           <!-- KPI grandes cards -->
           <div class="kpi-big-grid" id="kpi-big-grid"></div>
           <!-- Stats secondaires -->
@@ -810,9 +812,23 @@ async function loadSaisies() {
   _saisiesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisiesVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_SAISIES = json.data || []; _saisiesLoaded = true; renderDashboard(); renderSaisieHist(); }
+      console.log('[loadSaisies] success:', json.success, '| records:', json.data?.length ?? 0, '| user:', currentUser?.id, '| role:', currentUser?.role);
+      if (json.success) {
+        VALLEE_SAISIES = json.data || [];
+        _saisiesLoaded = true;
+        const myRecs = VALLEE_SAISIES.filter(r => r.supId === currentUser?.id);
+        console.log('[loadSaisies] enregistrements pour cet utilisateur:', myRecs.length);
+        renderDashboard();
+        renderSaisieHist();
+      } else {
+        console.error('[loadSaisies] erreur GAS:', json.error);
+        showToast('Erreur chargement', json.error || 'Impossible de charger les saisies.', true);
+      }
     })
-    .catch(() => {})
+    .catch(err => {
+      console.error('[loadSaisies] erreur réseau:', err);
+      showToast('Erreur réseau', 'Impossible de contacter le serveur. Vérifiez votre connexion.', true);
+    })
     .finally(() => { _saisiesInFlight = null; });
   return _saisiesInFlight;
 }
@@ -824,8 +840,9 @@ async function loadStock() {
     .then(r => r.json())
     .then(json => {
       if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); }
+      else { console.error('[loadStock] erreur GAS:', json.error); }
     })
-    .catch(() => {})
+    .catch(err => { console.error('[loadStock] erreur réseau:', err); })
     .finally(() => { _stockInFlight = null; });
   return _stockInFlight;
 }
@@ -1065,6 +1082,8 @@ function renderDashboard() {
     prevFiltered = prevFiltered.filter(r => r.supId === myId);
   }
 
+  console.log('[renderDashboard] VALLEE_SAISIES:', VALLEE_SAISIES.length, '| filtered:', filtered.length, '| myId:', myId, '| isRa:', isRa, '| period:', _dashPeriod);
+
   /* Cibles mensuelles de base */
   const refDate     = new Date(_dashRefDate);
   const dim         = new Date(refDate.getFullYear(), refDate.getMonth()+1, 0).getDate();
@@ -1148,6 +1167,24 @@ function renderDashboard() {
       <div class="prog-bar" style="margin-top:8px"><div class="prog-bar-fill ${pctClass(pctMomo)}" style="width:${Math.min(pctMomo,100)}%"></div></div>
       <div style="margin-top:4px;font-size:13px;font-weight:700;color:${pctCol(pctMomo)}">${pctMomo} %</div>
     </div>`;
+
+  /* Avertissement si aucune donnée pour cette période */
+  const noDataEl = document.getElementById('dash-no-data');
+  if (noDataEl) {
+    const totalMySaisies = VALLEE_SAISIES.filter(r => isRa || r.supId === myId).length;
+    if (!_saisiesLoaded) {
+      noDataEl.style.display = 'flex';
+      noDataEl.innerHTML = `<i class="fa fa-circle-notch fa-spin"></i> Chargement des données…`;
+    } else if (filtered.length === 0 && totalMySaisies > 0 && _dashPeriod === 'jour') {
+      noDataEl.style.display = 'flex';
+      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Aucune saisie pour aujourd'hui.
+        <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="setDashPeriod('mois', document.querySelector('#dash-kpi-tabs .period-tab:nth-child(4)'))">
+          Voir ce mois
+        </button>`;
+    } else {
+      noDataEl.style.display = 'none';
+    }
+  }
 
   /* ── 2. Stat cards ── */
   document.getElementById('kpi-stat-grid').innerHTML = `
@@ -1577,8 +1614,11 @@ async function loadDysf() {
   if (_dysfInFlight) return _dysfInFlight;
   _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
     .then(r => r.json())
-    .then(json => { if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); } })
-    .catch(() => {})
+    .then(json => {
+      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); }
+      else { console.error('[loadDysf] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadDysf] erreur réseau:', err); })
     .finally(() => { _dysfInFlight = null; });
   return _dysfInFlight;
 }
