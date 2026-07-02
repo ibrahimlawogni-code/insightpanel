@@ -7,6 +7,47 @@
 
 ---
 
+## 2026-07-02
+
+### TeamVallee — Objectifs mensuels, DFA weighting, restauration vue, UX dysfonctionnements
+
+**Paramètres — refonte complète des objectifs mensuels**
+- Remplacement du formulaire mono-cible (GA + MoMo) par un tableau de 13 mois (mois actuel + 12 mois passés)
+- Chaque mois a ses propres cibles GA et MoMo indépendantes, persistées dans `localStorage (tv_monthly_targets)`
+- Calcul automatique MoMo User = GA × 90% à la saisie (champ MoMo reste modifiable pour override manuel)
+- Valeur par défaut utilisée comme placeholder si un mois n'est pas renseigné (fallback `VALLEE_TEAM_TARGET`)
+- Carte "Répartition DFA Actifs" : affiche les cibles individuelles de chaque superviseur pour le mois en cours, proportionnelles à leurs DFA Actifs. Si aucune donnée DFA, répartition égale entre les 5
+- Suppression de `_updateParamHints()` (ancienne répartition égale ÷5 obsolète)
+
+**Dashboard — cibles proportionnelles au DFA Actifs**
+- `periodTarget(metric)` : somme les cibles réelles mois par mois pour les modes trimestre et année (au lieu d'une simple multiplication)
+- `supPropTarget(teamPeriodTarget, supId)` : calcule la cible individuelle d'un superviseur en fonction de sa part de DFA Actifs du mois de référence
+- Snapshot DFA calculé séparément sur les données du mois de référence (pas du filtre actif), pour des proportions cohérentes quel que soit le mode de période affiché
+- Tableau performance RA : chaque superviseur affiche sa cible DFA-pondérée, plus la division égale
+- Indicateur `· DFA` ou `· égal` dans le tfoot pour signaler le mode de calcul utilisé
+
+**Fix — superviseurs voyaient zéro sur le dashboard**
+- Cause racine : superviseur enregistré dans InsightPanel GAS avec ID court (`Dbah`) ne correspondait pas à `USERS_SEED` (`Ghislain.Bah`)
+- Fix : `_findSeed(gasId)` avec matching en deux niveaux — correspondance exacte (insensible casse), puis fallback par suffixe du nom de famille (`'dbah'.endsWith('bah')` → match)
+- `startSession()` normalise systématiquement l'ID utilisateur via `_findSeed()` pour éviter le décalage
+- `loadSaisies()` : logs console pour diagnostiquer le filtrage (`myId`, `role`, nombre d'enregistrements pour l'utilisateur)
+
+**Fix — restauration de la vue active après refresh**
+- `showView()` sauvegarde la vue courante dans `sessionStorage (tv_last_view)` à chaque navigation
+- `startSession()` lit `tv_last_view` au chargement et restaure la vue correspondante au lieu de forcer le dashboard
+- Guard : un superviseur ne peut pas restaurer la vue Paramètres (réservée RA)
+- `doLogout()` efface `tv_last_view` pour repartir proprement à la prochaine connexion
+
+**UX — dysfonctionnements**
+- Ajout de l'option "Toutes les localités" en tête du sélecteur de localité (après "— Sélectionner —")
+- Disponible uniquement pour le RA (superviseurs ont leur localité verrouillée automatiquement)
+
+**Technique**
+- Gestion des erreurs améliorée dans `loadSaisies()`, `loadStock()`, `loadDysf()` : affichage toast au lieu de `.catch(() => {})` silencieux
+- Hook Git pre-commit configuré pour synchroniser `TeamVallee.html` → `team-vallee.html` (racine) à chaque commit
+
+---
+
 ## 2026-06-25
 
 ### InsightPanel — Analyse stratégique dans les rapports + correction de saisies DFA
