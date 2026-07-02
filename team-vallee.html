@@ -262,6 +262,9 @@
         <button class="nav-item" id="nav-dysf" onclick="showView('dysfonctionnement', this)">
           <i class="fa fa-triangle-exclamation"></i> Dysfonctionnements
         </button>
+        <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
+          <i class="fa fa-gear"></i> Paramètres
+        </button>
       </nav>
       <div class="sidebar-footer">
         <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
@@ -517,6 +520,33 @@
           </div>
         </div>
 
+        <!-- VUE PARAMETRES -->
+        <div id="view-parametres" style="display:none">
+          <div class="card">
+            <div class="card-title"><i class="fa fa-gear"></i> Paramètres</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:24px">
+              Définissez les objectifs mensuels de l'équipe. Les cibles journalières, hebdomadaires, trimestrielles et annuelles sont calculées automatiquement à partir de ces valeurs.
+            </p>
+            <div style="display:grid;gap:20px;max-width:500px">
+              <div class="form-group">
+                <label>Cible mensuelle Gross Add — équipe</label>
+                <input type="number" id="param-ga" min="1" step="1" placeholder="ex. 18660" oninput="_updateParamHints()">
+                <div id="param-ga-hint" style="font-size:12px;color:var(--text-muted);margin-top:5px"></div>
+              </div>
+              <div class="form-group">
+                <label>Cible mensuelle MoMo User — équipe</label>
+                <input type="number" id="param-momo" min="1" step="1" placeholder="ex. 16794" oninput="_updateParamHints()">
+                <div id="param-momo-hint" style="font-size:12px;color:var(--text-muted);margin-top:5px"></div>
+              </div>
+              <div>
+                <button class="btn btn-primary" onclick="saveParametres()">
+                  <i class="fa fa-floppy-disk"></i> Sauvegarder
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div><!-- /page-body -->
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
@@ -535,8 +565,14 @@ const VALLEE_SUPS = [
   { id: 'François.Dansou',    nom: 'François DANSOU',    zone: 'Avrankou',          initiales: 'FD' },
 ];
 
-const VALLEE_TEAM_TARGET = { ga: 18660, momo: 16794 };
-const VALLEE_SUP_TARGET  = { ga: Math.round(18660 / 5), momo: Math.round(16794 / 5) };
+let VALLEE_TEAM_TARGET = { ga: 18660, momo: 16794 };
+
+(function loadTargets() {
+  try {
+    const saved = localStorage.getItem('tv_targets');
+    if (saved) { const p = JSON.parse(saved); if (p && p.ga > 0 && p.momo > 0) VALLEE_TEAM_TARGET = p; }
+  } catch (_) {}
+})();
 
 const USERS_SEED = [
   { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
@@ -672,6 +708,9 @@ function startSession(user) {
 
   const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser.role);
 
+  const navParam = document.getElementById('nav-parametres');
+  if (navParam) navParam.style.display = isRa ? '' : 'none';
+
   /* Pré-remplir sélecteurs superviseur */
   const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
   document.getElementById('saisie-sup-select').innerHTML = supOpts;
@@ -702,6 +741,31 @@ function startSession(user) {
   loadDysf();
 }
 
+/* ── PARAMÈTRES ── */
+function renderParametres() {
+  document.getElementById('param-ga').value   = VALLEE_TEAM_TARGET.ga;
+  document.getElementById('param-momo').value = VALLEE_TEAM_TARGET.momo;
+  _updateParamHints();
+}
+
+function _updateParamHints() {
+  const ga   = Number(document.getElementById('param-ga').value)   || 0;
+  const momo = Number(document.getElementById('param-momo').value) || 0;
+  const nSup = VALLEE_SUPS.length;
+  document.getElementById('param-ga-hint').textContent   = ga   ? `→ Par superviseur : ${Math.round(ga / nSup).toLocaleString('fr-FR')} GA / mois`   : '';
+  document.getElementById('param-momo-hint').textContent = momo ? `→ Par superviseur : ${Math.round(momo / nSup).toLocaleString('fr-FR')} MoMo / mois` : '';
+}
+
+function saveParametres() {
+  const ga   = Number(document.getElementById('param-ga').value);
+  const momo = Number(document.getElementById('param-momo').value);
+  if (!ga || !momo || ga < 1 || momo < 1) { showToast('Erreur', 'Les cibles doivent être supérieures à 0.', true); return; }
+  VALLEE_TEAM_TARGET = { ga, momo };
+  try { localStorage.setItem('tv_targets', JSON.stringify(VALLEE_TEAM_TARGET)); } catch (_) {}
+  showToast('Sauvegardé', 'Objectifs mensuels mis à jour.', false);
+  renderDashboard();
+}
+
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); } catch (_) {}
   currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = [];
@@ -723,19 +787,20 @@ function doLogout() {
 
 /* ── VIEWS ── */
 function showView(name, el) {
-  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement'].forEach(v => {
+  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'parametres'].forEach(v => {
     document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
-  if (name === 'dashboard')        renderDashboard();
-  if (name === 'saisie')           renderSaisieHist();
-  if (name === 'stocks')           renderStockTable();
+  if (name === 'dashboard')         renderDashboard();
+  if (name === 'saisie')            renderSaisieHist();
+  if (name === 'stocks')            renderStockTable();
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
+  if (name === 'parametres')        renderParametres();
 }
 
 /* ── DATA LOADING ── */
