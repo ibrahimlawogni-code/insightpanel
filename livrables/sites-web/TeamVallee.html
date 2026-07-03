@@ -406,6 +406,55 @@
 
         <!-- VUE STOCKS -->
         <div id="view-stocks" style="display:none">
+          <div class="card" id="card-enlv-form" style="display:none;margin-bottom:16px">
+            <div class="card-title"><i class="fa fa-truck-ramp-box"></i> Enlèvements globaux</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:18px">
+              Enregistre ici chaque plage de SIM réellement retirée chez MTN. Elle sert de référence pour
+              vérifier que les plages déclarées par les superviseurs sont bien couvertes.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="enlv-date">
+              </div>
+              <div class="form-group">
+                <label>N° SIM Début</label>
+                <input type="text" id="enlv-sim-debut" maxlength="11" placeholder="22967xxxxxxx" oninput="calcEnlvQte()">
+              </div>
+              <div class="form-group">
+                <label>N° SIM Fin</label>
+                <input type="text" id="enlv-sim-fin" maxlength="11" placeholder="22967xxxxxxx" oninput="calcEnlvQte()">
+              </div>
+              <div class="form-group">
+                <label>Quantité (auto)</label>
+                <input type="text" id="enlv-quantite" readonly placeholder="—">
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select id="enlv-type">
+                  <option value="p100">P100</option>
+                  <option value="autres">Autres</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveEnlevement()" id="btn-save-enlv">
+                <i class="fa fa-floppy-disk"></i> Enregistrer l'enlèvement
+              </button>
+            </div>
+          </div>
+          <div class="card" id="card-enlv-hist" style="display:none;margin-bottom:16px">
+            <div class="card-title"><i class="fa fa-list"></i> Historique des enlèvements globaux</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Date</th><th>SIM Début</th><th>SIM Fin</th>
+                  <th style="text-align:right">Quantité</th><th>Type</th><th>Horodatage</th>
+                </tr></thead>
+                <tbody id="enlv-tbody"><tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
           <div class="card">
             <div class="card-title"><i class="fa fa-plus"></i> Enregistrer une réception</div>
             <div class="form-grid">
@@ -431,12 +480,13 @@
               </div>
               <div class="form-group">
                 <label>Type</label>
-                <select id="stock-type">
+                <select id="stock-type" onchange="_updateStockCoverageHint()">
                   <option value="p100">P100</option>
                   <option value="autres">Autres</option>
                 </select>
               </div>
             </div>
+            <div id="stock-coverage-hint" style="margin-top:10px;font-size:12px"></div>
             <div class="form-actions">
               <button class="btn btn-primary" onclick="saveStock()" id="btn-save-stock">
                 <i class="fa fa-floppy-disk"></i> Enregistrer
@@ -450,9 +500,9 @@
                 <thead><tr>
                   <th>Date</th><th>Superviseur</th>
                   <th>SIM Début</th><th>SIM Fin</th>
-                  <th style="text-align:right">Quantité</th><th>Type</th><th>Horodatage</th>
+                  <th style="text-align:right">Quantité</th><th>Type</th><th style="text-align:center">Couverture</th><th>Horodatage</th>
                 </tr></thead>
-                <tbody id="stock-tbody"><tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+                <tbody id="stock-tbody"><tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr></tbody>
               </table>
             </div>
           </div>
@@ -674,6 +724,9 @@ let _dysfInFlight    = null;
 let VALLEE_KPI_REEL  = []; // [{ periode:'YYYY-MM', kpiNewAdd, auteurId, auteurNom, horodatage }]
 let _kpiReelLoaded   = false;
 let _kpiReelInFlight = null;
+let VALLEE_ENLEVEMENTS = []; // [{ date, simDebut, simFin, quantite, type, auteurId, auteurNom, horodatage }]
+let _enlvLoaded      = false;
+let _enlvInFlight    = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -788,6 +841,10 @@ function startSession(user) {
   document.getElementById('stock-sup-select').innerHTML  = supOpts;
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
+  const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
+  document.getElementById('card-enlv-form').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('card-enlv-hist').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('enlv-date').value = todayISO;
 
   /* Dates par défaut */
   document.getElementById('saisie-date').value = todayISO;
@@ -814,6 +871,7 @@ function startSession(user) {
   loadStock();
   loadDysf();
   loadKpiReel();
+  loadEnlevements();
 }
 
 /* ── PARAMÈTRES ── */
@@ -947,8 +1005,8 @@ function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = [];
-  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false;
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
@@ -978,7 +1036,7 @@ function showView(name, el) {
 
   if (name === 'dashboard')         renderDashboard();
   if (name === 'saisie')            renderSaisieHist();
-  if (name === 'stocks')            renderStockTable();
+  if (name === 'stocks')            { renderStockTable(); renderEnlevementsTable(); }
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
   if (name === 'parametres')        renderParametres();
 }
@@ -1716,6 +1774,31 @@ function calcStockQte() {
   } else {
     q.value = '—';
   }
+  _updateStockCoverageHint();
+}
+
+// Cherche un enlèvement global de même type qui couvre entièrement [debut, fin]
+function _findCoveringEnlevement(debut, fin, type) {
+  const d = Number(debut), f = Number(fin);
+  if (!d || !f) return null;
+  return VALLEE_ENLEVEMENTS.find(e => {
+    if (e.type !== type) return false;
+    const ed = Number(e.simDebut), ef = Number(e.simFin);
+    return ed > 0 && ef > 0 && ed <= d && f <= ef;
+  }) || null;
+}
+
+function _updateStockCoverageHint() {
+  const hint = document.getElementById('stock-coverage-hint');
+  if (!hint) return;
+  const d    = document.getElementById('stock-sim-debut')?.value.trim();
+  const f    = document.getElementById('stock-sim-fin')?.value.trim();
+  const type = document.getElementById('stock-type')?.value;
+  if (!d || !f || d.length < 8 || f.length < 8) { hint.innerHTML = ''; return; }
+  const covering = _findCoveringEnlevement(d, f, type);
+  hint.innerHTML = covering
+    ? `<span style="color:var(--success,#2ecc71)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
+    : `<span style="color:var(--danger,#e74c3c)"><i class="fa fa-triangle-exclamation"></i> Hors plage — aucun enlèvement global ne couvre cette plage</span>`;
 }
 
 async function saveStock() {
@@ -1784,16 +1867,113 @@ function renderStockTable() {
   });
 
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun stock enregistré</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun stock enregistré</td></tr>';
     return;
   }
 
   tbody.innerHTML = sorted.map(r => {
     const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>' : '<span class="badge badge-gray">Autres</span>';
     const supNom    = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
+    const covering  = _findCoveringEnlevement(r.simDebut, r.simFin, r.type);
+    const couvBadge = covering
+      ? `<span class="badge badge-green" title="Enlèvement du ${isoToFR(covering.date) || covering.date}"><i class="fa fa-check"></i> Incluse</span>`
+      : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
     return `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
       <td>${supNom}</td>
+      <td style="font-family:monospace;font-size:12px">${r.simDebut || '—'}</td>
+      <td style="font-family:monospace;font-size:12px">${r.simFin   || '—'}</td>
+      <td style="text-align:right;font-weight:700">${(r.quantite || 0).toLocaleString('fr-FR')}</td>
+      <td>${typeLabel}</td>
+      <td style="text-align:center">${couvBadge}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── ENLÈVEMENTS GLOBAUX ── */
+async function loadEnlevements() {
+  if (_enlvLoaded) return;
+  if (_enlvInFlight) return _enlvInFlight;
+  _enlvInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getEnlevementsVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) {
+        VALLEE_ENLEVEMENTS = json.data || [];
+        _enlvLoaded = true;
+        renderEnlevementsTable();
+        renderStockTable();
+        _updateStockCoverageHint();
+      } else { console.error('[loadEnlevements] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadEnlevements] erreur réseau:', err); })
+    .finally(() => { _enlvInFlight = null; });
+  return _enlvInFlight;
+}
+
+function calcEnlvQte() {
+  const d = document.getElementById('enlv-sim-debut')?.value.trim();
+  const f = document.getElementById('enlv-sim-fin')?.value.trim();
+  const q = document.getElementById('enlv-quantite');
+  if (!q) return;
+  if (d && f && d.length >= 11 && f.length >= 11) {
+    const n = Number(f) - Number(d) + 1;
+    q.value = n > 0 ? n : '—';
+  } else {
+    q.value = '—';
+  }
+}
+
+async function saveEnlevement() {
+  if (!currentUser) return;
+  const date  = document.getElementById('enlv-date').value;
+  const debut = document.getElementById('enlv-sim-debut').value.trim();
+  const fin   = document.getElementById('enlv-sim-fin').value.trim();
+  const type  = document.getElementById('enlv-type').value;
+
+  if (!date)            { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
+  if (debut.length < 8) { showToast('Champ requis', 'N° SIM Début invalide.', true); return; }
+  if (fin.length < 8)   { showToast('Champ requis', 'N° SIM Fin invalide.', true); return; }
+
+  const quantite = Number(fin) - Number(debut) + 1;
+  if (quantite <= 0) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
+
+  const btn = document.getElementById('btn-save-enlv');
+  btn.disabled = true;
+  try {
+    const payload = { action: 'saveEnlevementVallee', date, simDebut: debut, simFin: fin, quantite, type, auteurId: currentUser.id, auteurNom: currentUser.nom };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.success) {
+      showToast('Enlèvement enregistré', '', false);
+      _enlvLoaded = false; _enlvInFlight = null;
+      await loadEnlevements();
+      ['enlv-sim-debut', 'enlv-sim-fin', 'enlv-quantite'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderEnlevementsTable() {
+  const tbody = document.getElementById('enlv-tbody');
+  if (!tbody) return;
+
+  const sorted = [...VALLEE_ENLEVEMENTS].sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun enlèvement enregistré</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(r => {
+    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>' : '<span class="badge badge-gray">Autres</span>';
+    return `<tr>
+      <td>${isoToFR(r.date) || r.date}</td>
       <td style="font-family:monospace;font-size:12px">${r.simDebut || '—'}</td>
       <td style="font-family:monospace;font-size:12px">${r.simFin   || '—'}</td>
       <td style="text-align:right;font-weight:700">${(r.quantite || 0).toLocaleString('fr-FR')}</td>

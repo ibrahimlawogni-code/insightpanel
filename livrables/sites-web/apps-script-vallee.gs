@@ -33,6 +33,8 @@ function doPost(e) {
     if (data.action === 'saveDysfVallee')      return handleSaveDysfVallee(data);
     if (data.action === 'getKpiReelVallee')    return handleGetKpiReelVallee(data);
     if (data.action === 'saveKpiReelVallee')   return handleSaveKpiReelVallee(data);
+    if (data.action === 'getEnlevementsVallee')  return handleGetEnlevementsVallee(data);
+    if (data.action === 'saveEnlevementVallee')  return handleSaveEnlevementVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -490,6 +492,91 @@ function _periodeStr(val) {
   if (val === null || val === undefined || val === '') return '';
   if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM');
   return val.toString().trim();
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENLÈVEMENTS GLOBAUX — lecture (plages SIM réellement retirées chez MTN, RA)
+// ─────────────────────────────────────────────────────────────
+function handleGetEnlevementsVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateEnlevementsVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    date:       headers.indexOf('date'),
+    simDebut:   headers.indexOf('simdebut'),
+    simFin:     headers.indexOf('simfin'),
+    quantite:   headers.indexOf('quantite'),
+    type:       headers.indexOf('type'),
+    auteurId:   headers.indexOf('auteurid'),
+    auteurNom:  headers.indexOf('auteurnom'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.simDebut] && !row[COL.simFin]) continue;
+    entries.push({
+      date:       _cellStr(row[COL.date]),
+      simDebut:   _cellStr(row[COL.simDebut]),
+      simFin:     _cellStr(row[COL.simFin]),
+      quantite:   Number(row[COL.quantite]) || 0,
+      type:       _cellStr(row[COL.type]),
+      auteurId:   _cellStr(row[COL.auteurId]),
+      auteurNom:  _cellStr(row[COL.auteurNom]),
+      horodatage: _cellStr(row[COL.horodatage]),
+      _row: i + 1
+    });
+  }
+
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENLÈVEMENTS GLOBAUX — écriture
+// ─────────────────────────────────────────────────────────────
+function handleSaveEnlevementVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateEnlevementsVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+
+  set('date',       data.date       || _todayFR());
+  set('simdebut',   data.simDebut   || '');
+  set('simfin',     data.simFin     || '');
+  set('quantite',   data.quantite   || '');
+  set('type',       data.type       || '');
+  set('auteurid',   data.auteurId   || '');
+  set('auteurnom',  data.auteurNom  || '');
+  set('horodatage', ts);
+
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, message: 'Enlèvement enregistré.', horodatage: ts });
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRÉATION AUTOMATIQUE — feuille EnlevementsVallee
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateEnlevementsVallee(ss) {
+  let sheet = ss.getSheetByName('EnlevementsVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('EnlevementsVallee');
+    const headers = ['Date', 'SimDebut', 'SimFin', 'Quantite', 'Type', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [110, 150, 150, 90, 90, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  }
+  return sheet;
 }
 
 // ─────────────────────────────────────────────────────────────
