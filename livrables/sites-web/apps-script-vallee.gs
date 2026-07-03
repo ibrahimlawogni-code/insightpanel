@@ -35,6 +35,8 @@ function doPost(e) {
     if (data.action === 'saveKpiReelVallee')   return handleSaveKpiReelVallee(data);
     if (data.action === 'getEnlevementsVallee')  return handleGetEnlevementsVallee(data);
     if (data.action === 'saveEnlevementVallee')  return handleSaveEnlevementVallee(data);
+    if (data.action === 'getSwapVallee')       return handleGetSwapVallee(data);
+    if (data.action === 'saveSwapVallee')      return handleSaveSwapVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -576,6 +578,87 @@ function _getOrCreateEnlevementsVallee(ss) {
     sheet.setFrozenRows(1);
     [110, 150, 150, 90, 90, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SWAP — lecture
+// ─────────────────────────────────────────────────────────────
+function handleGetSwapVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateSwapVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    date:       headers.indexOf('date'),
+    sim:        headers.indexOf('sim'),
+    swaper:     headers.indexOf('swaper'),
+    auteurId:   headers.indexOf('auteurid'),
+    auteurNom:  headers.indexOf('auteurnom'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.sim] && !row[COL.swaper]) continue;
+    entries.push({
+      date:       _cellStr(row[COL.date]),
+      sim:        _cellStr(row[COL.sim]),
+      swaper:     _cellStr(row[COL.swaper]),
+      auteurId:   _cellStr(row[COL.auteurId]),
+      auteurNom:  _cellStr(row[COL.auteurNom]),
+      horodatage: _cellStr(row[COL.horodatage]),
+      _row: i + 1
+    });
+  }
+
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// SWAP — écriture
+// ─────────────────────────────────────────────────────────────
+function handleSaveSwapVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateSwapVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+
+  set('date',       data.date       || _todayFR());
+  set('sim',        data.sim        || '');
+  set('swaper',     data.swaper     || '');
+  set('auteurid',   data.auteurId   || '');
+  set('auteurnom',  data.auteurNom  || '');
+  set('horodatage', ts);
+
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, message: 'SWAP enregistré.', horodatage: ts });
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRÉATION AUTOMATIQUE — feuille SwapVallee
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateSwapVallee(ss) {
+  let sheet = ss.getSheetByName('SwapVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('SwapVallee');
+    const headers = ['Date', 'Sim', 'Swaper', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [110, 150, 150, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  }
+  // Sim/Swaper en texte brut pour éviter toute conversion numérique par Sheets.
+  sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   return sheet;
 }
 

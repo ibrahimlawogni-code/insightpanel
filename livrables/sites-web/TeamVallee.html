@@ -262,6 +262,9 @@
         <button class="nav-item" id="nav-dysf" onclick="showView('dysfonctionnement', this)">
           <i class="fa fa-triangle-exclamation"></i> Dysfonctionnements
         </button>
+        <button class="nav-item" id="nav-swap" onclick="showView('swap', this)">
+          <i class="fa fa-right-left"></i> SWAP
+        </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
           <i class="fa fa-gear"></i> Paramètres
         </button>
@@ -581,6 +584,48 @@
           </div>
         </div>
 
+        <!-- VUE SWAP -->
+        <div id="view-swap" style="display:none">
+          <div class="card">
+            <div class="card-title"><i class="fa fa-right-left"></i> Nouveau SWAP</div>
+            <div class="form-grid">
+              <div class="form-group" id="swap-sup-selector" style="display:none">
+                <label>Superviseur concerné</label>
+                <select id="swap-sup-select"></select>
+              </div>
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="swap-date">
+              </div>
+              <div class="form-group">
+                <label>N° SIM (11 chiffres)</label>
+                <input type="text" id="swap-sim" maxlength="11" inputmode="numeric" placeholder="22967xxxxxxx">
+              </div>
+              <div class="form-group">
+                <label>N° SWAPER (10 chiffres)</label>
+                <input type="text" id="swap-swaper" maxlength="10" inputmode="numeric" placeholder="22xxxxxxxx">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveSwap()" id="btn-save-swap">
+                <i class="fa fa-floppy-disk"></i> Enregistrer
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-list"></i> Historique des SWAP</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Date</th><th>Superviseur</th>
+                  <th>N° SIM</th><th>N° SWAPER</th><th>Horodatage</th>
+                </tr></thead>
+                <tbody id="swap-tbody"><tr><td colspan="5" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- VUE PARAMETRES -->
         <div id="view-parametres" style="display:none">
           <div class="card" style="margin-bottom:14px">
@@ -727,6 +772,9 @@ let _kpiReelInFlight = null;
 let VALLEE_ENLEVEMENTS = []; // [{ date, simDebut, simFin, quantite, type, auteurId, auteurNom, horodatage }]
 let _enlvLoaded      = false;
 let _enlvInFlight    = null;
+let VALLEE_SWAP      = []; // [{ date, sim, swaper, auteurId, auteurNom, horodatage }]
+let _swapLoaded      = false;
+let _swapInFlight    = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -839,8 +887,10 @@ function startSession(user) {
   const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
   document.getElementById('saisie-sup-select').innerHTML = supOpts;
   document.getElementById('stock-sup-select').innerHTML  = supOpts;
+  document.getElementById('swap-sup-select').innerHTML   = supOpts;
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
+  document.getElementById('swap-sup-selector').style.display   = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
   document.getElementById('card-enlv-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-enlv-hist').style.display = isRaAdmin ? '' : 'none';
@@ -850,6 +900,7 @@ function startSession(user) {
   document.getElementById('saisie-date').value = todayISO;
   document.getElementById('stock-date').value  = todayISO;
   document.getElementById('dysf-date').value   = todayISO;
+  document.getElementById('swap-date').value   = todayISO;
   /* Verrouiller localité pour superviseur */
   const dysfLoc = document.getElementById('dysf-localite');
   const seedSup = VALLEE_SUPS.find(s => s.id === (seed?.id || user.id));
@@ -862,7 +913,7 @@ function startSession(user) {
   }
 
   _dashRefDate = new Date(today);
-  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', parametres: 'nav-parametres' };
+  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', parametres: 'nav-parametres' };
   const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
   const _view     = (_lastView && _navMap[_lastView] && (isRa || _lastView !== 'parametres')) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
@@ -872,6 +923,7 @@ function startSession(user) {
   loadDysf();
   loadKpiReel();
   loadEnlevements();
+  loadSwap();
 }
 
 /* ── PARAMÈTRES ── */
@@ -1005,8 +1057,8 @@ function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = [];
-  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false;
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
@@ -1024,13 +1076,13 @@ function doLogout() {
 
 /* ── VIEWS ── */
 function showView(name, el) {
-  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'parametres'].forEach(v => {
+  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'swap', 'parametres'].forEach(v => {
     document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', parametres: 'Paramètres' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
@@ -1038,6 +1090,7 @@ function showView(name, el) {
   if (name === 'saisie')            renderSaisieHist();
   if (name === 'stocks')            { renderStockTable(); renderEnlevementsTable(); }
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
+  if (name === 'swap')              renderSwapTable();
   if (name === 'parametres')        renderParametres();
 }
 
@@ -1978,6 +2031,88 @@ function renderEnlevementsTable() {
       <td style="font-family:monospace;font-size:12px">${r.simFin   || '—'}</td>
       <td style="text-align:right;font-weight:700">${(r.quantite || 0).toLocaleString('fr-FR')}</td>
       <td>${typeLabel}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── SWAP ── */
+async function loadSwap() {
+  if (_swapLoaded) return;
+  if (_swapInFlight) return _swapInFlight;
+  _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); }
+      else { console.error('[loadSwap] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadSwap] erreur réseau:', err); })
+    .finally(() => { _swapInFlight = null; });
+  return _swapInFlight;
+}
+
+async function saveSwap() {
+  if (!currentUser) return;
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
+  let sup;
+  if (isRa) {
+    const selId = document.getElementById('swap-sup-select')?.value;
+    sup = VALLEE_SUPS.find(s => s.id === selId);
+  } else {
+    sup = { id: currentUser.id, nom: currentUser.nom };
+  }
+  if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
+
+  const date   = document.getElementById('swap-date').value;
+  const sim    = document.getElementById('swap-sim').value.trim();
+  const swaper = document.getElementById('swap-swaper').value.trim();
+
+  if (!date)               { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
+  if (!/^\d{11}$/.test(sim))    { showToast('Champ invalide', 'Le N° SIM doit contenir exactement 11 chiffres.', true); return; }
+  if (!/^\d{10}$/.test(swaper)) { showToast('Champ invalide', 'Le N° SWAPER doit contenir exactement 10 chiffres.', true); return; }
+
+  const btn = document.getElementById('btn-save-swap');
+  btn.disabled = true;
+  try {
+    const payload = { action: 'saveSwapVallee', date, sim, swaper, auteurId: sup.id, auteurNom: sup.nom };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.success) {
+      showToast('SWAP enregistré', '', false);
+      _swapLoaded = false; _swapInFlight = null;
+      await loadSwap();
+      document.getElementById('swap-sim').value    = '';
+      document.getElementById('swap-swaper').value = '';
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderSwapTable() {
+  const tbody = document.getElementById('swap-tbody');
+  if (!tbody) return;
+
+  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
+  const data  = isRa ? [...VALLEE_SWAP] : VALLEE_SWAP.filter(r => r.auteurId === currentUser?.id);
+  const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun SWAP enregistré</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(r => {
+    const supNom = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
+    return `<tr>
+      <td>${isoToFR(r.date) || r.date}</td>
+      <td>${supNom}</td>
+      <td style="font-family:monospace;font-size:12px">${r.sim    || '—'}</td>
+      <td style="font-family:monospace;font-size:12px">${r.swaper || '—'}</td>
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
     </tr>`;
   }).join('');
