@@ -147,6 +147,7 @@
   .badge-green  { background: #dcfce7; color: #15803d; }
   .badge-red    { background: #fee2e2; color: #991b1b; }
   .badge-gray   { background: #f3f4f6; color: #6b7280; }
+  .badge-blue   { background: #dbeafe; color: #1e40af; }
 
   /* ── KPI GRANDES CARDS ── */
   .kpi-big-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
@@ -486,6 +487,7 @@
                 <select id="stock-type" onchange="_updateStockCoverageHint()">
                   <option value="p100">P100</option>
                   <option value="autres">Autres</option>
+                  <option value="swap">SWAP</option>
                 </select>
               </div>
             </div>
@@ -1847,7 +1849,7 @@ function _updateStockCoverageHint() {
   const d    = document.getElementById('stock-sim-debut')?.value.trim();
   const f    = document.getElementById('stock-sim-fin')?.value.trim();
   const type = document.getElementById('stock-type')?.value;
-  if (!d || !f || d.length < 8 || f.length < 8) { hint.innerHTML = ''; return; }
+  if (!d || !f || d.length < 8 || f.length < 8 || type === 'swap') { hint.innerHTML = ''; return; }
   const covering = _findCoveringEnlevement(d, f, type);
   hint.innerHTML = covering
     ? `<span style="color:var(--success,#2ecc71)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
@@ -1925,12 +1927,16 @@ function renderStockTable() {
   }
 
   tbody.innerHTML = sorted.map(r => {
-    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>' : '<span class="badge badge-gray">Autres</span>';
+    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>'
+      : r.type === 'swap' ? '<span class="badge badge-blue">SWAP</span>'
+      : '<span class="badge badge-gray">Autres</span>';
     const supNom    = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
-    const covering  = _findCoveringEnlevement(r.simDebut, r.simFin, r.type);
-    const couvBadge = covering
-      ? `<span class="badge badge-green" title="Enlèvement du ${isoToFR(covering.date) || covering.date}"><i class="fa fa-check"></i> Incluse</span>`
-      : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
+    // Les enlèvements globaux ne couvrent que P100/Autres : pas de vérification de couverture pour SWAP.
+    const covering  = r.type === 'swap' ? null : _findCoveringEnlevement(r.simDebut, r.simFin, r.type);
+    const couvBadge = r.type === 'swap' ? '—'
+      : covering
+        ? `<span class="badge badge-green" title="Enlèvement du ${isoToFR(covering.date) || covering.date}"><i class="fa fa-check"></i> Incluse</span>`
+        : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
     return `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
       <td>${supNom}</td>
