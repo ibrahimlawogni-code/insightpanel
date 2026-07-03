@@ -415,7 +415,7 @@ function handleGetKpiReelVallee(data) {
     const row = rows[i];
     if (!row[COL.periode]) continue;
     entries.push({
-      periode:    _cellStr(row[COL.periode]),
+      periode:    _periodeStr(row[COL.periode]),
       kpiNewAdd:  Number(row[COL.kpiNewAdd]) || 0,
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
@@ -444,7 +444,7 @@ function handleSaveKpiReelVallee(data) {
   if (lastRow > 1 && data.periode) {
     const periodes = sheet.getRange(2, periodeCol, lastRow - 1, 1).getValues();
     for (let i = 0; i < periodes.length; i++) {
-      if (_cellStr(periodes[i][0]) === data.periode) { targetRow = i + 2; break; }
+      if (_periodeStr(periodes[i][0]) === data.periode) { targetRow = i + 2; break; }
     }
   }
 
@@ -479,7 +479,17 @@ function _getOrCreateKpiReelVallee(ss) {
     sheet.setFrozenRows(1);
     [90, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
+  // Colonne Periode ('2026-06') en texte brut : sans ça, Sheets la convertit en date au format local.
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   return sheet;
+}
+
+// Reconvertit la cellule Periode en 'YYYY-MM', que Sheets l'ait gardée en texte
+// ou (anciennes lignes) auto-convertie en date.
+function _periodeStr(val) {
+  if (val === null || val === undefined || val === '') return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM');
+  return val.toString().trim();
 }
 
 // ─────────────────────────────────────────────────────────────
