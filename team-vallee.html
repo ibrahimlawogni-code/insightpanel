@@ -476,7 +476,14 @@
               </div>
               <div class="form-group" style="grid-column:1/-1">
                 <label>Nature du dysfonctionnement</label>
-                <textarea id="dysf-nature" rows="3" placeholder="Décrivez le dysfonctionnement observé..." style="resize:vertical;width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none"></textarea>
+                <select id="dysf-nature">
+                  <option value="">— Sélectionner —</option>
+                  <option value="MPOS">MPOS</option>
+                  <option value="ANIP">ANIP</option>
+                  <option value="MPOS & ANIP">MPOS & ANIP</option>
+                  <option value="PLUIE">PLUIE</option>
+                  <option value="MOMO">MOMO</option>
+                </select>
               </div>
               <div class="form-group">
                 <label>Heure de début</label>
