@@ -438,6 +438,7 @@
                 <select id="enlv-type">
                   <option value="p100">P100</option>
                   <option value="autres">Autres</option>
+                  <option value="swap">SWAP</option>
                 </select>
               </div>
             </div>
@@ -1849,7 +1850,7 @@ function _updateStockCoverageHint() {
   const d    = document.getElementById('stock-sim-debut')?.value.trim();
   const f    = document.getElementById('stock-sim-fin')?.value.trim();
   const type = document.getElementById('stock-type')?.value;
-  if (!d || !f || d.length < 8 || f.length < 8 || type === 'swap') { hint.innerHTML = ''; return; }
+  if (!d || !f || d.length < 8 || f.length < 8) { hint.innerHTML = ''; return; }
   const covering = _findCoveringEnlevement(d, f, type);
   hint.innerHTML = covering
     ? `<span style="color:var(--success,#2ecc71)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
@@ -1931,12 +1932,10 @@ function renderStockTable() {
       : r.type === 'swap' ? '<span class="badge badge-blue">SWAP</span>'
       : '<span class="badge badge-gray">Autres</span>';
     const supNom    = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
-    // Les enlèvements globaux ne couvrent que P100/Autres : pas de vérification de couverture pour SWAP.
-    const covering  = r.type === 'swap' ? null : _findCoveringEnlevement(r.simDebut, r.simFin, r.type);
-    const couvBadge = r.type === 'swap' ? '—'
-      : covering
-        ? `<span class="badge badge-green" title="Enlèvement du ${isoToFR(covering.date) || covering.date}"><i class="fa fa-check"></i> Incluse</span>`
-        : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
+    const covering  = _findCoveringEnlevement(r.simDebut, r.simFin, r.type);
+    const couvBadge = covering
+      ? `<span class="badge badge-green" title="Enlèvement du ${isoToFR(covering.date) || covering.date}"><i class="fa fa-check"></i> Incluse</span>`
+      : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
     return `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
       <td>${supNom}</td>
@@ -2030,7 +2029,9 @@ function renderEnlevementsTable() {
   }
 
   tbody.innerHTML = sorted.map(r => {
-    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>' : '<span class="badge badge-gray">Autres</span>';
+    const typeLabel = r.type === 'p100' ? '<span class="badge badge-yellow">P100</span>'
+      : r.type === 'swap' ? '<span class="badge badge-blue">SWAP</span>'
+      : '<span class="badge badge-gray">Autres</span>';
     return `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
       <td style="font-family:monospace;font-size:12px">${r.simDebut || '—'}</td>
