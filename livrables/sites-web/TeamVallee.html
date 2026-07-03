@@ -324,6 +324,11 @@
             </div>
             <div id="objectifs-body" style="margin-top:16px"></div>
           </div>
+          <!-- KPI NEW ADD réel vs déclaratif -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD — Déclaratif vs Réel</div>
+            <div id="kpi-reel-body" style="margin-top:16px"></div>
+          </div>
           <!-- Table superviseurs -->
           <div class="card">
             <div class="card-title"><i class="fa fa-table"></i> Performance par superviseur</div>
@@ -552,6 +557,31 @@
               </button>
             </div>
           </div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-title"><i class="fa fa-check-double"></i> KPI NEW ADD réel (validation mensuelle)</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:18px">
+              Renseignez le chiffre officiel validé (ex. MTN) une fois par mois. Il sert de référence pour
+              mesurer l'écart avec le déclaratif des superviseurs.
+            </p>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:420px">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border)">
+                    <th style="text-align:left;padding:6px 12px 10px 0;font-size:13px">Mois</th>
+                    <th style="text-align:right;padding:6px 6px 10px;font-size:13px">Déclaratif (cumul)</th>
+                    <th style="text-align:right;padding:6px 6px 10px;font-size:13px">KPI NEW ADD réel</th>
+                    <th style="text-align:right;padding:6px 0 10px 6px;font-size:13px">Écart</th>
+                  </tr>
+                </thead>
+                <tbody id="param-kpireel-tbody"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:16px">
+              <button class="btn btn-primary" onclick="saveKpiReel()">
+                <i class="fa fa-floppy-disk"></i> Sauvegarder
+              </button>
+            </div>
+          </div>
           <div class="card">
             <div class="card-title"><i class="fa fa-chart-pie"></i> Répartition DFA Actifs — mois en cours</div>
             <p style="font-size:12px;color:var(--text-muted);margin:4px 0 14px">
@@ -641,6 +671,9 @@ let _editingTs       = null;
 let VALLEE_DYSF      = [];
 let _dysfLoaded      = false;
 let _dysfInFlight    = null;
+let VALLEE_KPI_REEL  = []; // [{ periode:'YYYY-MM', kpiNewAdd, auteurId, auteurNom, horodatage }]
+let _kpiReelLoaded   = false;
+let _kpiReelInFlight = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -780,6 +813,7 @@ function startSession(user) {
   loadSaisies();
   loadStock();
   loadDysf();
+  loadKpiReel();
 }
 
 /* ── PARAMÈTRES ── */
@@ -822,6 +856,7 @@ function renderParametres() {
   }).join('');
 
   _renderDfaWeights();
+  _renderKpiReelTable();
 }
 
 function _renderDfaWeights() {
@@ -912,8 +947,8 @@ function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = [];
-  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false;
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
@@ -1537,6 +1572,8 @@ function renderDashboard() {
       <td>—</td>
       <td style="text-align:center">—</td>`;
   }
+
+  renderKpiReelCard();
 }
 
 /* ── SAISIE ── */
@@ -1872,6 +1909,134 @@ async function loadDysf() {
     .catch(err => { console.error('[loadDysf] erreur réseau:', err); })
     .finally(() => { _dysfInFlight = null; });
   return _dysfInFlight;
+}
+
+/* ── KPI NEW ADD RÉEL ── */
+async function loadKpiReel() {
+  if (_kpiReelLoaded) return;
+  if (_kpiReelInFlight) return _kpiReelInFlight;
+  _kpiReelInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getKpiReelVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) {
+        VALLEE_KPI_REEL = json.data || [];
+        _kpiReelLoaded = true;
+        renderKpiReelCard();
+        if (document.getElementById('param-kpireel-tbody')) _renderKpiReelTable();
+      } else { console.error('[loadKpiReel] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadKpiReel] erreur réseau:', err); })
+    .finally(() => { _kpiReelInFlight = null; });
+  return _kpiReelInFlight;
+}
+
+function _declaratifForMonth(year, month0) {
+  return VALLEE_SAISIES.reduce((s, r) => {
+    const d = parseSaisieDate(r.date);
+    return (d && d.getFullYear() === year && d.getMonth() === month0) ? s + (Number(r.grossAdd) || 0) : s;
+  }, 0);
+}
+
+function _kpiReelForMonth(key) {
+  const entry = VALLEE_KPI_REEL.find(r => r.periode === key);
+  return entry ? (Number(entry.kpiNewAdd) || 0) : null;
+}
+
+function renderKpiReelCard() {
+  const el = document.getElementById('kpi-reel-body');
+  if (!el) return;
+  const refDate = new Date(_dashRefDate);
+  const yy  = refDate.getFullYear();
+  const mm  = refDate.getMonth();
+  const key = `${yy}-${String(mm + 1).padStart(2, '0')}`;
+  const decl = _declaratifForMonth(yy, mm);
+  const reel = _kpiReelForMonth(key);
+
+  if (reel === null) {
+    const isRa = ['ra', 'admin'].includes(currentUser?.role);
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px">
+      KPI NEW ADD réel non renseigné pour ${FR_MONTHS[mm]} ${yy}.${isRa ? ' Ajoute-le dans Paramètres.' : ''}
+    </p>`;
+    return;
+  }
+
+  const ecart    = decl - reel;
+  const ecartPct = reel > 0 ? Math.round(ecart / reel * 100) : 0;
+  const alerte   = Math.abs(ecartPct) > 15;
+  const ecartCol = alerte ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)';
+  const ecartTxt = `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')} (${ecartPct > 0 ? '+' : ''}${ecartPct}%)`;
+
+  el.innerHTML = `
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">${FR_MONTHS[mm]} ${yy} · Équipe complète</p>
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:baseline">
+      <div><div style="font-size:12px;color:var(--text-muted)">NEW ADD déclaratif</div><div style="font-size:20px;font-weight:700">${decl.toLocaleString('fr-FR')}</div></div>
+      <div><div style="font-size:12px;color:var(--text-muted)">KPI NEW ADD réel</div><div style="font-size:20px;font-weight:700">${reel.toLocaleString('fr-FR')}</div></div>
+      <div><div style="font-size:12px;color:var(--text-muted)">Écart</div><div style="font-size:20px;font-weight:700;color:${ecartCol}">${ecartTxt}</div></div>
+    </div>
+    ${alerte ? `<p style="margin-top:10px;font-size:12px;color:${ecartCol}"><i class="fa fa-triangle-exclamation"></i> Écart supérieur à 15 % entre le déclaratif et le réel validé — à vérifier.</p>` : ''}
+  `;
+}
+
+function _renderKpiReelTable() {
+  const tbody = document.getElementById('param-kpireel-tbody');
+  if (!tbody) return;
+  const now = new Date(_dashRefDate);
+  const months = [];
+  for (let i = 0; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month0: d.getMonth() });
+  }
+
+  tbody.innerHTML = months.map(({ year, month0 }) => {
+    const key      = `${year}-${String(month0 + 1).padStart(2, '0')}`;
+    const isCur    = (year === now.getFullYear() && month0 === now.getMonth());
+    const decl     = _declaratifForMonth(year, month0);
+    const reel     = _kpiReelForMonth(key);
+    const ecart    = reel !== null ? decl - reel : null;
+    const ecartTxt = ecart === null ? '—' : `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}`;
+    const ecartCol = ecart === null ? 'var(--text-muted)' : (reel > 0 && Math.abs(ecart / reel) > 0.15 ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px 8px 0;font-size:13px;white-space:nowrap">
+        ${FR_MONTHS[month0]} ${year}${isCur ? ' <span style="font-size:11px;color:var(--primary);font-weight:600">← actuel</span>' : ''}
+      </td>
+      <td style="padding:8px 6px;text-align:right;color:var(--text-muted)">${decl.toLocaleString('fr-FR')}</td>
+      <td style="padding:8px 6px;text-align:right">
+        <input type="number" class="param-month-kpireel" data-key="${key}" min="0" step="1"
+               value="${reel !== null ? reel : ''}" placeholder="—"
+               style="width:100px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+      </td>
+      <td style="padding:8px 0 8px 6px;text-align:right;font-weight:600;color:${ecartCol}">${ecartTxt}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveKpiReel() {
+  if (!currentUser) return;
+  const inputs = document.querySelectorAll('.param-month-kpireel');
+  const toSave = [];
+  inputs.forEach(inp => {
+    if (inp.value === '') return;
+    const key = inp.dataset.key;
+    const val = Number(inp.value);
+    const existing = VALLEE_KPI_REEL.find(r => r.periode === key);
+    if (!existing || Number(existing.kpiNewAdd) !== val) toSave.push({ periode: key, kpiNewAdd: val });
+  });
+
+  if (!toSave.length) { showToast('Aucun changement', '', false); return; }
+
+  try {
+    for (const item of toSave) {
+      const payload = { action: 'saveKpiReelVallee', periode: item.periode, kpiNewAdd: item.kpiNewAdd, auteurId: currentUser.id, auteurNom: currentUser.nom };
+      const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Erreur inconnue.');
+    }
+    showToast('KPI NEW ADD réel enregistré', `${toSave.length} mois mis à jour.`, false);
+    _kpiReelLoaded = false; _kpiReelInFlight = null;
+    await loadKpiReel();
+  } catch (e) {
+    showToast('Erreur', e.message, true);
+  }
 }
 
 async function saveDysf() {

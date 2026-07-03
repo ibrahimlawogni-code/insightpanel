@@ -31,6 +31,8 @@ function doPost(e) {
     if (data.action === 'saveStockVallee')     return handleSaveStockVallee(data);
     if (data.action === 'getDysfVallee')       return handleGetDysfVallee(data);
     if (data.action === 'saveDysfVallee')      return handleSaveDysfVallee(data);
+    if (data.action === 'getKpiReelVallee')    return handleGetKpiReelVallee(data);
+    if (data.action === 'saveKpiReelVallee')   return handleSaveKpiReelVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -385,6 +387,97 @@ function _getOrCreateDysfVallee(ss) {
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
     [110, 150, 300, 90, 90, 80, 90, 100, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  }
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// KPI NEW ADD RÉEL — lecture (chiffre officiel validé, mensuel)
+// ─────────────────────────────────────────────────────────────
+function handleGetKpiReelVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateKpiReelVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    periode:    headers.indexOf('periode'),
+    kpiNewAdd:  headers.indexOf('kpinewadd'),
+    auteurId:   headers.indexOf('auteurid'),
+    auteurNom:  headers.indexOf('auteurnom'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.periode]) continue;
+    entries.push({
+      periode:    _cellStr(row[COL.periode]),
+      kpiNewAdd:  Number(row[COL.kpiNewAdd]) || 0,
+      auteurId:   _cellStr(row[COL.auteurId]),
+      auteurNom:  _cellStr(row[COL.auteurNom]),
+      horodatage: _cellStr(row[COL.horodatage]),
+      _row: i + 1
+    });
+  }
+
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// KPI NEW ADD RÉEL — écriture (upsert par période)
+// ─────────────────────────────────────────────────────────────
+function handleSaveKpiReelVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateKpiReelVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const periodeCol = headers.indexOf('periode') + 1;
+
+  let targetRow = -1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1 && data.periode) {
+    const periodes = sheet.getRange(2, periodeCol, lastRow - 1, 1).getValues();
+    for (let i = 0; i < periodes.length; i++) {
+      if (_cellStr(periodes[i][0]) === data.periode) { targetRow = i + 2; break; }
+    }
+  }
+
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+  set('periode',    data.periode    || '');
+  set('kpinewadd',  (data.kpiNewAdd !== undefined && data.kpiNewAdd !== null) ? data.kpiNewAdd : '');
+  set('auteurid',   data.auteurId   || '');
+  set('auteurnom',  data.auteurNom  || '');
+  set('horodatage', ts);
+
+  if (targetRow > 0) {
+    sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
+
+  return jsonResponse({ success: true, message: 'KPI NEW ADD réel enregistré.', horodatage: ts });
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRÉATION AUTOMATIQUE — feuille KpiReelVallee
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateKpiReelVallee(ss) {
+  let sheet = ss.getSheetByName('KpiReelVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('KpiReelVallee');
+    const headers = ['Periode', 'KpiNewAdd', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [90, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
   return sheet;
 }
