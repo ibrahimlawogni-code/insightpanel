@@ -999,6 +999,7 @@ async function loadSaisies() {
         renderDashboard();
         renderSaisieHist();
         updateImpactEstime();
+        if (document.getElementById('view-parametres')?.style.display !== 'none') renderParametres();
       } else {
         console.error('[loadSaisies] erreur GAS:', json.error);
         showToast('Erreur chargement', json.error || 'Impossible de charger les saisies.', true);
