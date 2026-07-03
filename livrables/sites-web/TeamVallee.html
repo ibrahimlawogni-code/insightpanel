@@ -590,10 +590,6 @@
           <div class="card">
             <div class="card-title"><i class="fa fa-right-left"></i> Nouveau SWAP</div>
             <div class="form-grid">
-              <div class="form-group" id="swap-sup-selector" style="display:none">
-                <label>Superviseur concerné</label>
-                <select id="swap-sup-select"></select>
-              </div>
               <div class="form-group">
                 <label>Date</label>
                 <input type="date" id="swap-date">
@@ -618,8 +614,8 @@
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th>Date</th><th>Superviseur</th>
-                  <th>N° SIM</th><th>N° SWAPER</th><th>Horodatage</th>
+                  <th>Date</th>
+                  <th>N° SIM</th><th>N° SWAPER</th><th>Ajouté par</th><th>Horodatage</th>
                 </tr></thead>
                 <tbody id="swap-tbody"><tr><td colspan="5" class="loading-row"><span class="spinner"></span></td></tr></tbody>
               </table>
@@ -888,10 +884,8 @@ function startSession(user) {
   const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
   document.getElementById('saisie-sup-select').innerHTML = supOpts;
   document.getElementById('stock-sup-select').innerHTML  = supOpts;
-  document.getElementById('swap-sup-select').innerHTML   = supOpts;
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
-  document.getElementById('swap-sup-selector').style.display   = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
   document.getElementById('card-enlv-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-enlv-hist').style.display = isRaAdmin ? '' : 'none';
@@ -2058,15 +2052,6 @@ async function loadSwap() {
 
 async function saveSwap() {
   if (!currentUser) return;
-  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
-  let sup;
-  if (isRa) {
-    const selId = document.getElementById('swap-sup-select')?.value;
-    sup = VALLEE_SUPS.find(s => s.id === selId);
-  } else {
-    sup = { id: currentUser.id, nom: currentUser.nom };
-  }
-  if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
 
   const date   = document.getElementById('swap-date').value;
   const sim    = document.getElementById('swap-sim').value.trim();
@@ -2079,7 +2064,7 @@ async function saveSwap() {
   const btn = document.getElementById('btn-save-swap');
   btn.disabled = true;
   try {
-    const payload = { action: 'saveSwapVallee', date, sim, swaper, auteurId: sup.id, auteurNom: sup.nom };
+    const payload = { action: 'saveSwapVallee', date, sim, swaper, auteurId: currentUser.id, auteurNom: currentUser.nom };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
     if (json.success) {
@@ -2102,25 +2087,20 @@ function renderSwapTable() {
   const tbody = document.getElementById('swap-tbody');
   if (!tbody) return;
 
-  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
-  const data  = isRa ? [...VALLEE_SWAP] : VALLEE_SWAP.filter(r => r.auteurId === currentUser?.id);
-  const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
+  const sorted = [...VALLEE_SWAP].sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
 
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun SWAP enregistré</td></tr>';
     return;
   }
 
-  tbody.innerHTML = sorted.map(r => {
-    const supNom = VALLEE_SUPS.find(s => s.id === r.auteurId)?.nom || r.auteurNom || r.auteurId;
-    return `<tr>
+  tbody.innerHTML = sorted.map(r => `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
-      <td>${supNom}</td>
       <td style="font-family:monospace;font-size:12px">${r.sim    || '—'}</td>
       <td style="font-family:monospace;font-size:12px">${r.swaper || '—'}</td>
+      <td>${r.auteurNom || r.auteurId || '—'}</td>
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
 }
 
 /* ── DYSFONCTIONNEMENTS ── */
