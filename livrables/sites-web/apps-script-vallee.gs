@@ -16,7 +16,7 @@
 //   - "StockVallee"    : réceptions et mouvements de stock SIM
 // ─────────────────────────────────────────────────────────────
 
-const VALLEE_SHEET_ID = ''; // ← RENSEIGNER ICI l'ID du Google Sheets Team Vallée
+const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← RENSEIGNER ICI l'ID du Google Sheets Team Vallée
 
 // ─────────────────────────────────────────────────────────────
 // POINT D'ENTRÉE
@@ -305,6 +305,7 @@ function handleGetDysfVallee(data) {
     heureFin:   headers.indexOf('heurefin'),
     duree:      headers.indexOf('duree'),
     impact:     headers.indexOf('impact'),
+    impactSims: headers.indexOf('impactsims'),
     auteurId:   headers.indexOf('auteurid'),
     auteurNom:  headers.indexOf('auteurnom'),
     horodatage: headers.indexOf('horodatage')
@@ -322,6 +323,7 @@ function handleGetDysfVallee(data) {
       heureFin:   _cellStr(row[COL.heureFin]),
       duree:      _cellStr(row[COL.duree]),
       impact:     _cellStr(row[COL.impact]),
+      impactSims: COL.impactSims >= 0 ? _cellStr(row[COL.impactSims]) : '',
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
       horodatage: _cellStr(row[COL.horodatage]),
@@ -340,8 +342,17 @@ function handleSaveDysfVallee(data) {
   const sheet = _getOrCreateDysfVallee(ss);
   const ts    = new Date().toLocaleString('fr-FR');
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+  let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
+
+  if (headers.indexOf('impactsims') < 0) {
+    const col = headers.length + 1;
+    sheet.getRange(1, col).setValue('ImpactSims')
+      .setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setColumnWidth(col, 100);
+    headers.push('impactsims');
+  }
+
   const row = new Array(headers.length).fill('');
   const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
 
@@ -352,6 +363,7 @@ function handleSaveDysfVallee(data) {
   set('heurefin',   data.heureFin    || '');
   set('duree',      data.duree       || '');
   set('impact',     data.impact      || '');
+  set('impactsims', (data.impactSims !== undefined && data.impactSims !== null) ? data.impactSims : '');
   set('auteurid',   data.auteurId    || '');
   set('auteurnom',  data.auteurNom   || '');
   set('horodatage', ts);
@@ -367,12 +379,12 @@ function _getOrCreateDysfVallee(ss) {
   let sheet = ss.getSheetByName('DysfVallee');
   if (!sheet) {
     sheet = ss.insertSheet('DysfVallee');
-    const headers = ['Date', 'Localite', 'Nature', 'HeureDebut', 'HeureFin', 'Duree', 'Impact', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    const headers = ['Date', 'Localite', 'Nature', 'HeureDebut', 'HeureFin', 'Duree', 'Impact', 'ImpactSims', 'AuteurId', 'AuteurNom', 'Horodatage'];
     sheet.appendRow(headers);
     const hdr = sheet.getRange(1, 1, 1, headers.length);
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
-    [110, 150, 300, 90, 90, 80, 90, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    [110, 150, 300, 90, 90, 80, 90, 100, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
   return sheet;
 }

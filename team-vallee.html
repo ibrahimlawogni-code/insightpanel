@@ -460,11 +460,11 @@
             <div class="form-grid">
               <div class="form-group">
                 <label>Date</label>
-                <input type="date" id="dysf-date">
+                <input type="date" id="dysf-date" onchange="updateImpactEstime()">
               </div>
               <div class="form-group">
                 <label>Localité</label>
-                <select id="dysf-localite">
+                <select id="dysf-localite" onchange="updateImpactEstime()">
                   <option value="">— Sélectionner —</option>
                   <option value="Toutes les localités">Toutes les localités</option>
                   <option value="Akpro - Missérété">Akpro - Missérété</option>
@@ -498,14 +498,10 @@
                 <input type="text" id="dysf-duree" readonly placeholder="—" style="background:var(--bg)">
               </div>
               <div class="form-group">
-                <label>Impact</label>
-                <select id="dysf-impact">
-                  <option value="">— Sélectionner —</option>
-                  <option value="Faible">Faible</option>
-                  <option value="Moyen">Moyen</option>
-                  <option value="Élevé">Élevé</option>
-                  <option value="Critique">Critique</option>
-                </select>
+                <label>Impact estimé</label>
+                <input type="text" id="dysf-impact-display" readonly placeholder="—" style="background:var(--bg);font-weight:700">
+                <input type="hidden" id="dysf-impact">
+                <input type="hidden" id="dysf-impact-sims">
               </div>
             </div>
             <div class="form-actions">
@@ -967,6 +963,7 @@ async function loadSaisies() {
         console.log('[loadSaisies] enregistrements pour cet utilisateur:', myRecs.length);
         renderDashboard();
         renderSaisieHist();
+        updateImpactEstime();
       } else {
         console.error('[loadSaisies] erreur GAS:', json.error);
         showToast('Erreur chargement', json.error || 'Impossible de charger les saisies.', true);
@@ -1769,11 +1766,19 @@ function renderStockTable() {
 }
 
 /* ── DYSFONCTIONNEMENTS ── */
+const HORAIRE_AMPLITUDE_H = 12; // amplitude de travail 8h-20h
+const IMPACT_SEUILS = [
+  { max: 50,       label: 'Faible'   },
+  { max: 150,      label: 'Moyen'    },
+  { max: 300,      label: 'Élevé'    },
+  { max: Infinity, label: 'Critique' }
+];
+
 function calcDureeDysf() {
   const debut   = document.getElementById('dysf-heure-debut').value;
   const fin     = document.getElementById('dysf-heure-fin').value;
   const dureeEl = document.getElementById('dysf-duree');
-  if (!debut || !fin) { dureeEl.value = ''; return; }
+  if (!debut || !fin) { dureeEl.value = ''; updateImpactEstime(); return; }
   const [dh, dm] = debut.split(':').map(Number);
   const [fh, fm] = fin.split(':').map(Number);
   let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
@@ -1781,6 +1786,78 @@ function calcDureeDysf() {
   const h = Math.floor(diffMin / 60);
   const m = diffMin % 60;
   dureeEl.value = `${String(h).padStart(2,'0')}h${String(m).padStart(2,'0')}`;
+  updateImpactEstime();
+}
+
+function _dureeHeuresDecimal() {
+  const debut = document.getElementById('dysf-heure-debut').value;
+  const fin   = document.getElementById('dysf-heure-fin').value;
+  if (!debut || !fin) return null;
+  const [dh, dm] = debut.split(':').map(Number);
+  const [fh, fm] = fin.split(':').map(Number);
+  let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
+  if (diffMin < 0) diffMin += 24 * 60;
+  return diffMin / 60;
+}
+
+// Taux horaire "normal" de la zone : moyenne des 7 derniers jours de GA
+// (hors jours déjà marqués par un dysfonctionnement) précédant la date du dysfonctionnement,
+// pour ne pas sous-estimer le taux avec le jour impacté lui-même.
+function _tauxHoraireReference(zone, dateStr) {
+  const refDate = parseSaisieDate(dateStr);
+  if (!refDate) return null;
+  const toutes = !zone || zone === 'Toutes les localités';
+  const rows   = toutes ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => r.zone === zone);
+  const dysfDates = new Set(
+    (VALLEE_DYSF || [])
+      .filter(d => toutes || !d.localite || d.localite === zone || d.localite === 'Toutes les localités')
+      .map(d => d.date)
+  );
+
+  const byDay = {};
+  rows.forEach(r => {
+    const d = parseSaisieDate(r.date);
+    if (!d || d >= refDate) return;
+    if (dysfDates.has(r.date)) return;
+    if (!byDay[r.date]) byDay[r.date] = { ga: 0, date: d };
+    byDay[r.date].ga += Number(r.grossAdd) || 0;
+  });
+
+  const jours = Object.values(byDay).sort((a, b) => b.date - a.date).slice(0, 7);
+  if (!jours.length) return null;
+  const totalGA = jours.reduce((s, j) => s + j.ga, 0);
+  return totalGA / (jours.length * HORAIRE_AMPLITUDE_H);
+}
+
+function updateImpactEstime() {
+  const date       = document.getElementById('dysf-date').value;
+  const localite   = document.getElementById('dysf-localite').value;
+  const dureeH     = _dureeHeuresDecimal();
+  const display    = document.getElementById('dysf-impact-display');
+  const hiddenImp  = document.getElementById('dysf-impact');
+  const hiddenSims = document.getElementById('dysf-impact-sims');
+
+  if (!date || !localite || dureeH === null) {
+    display.value    = '—';
+    hiddenImp.value   = '';
+    hiddenSims.value  = '';
+    return;
+  }
+
+  const taux = _tauxHoraireReference(localite, date);
+  if (taux === null) {
+    display.value    = 'Non calculable (historique insuffisant)';
+    hiddenImp.value   = '';
+    hiddenSims.value  = '';
+    return;
+  }
+
+  const sims  = Math.round(taux * dureeH);
+  const label = IMPACT_SEUILS.find(s => sims <= s.max).label;
+
+  display.value    = `-${sims.toLocaleString('fr-FR')} SIMs · ${label}`;
+  hiddenImp.value  = label;
+  hiddenSims.value = sims;
 }
 
 async function loadDysf() {
@@ -1789,7 +1866,7 @@ async function loadDysf() {
   _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); }
+      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); updateImpactEstime(); }
       else { console.error('[loadDysf] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadDysf] erreur réseau:', err); })
@@ -1806,28 +1883,30 @@ async function saveDysf() {
   const heureFin   = document.getElementById('dysf-heure-fin').value;
   const duree      = document.getElementById('dysf-duree').value;
   const impact     = document.getElementById('dysf-impact').value;
+  const impactSims = document.getElementById('dysf-impact-sims').value;
 
   if (!date)     { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
   if (!localite) { showToast('Champ requis', 'Veuillez sélectionner une localité.', true); return; }
-  if (!nature)   { showToast('Champ requis', 'Veuillez décrire le dysfonctionnement.', true); return; }
-  if (!impact)   { showToast('Champ requis', 'Veuillez sélectionner un impact.', true); return; }
+  if (!nature)   { showToast('Champ requis', 'Veuillez sélectionner une nature.', true); return; }
 
   const btn = document.getElementById('btn-save-dysf');
   btn.disabled = true;
   try {
-    const payload = { action: 'saveDysfVallee', date, localite, nature, heureDebut, heureFin, duree, impact, auteurId: currentUser.id, auteurNom: currentUser.nom };
+    const payload = { action: 'saveDysfVallee', date, localite, nature, heureDebut, heureFin, duree, impact, impactSims, auteurId: currentUser.id, auteurNom: currentUser.nom };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
     if (json.success) {
       showToast('Dysfonctionnement enregistré', '', false);
       _dysfLoaded = false; _dysfInFlight = null;
       await loadDysf();
-      document.getElementById('dysf-nature').value      = '';
-      document.getElementById('dysf-heure-debut').value = '';
-      document.getElementById('dysf-heure-fin').value   = '';
-      document.getElementById('dysf-duree').value       = '';
-      document.getElementById('dysf-impact').value      = '';
-      document.getElementById('dysf-date').value        = todayISO;
+      document.getElementById('dysf-nature').value         = '';
+      document.getElementById('dysf-heure-debut').value    = '';
+      document.getElementById('dysf-heure-fin').value      = '';
+      document.getElementById('dysf-duree').value          = '';
+      document.getElementById('dysf-impact').value         = '';
+      document.getElementById('dysf-impact-sims').value    = '';
+      document.getElementById('dysf-impact-display').value = '—';
+      document.getElementById('dysf-date').value           = todayISO;
     } else {
       showToast('Erreur', json.error || 'Erreur inconnue.', true);
     }
@@ -1844,9 +1923,12 @@ function renderDysfHist() {
   let data    = isRa ? [...VALLEE_DYSF] : VALLEE_DYSF.filter(r => r.auteurId === myId);
   data.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.heureDebut || '').localeCompare(a.heureDebut || ''));
 
-  const impactBadge = imp => {
-    const cls = (imp === 'Critique' || imp === 'Élevé') ? 'badge-red' : imp === 'Moyen' ? 'badge-yellow' : 'badge-green';
-    return imp ? `<span class="badge ${cls}">${imp}</span>` : '—';
+  const impactBadge = (imp, sims) => {
+    if (!imp) return '—';
+    const cls     = (imp === 'Critique' || imp === 'Élevé') ? 'badge-red' : imp === 'Moyen' ? 'badge-yellow' : 'badge-green';
+    const simsTxt = (sims !== undefined && sims !== null && sims !== '')
+      ? `<br><span style="color:var(--text-muted);font-size:11px">-${Number(sims).toLocaleString('fr-FR')} SIMs</span>` : '';
+    return `<span class="badge ${cls}">${imp}</span>${simsTxt}`;
   };
 
   document.getElementById('dysf-tbody').innerHTML = data.length
@@ -1857,7 +1939,7 @@ function renderDysfHist() {
         <td style="text-align:center">${r.heureDebut || '—'}</td>
         <td style="text-align:center">${r.heureFin   || '—'}</td>
         <td style="text-align:center;font-weight:700">${r.duree || '—'}</td>
-        <td style="text-align:center">${impactBadge(r.impact)}</td>
+        <td style="text-align:center">${impactBadge(r.impact, r.impactSims)}</td>
         <td style="color:var(--text-muted);font-size:12px">${r.auteurNom || '—'}</td>
       </tr>`).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Aucun dysfonctionnement enregistré.</td></tr>';
