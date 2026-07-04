@@ -266,6 +266,9 @@
         <button class="nav-item" id="nav-swap" onclick="showView('swap', this)">
           <i class="fa fa-right-left"></i> SWAP
         </button>
+        <button class="nav-item" id="nav-rapport" onclick="showView('rapport', this)">
+          <i class="fa fa-share-nodes"></i> Rapport
+        </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
           <i class="fa fa-gear"></i> Paramètres
         </button>
@@ -623,6 +626,37 @@
           </div>
         </div>
 
+        <!-- VUE RAPPORT -->
+        <div id="view-rapport" style="display:none">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
+            <div class="period-tabs" id="rap-tabs">
+              <button class="period-tab active" onclick="setRapPeriod('jour', this)">Jour</button>
+              <button class="period-tab" onclick="setRapPeriod('semaine', this)">Semaine</button>
+              <button class="period-tab" onclick="setRapPeriod('mois', this)">Mois</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="rapNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="rap-date" onchange="rapDateChanged()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
+              <button class="btn btn-secondary btn-sm" onclick="rapNavDate(1)"><i class="fa fa-chevron-right"></i></button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fa fa-share-nodes"></i> Rapport
+              <span id="rap-subtitle" style="font-weight:400;color:var(--text-muted);font-size:13px"></span>
+            </div>
+            <div id="rap-kpi-section" style="margin-top:16px"></div>
+            <div style="margin-top:16px">
+              <textarea id="rap-text-preview" readonly rows="16" style="width:100%;font-family:monospace;font-size:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);resize:vertical"></textarea>
+            </div>
+            <div class="form-actions" style="margin-top:12px">
+              <button class="btn btn-secondary" onclick="copyRapportVallee()" id="rap-copy-btn">📋 Copier</button>
+              <button onclick="sendRapportWhatsAppVallee()" style="padding:9px 16px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">📱 WhatsApp</button>
+              <button onclick="sendRapportEmailVallee()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Email</button>
+            </div>
+          </div>
+        </div>
+
         <!-- VUE PARAMETRES -->
         <div id="view-parametres" style="display:none">
           <div class="card" style="margin-bottom:14px">
@@ -841,6 +875,8 @@ let _swapInFlight    = null;
 let VALLEE_USERS_DYNAMIC = []; // [{ id, nom, role, libelle, initiales, horodatage }] — comptes créés depuis Paramètres
 let _usersDynLoaded      = false;
 let _usersDynInFlight    = null;
+let _rapPeriod  = 'jour';
+let _rapRefDate = new Date(today);
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -971,6 +1007,7 @@ async function loadUtilisateursDynamiques() {
         renderUtilisateursList();
         renderDashboard();
         _renderDfaWeights();
+        _refreshRapportIfActive();
       } else { console.error('[loadUtilisateursDynamiques] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadUtilisateursDynamiques] erreur réseau:', err); })
@@ -1017,6 +1054,7 @@ function startSession(user) {
   document.getElementById('stock-date').value  = todayISO;
   document.getElementById('dysf-date').value   = todayISO;
   document.getElementById('swap-date').value   = todayISO;
+  document.getElementById('rap-date').value    = todayISO;
   /* Verrouiller localité pour superviseur */
   const dysfLoc = document.getElementById('dysf-localite');
   const seedSup = VALLEE_SUPS.find(s => s.id === (seed?.id || user.id));
@@ -1029,7 +1067,7 @@ function startSession(user) {
   }
 
   _dashRefDate = new Date(today);
-  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', parametres: 'nav-parametres' };
+  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', rapport: 'nav-rapport', parametres: 'nav-parametres' };
   const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
   const _view     = (_lastView && _navMap[_lastView] && (isRa || _lastView !== 'parametres')) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
@@ -1195,13 +1233,13 @@ function doLogout() {
 
 /* ── VIEWS ── */
 function showView(name, el) {
-  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'swap', 'parametres'].forEach(v => {
+  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'swap', 'rapport', 'parametres'].forEach(v => {
     document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', parametres: 'Paramètres' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
@@ -1210,6 +1248,7 @@ function showView(name, el) {
   if (name === 'stocks')            { renderStockTable(); renderEnlevementsTable(); }
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
   if (name === 'swap')              renderSwapTable();
+  if (name === 'rapport')           renderRapport();
   if (name === 'parametres')        renderParametres();
 }
 
@@ -1230,6 +1269,7 @@ async function loadSaisies() {
         renderSaisieHist();
         updateImpactEstime();
         if (document.getElementById('view-parametres')?.style.display !== 'none') renderParametres();
+        _refreshRapportIfActive();
       } else {
         console.error('[loadSaisies] erreur GAS:', json.error);
         showToast('Erreur chargement', json.error || 'Impossible de charger les saisies.', true);
@@ -1249,7 +1289,7 @@ async function loadStock() {
   _stockInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); }
+      if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); _refreshRapportIfActive(); }
       else { console.error('[loadStock] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadStock] erreur réseau:', err); })
@@ -2079,6 +2119,7 @@ async function loadEnlevements() {
         renderEnlevementsTable();
         renderStockTable();
         _updateStockCoverageHint();
+        _refreshRapportIfActive();
       } else { console.error('[loadEnlevements] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadEnlevements] erreur réseau:', err); })
@@ -2167,7 +2208,7 @@ async function loadSwap() {
   _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); }
+      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); _refreshRapportIfActive(); }
       else { console.error('[loadSwap] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadSwap] erreur réseau:', err); })
@@ -2226,6 +2267,315 @@ function renderSwapTable() {
       <td>${r.auteurNom || r.auteurId || '—'}</td>
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
     </tr>`).join('');
+}
+
+/* ── RAPPORT ── */
+function _dateToISO(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+function _periodBounds(period, refDate) {
+  const ref = new Date(refDate); ref.setHours(0, 0, 0, 0);
+  if (period === 'jour') return [ref, ref];
+  if (period === 'semaine') {
+    const dow = ref.getDay() === 0 ? 6 : ref.getDay() - 1;
+    const lun = new Date(ref); lun.setDate(ref.getDate() - dow);
+    const dim = new Date(lun); dim.setDate(lun.getDate() + 6);
+    return [lun, dim];
+  }
+  const deb = new Date(ref.getFullYear(), ref.getMonth(), 1);
+  const fin = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  return [deb, fin];
+}
+
+function _filterRapport(data, period, refDate) {
+  const [deb, fin] = _periodBounds(period, refDate);
+  return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= deb && d <= fin; });
+}
+
+function _rapPeriodLabel(period, refDate) {
+  if (period === 'jour') return isoToFR(_dateToISO(refDate)) || '';
+  if (period === 'semaine') {
+    const [deb, fin] = _periodBounds(period, refDate);
+    return `Semaine du ${isoToFR(_dateToISO(deb))} au ${isoToFR(_dateToISO(fin))}`;
+  }
+  return `${FR_MONTHS[refDate.getMonth()]} ${refDate.getFullYear()}`;
+}
+
+function _dureeToMinutes(str) {
+  const m = (str || '').match(/^(\d+)h(\d+)$/);
+  return m ? (Number(m[1]) * 60 + Number(m[2])) : 0;
+}
+
+function _minutesToDuree(total) {
+  const h = Math.floor(total / 60), m = total % 60;
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+
+function _teamPeriodTarget(metric, period, refDate) {
+  const yy = refDate.getFullYear(), mm = refDate.getMonth();
+  const dim = new Date(yy, mm + 1, 0).getDate();
+  const monthly = getMonthTarget(yy, mm)[metric];
+  if (period === 'jour')    return Math.round(monthly / dim);
+  if (period === 'semaine') return Math.round(monthly / dim * 7);
+  return monthly;
+}
+
+function _supPropTarget(teamTarget, supId, refDate) {
+  const yy = refDate.getFullYear(), mm = refDate.getMonth();
+  const monthRows = VALLEE_SAISIES.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
+  const dfaMap = {};
+  [...monthRows].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+    .forEach(r => { if (r.supId && dfaMap[r.supId] === undefined) dfaMap[r.supId] = Number(r.dfaActif) || 0; });
+  const total = Object.values(dfaMap).reduce((s, v) => s + v, 0);
+  if (total === 0) return Math.round(teamTarget / Math.max(VALLEE_SUPS.length, 1));
+  return Math.round(teamTarget * (dfaMap[supId] || 0) / total);
+}
+
+function setRapPeriod(p, el) {
+  _rapPeriod = p;
+  document.querySelectorAll('#rap-tabs .period-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderRapport();
+}
+
+function rapNavDate(dir) {
+  const d = new Date(_rapRefDate);
+  if (_rapPeriod === 'jour') d.setDate(d.getDate() + dir);
+  else if (_rapPeriod === 'semaine') d.setDate(d.getDate() + dir * 7);
+  else d.setMonth(d.getMonth() + dir);
+  _rapRefDate = d;
+  document.getElementById('rap-date').value = _dateToISO(d);
+  renderRapport();
+}
+
+function rapDateChanged() {
+  const v = document.getElementById('rap-date').value;
+  if (v) { _rapRefDate = new Date(v + 'T00:00:00'); renderRapport(); }
+}
+
+function _refreshRapportIfActive() {
+  const el = document.getElementById('view-rapport');
+  if (el && el.style.display !== 'none') renderRapport();
+}
+
+function renderRapport() {
+  if (!currentUser) return;
+  const period  = _rapPeriod;
+  const refDate = _rapRefDate;
+  let result;
+
+  if (currentUser.role === 'superviseur') {
+    result = _buildRapportSuperviseur(period, refDate);
+  } else if (['ra', 'admin'].includes(currentUser.role)) {
+    result = _buildRapportRA(period, refDate, false);
+  } else if (['dg', 'dga', 'dc', 'dcc'].includes(currentUser.role)) {
+    result = _buildRapportRA(period, refDate, true);
+  } else if (FIELD_RESTRICTED_ROLES.includes(currentUser.role)) {
+    result = _buildRapportSwap(period, refDate);
+  } else {
+    result = { kpiHtml: '', text: 'Rapport non disponible pour ce rôle.' };
+  }
+
+  document.getElementById('rap-kpi-section').innerHTML  = result.kpiHtml || '';
+  document.getElementById('rap-text-preview').value     = result.text || '';
+  document.getElementById('rap-subtitle').textContent   = _rapPeriodLabel(period, refDate);
+}
+
+function _rapKpiCard(label, value, sub) {
+  return `<div class="card" style="text-align:center;padding:16px">
+    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">${label}</div>
+    <div style="font-size:26px;font-weight:800">${value}</div>
+    ${sub ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">${sub}</div>` : ''}
+  </div>`;
+}
+
+function _buildRapportSuperviseur(period, refDate) {
+  const supId = currentUser.id;
+  const zone  = currentUser.zone;
+
+  const filtered = _filterRapport(VALLEE_SAISIES.filter(r => r.supId === supId), period, refDate);
+  const ga   = filtered.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
+  const momo = filtered.reduce((s, r) => s + (Number(r.momoUser) || 0), 0);
+  const last = [...filtered].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))[0];
+  const dfaActif = last ? Number(last.dfaActif) || 0 : 0;
+  const totalDfa = last ? Number(last.totalDfa) || 0 : 0;
+
+  const teamTargetGA   = _teamPeriodTarget('ga', period, refDate);
+  const teamTargetMomo = _teamPeriodTarget('momo', period, refDate);
+  const targetGA   = _supPropTarget(teamTargetGA, supId, refDate);
+  const targetMomo = _supPropTarget(teamTargetMomo, supId, refDate);
+  const pctGA   = targetGA   > 0 ? Math.round(ga   / targetGA   * 100) : 0;
+  const pctMomo = targetMomo > 0 ? Math.round(momo / targetMomo * 100) : 0;
+
+  const stockRows  = _filterRapport(VALLEE_STOCK.filter(r => r.auteurId === supId), period, refDate);
+  const stockRecu  = stockRows.reduce((s, r) => s + (Number(r.quantite) || 0), 0);
+  const stockHors  = stockRows.filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type)).length;
+
+  const dysfRows   = _filterRapport(VALLEE_DYSF.filter(d => d.localite === zone || d.localite === 'Toutes les localités'), period, refDate);
+  const dureeTotal = dysfRows.reduce((s, d) => s + _dureeToMinutes(d.duree), 0);
+  const impactTotal = dysfRows.reduce((s, d) => s + (Number(d.impactSims) || 0), 0);
+
+  const kpiHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+    ${_rapKpiCard('Gross Add', ga.toLocaleString('fr-FR'), `Cible ${targetGA.toLocaleString('fr-FR')} (${pctGA}%)`)}
+    ${_rapKpiCard('MoMo User', momo.toLocaleString('fr-FR'), `Cible ${targetMomo.toLocaleString('fr-FR')} (${pctMomo}%)`)}
+    ${_rapKpiCard('DFA Actifs', `${dfaActif}/${totalDfa}`, '')}
+    ${_rapKpiCard('Dysfonctionnements', dysfRows.length, dysfRows.length ? `-${impactTotal.toLocaleString('fr-FR')} SIMs` : '')}
+  </div>`;
+
+  const text = `📊 RAPPORT DE ZONE — ${zone || '—'}
+${_rapPeriodLabel(period, refDate)}
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 GROSS ADD
+Réalisé : ${ga.toLocaleString('fr-FR')} / Cible : ${targetGA.toLocaleString('fr-FR')} (${pctGA}%)
+
+🎯 MOMO USER
+Réalisé : ${momo.toLocaleString('fr-FR')} / Cible : ${targetMomo.toLocaleString('fr-FR')} (${pctMomo}%)
+
+👥 DFA ACTIFS : ${dfaActif} / ${totalDfa}
+
+📦 STOCK SIM
+Reçu sur la période : ${stockRecu.toLocaleString('fr-FR')}
+${stockRows.length ? (stockHors > 0 ? `⚠️ ${stockHors} réception(s) hors plage globale` : '✓ Toutes les réceptions couvertes') : 'Aucune réception sur la période'}
+
+⚠️ DYSFONCTIONNEMENTS (${dysfRows.length})
+${dysfRows.length ? `Durée cumulée : ${_minutesToDuree(dureeTotal)}\nImpact estimé : -${impactTotal.toLocaleString('fr-FR')} SIMs` : 'Aucun dysfonctionnement sur la période'}
+
+━━━━━━━━━━━━━━━━━━━━
+Rapport généré le ${isoToFR(todayISO)} — TeamVallee`;
+
+  return { kpiHtml, text };
+}
+
+function _buildRapportRA(period, refDate, condensed) {
+  const filtered = _filterRapport(VALLEE_SAISIES, period, refDate);
+  const ga   = filtered.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
+  const momo = filtered.reduce((s, r) => s + (Number(r.momoUser) || 0), 0);
+  const targetGA   = _teamPeriodTarget('ga', period, refDate);
+  const targetMomo = _teamPeriodTarget('momo', period, refDate);
+  const pctGA   = targetGA   > 0 ? Math.round(ga   / targetGA   * 100) : 0;
+  const pctMomo = targetMomo > 0 ? Math.round(momo / targetMomo * 100) : 0;
+
+  const parSup = VALLEE_SUPS.map(sup => {
+    const supRows = filtered.filter(r => r.supId === sup.id);
+    const supGA   = supRows.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
+    const supTgt  = _supPropTarget(targetGA, sup.id, refDate);
+    const supPct  = supTgt > 0 ? Math.round(supGA / supTgt * 100) : 0;
+    const dysfN   = _filterRapport(VALLEE_DYSF.filter(d => d.localite === sup.zone), period, refDate).length;
+    return { ...sup, ga: supGA, pct: supPct, dysfN };
+  }).sort((a, b) => b.ga - a.ga);
+
+  const enRetard = parSup.filter(s => s.pct < 70);
+
+  const dysfPeriode  = _filterRapport(VALLEE_DYSF, period, refDate);
+  const dysfCritiques = dysfPeriode.filter(d => d.impact === 'Critique' || d.impact === 'Élevé');
+
+  const stockPeriode = _filterRapport(VALLEE_STOCK, period, refDate);
+  const stockHorsPlage = stockPeriode.filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type));
+
+  const moisKey  = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
+  const declMois = _declaratifForMonth(refDate.getFullYear(), refDate.getMonth());
+  const reelMois = _kpiReelForMonth(moisKey);
+
+  const parSupHtml = parSup.map(s => `• ${s.nom} : ${s.ga.toLocaleString('fr-FR')} (${s.pct}%)${s.dysfN ? ` · ${s.dysfN} dysf.` : ''}`).join('\n');
+
+  const alertes = [];
+  if (enRetard.length) alertes.push(`• Superviseur(s) en retard (<70%) : ${enRetard.map(s => s.nom).join(', ')}`);
+  if (dysfCritiques.length) alertes.push(`• Dysfonctionnement(s) critique(s)/élevé(s) : ${dysfCritiques.length}`);
+  if (stockHorsPlage.length) alertes.push(`• Réception(s) stock hors plage : ${stockHorsPlage.length}`);
+  if (!alertes.length) alertes.push('• Aucune alerte — équipe dans la trajectoire');
+
+  const kpiHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+    ${_rapKpiCard('Gross Add équipe', ga.toLocaleString('fr-FR'), `Cible ${targetGA.toLocaleString('fr-FR')} (${pctGA}%)`)}
+    ${_rapKpiCard('MoMo User équipe', momo.toLocaleString('fr-FR'), `Cible ${targetMomo.toLocaleString('fr-FR')} (${pctMomo}%)`)}
+    ${_rapKpiCard('Alertes', alertes.length && alertes[0].startsWith('• Aucune') ? 0 : alertes.length, '')}
+  </div>`;
+
+  let text = `📊 RAPPORT ÉQUIPE — ZEPHIR GROUP
+${_rapPeriodLabel(period, refDate)}
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 GROSS ADD ÉQUIPE
+Réalisé : ${ga.toLocaleString('fr-FR')} / Cible : ${targetGA.toLocaleString('fr-FR')} (${pctGA}%)
+
+🎯 MOMO USER ÉQUIPE
+Réalisé : ${momo.toLocaleString('fr-FR')} / Cible : ${targetMomo.toLocaleString('fr-FR')} (${pctMomo}%)
+`;
+
+  if (!condensed) {
+    text += `
+📋 PAR SUPERVISEUR
+${parSupHtml}
+`;
+  }
+
+  text += `
+📈 KPI NEW ADD RÉEL — ${FR_MONTHS[refDate.getMonth()]} ${refDate.getFullYear()}
+${reelMois !== null ? `Déclaratif : ${declMois.toLocaleString('fr-FR')} / Réel validé : ${reelMois.toLocaleString('fr-FR')} / Écart : ${(declMois - reelMois) > 0 ? '+' : ''}${(declMois - reelMois).toLocaleString('fr-FR')}` : 'Non renseigné pour ce mois'}
+
+🚨 ALERTES
+${alertes.join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━
+Rapport généré le ${isoToFR(todayISO)} — TeamVallee`;
+
+  return { kpiHtml, text };
+}
+
+function _buildRapportSwap(period, refDate) {
+  const swapRows  = _filterRapport(VALLEE_SWAP, period, refDate)
+    .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0));
+  const stockRows = _filterRapport(VALLEE_STOCK.filter(r => r.auteurId === currentUser.id), period, refDate);
+  const stockRecu = stockRows.reduce((s, r) => s + (Number(r.quantite) || 0), 0);
+  const stockHors = stockRows.filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type)).length;
+
+  const MAX_LIST = 15;
+  const swapListe = swapRows.slice(0, MAX_LIST)
+    .map(r => `• ${isoToFR(r.date) || r.date} — SIM ${r.sim} → SWAPER ${r.swaper}`).join('\n');
+  const swapReste = swapRows.length > MAX_LIST ? `\n… +${swapRows.length - MAX_LIST} autre(s)` : '';
+
+  const kpiHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+    ${_rapKpiCard('SWAP effectués', swapRows.length, '')}
+    ${_rapKpiCard('Stock SIM reçu', stockRecu.toLocaleString('fr-FR'), '')}
+  </div>`;
+
+  const text = `🔁 RAPPORT SWAP — ${currentUser.nom}
+${_rapPeriodLabel(period, refDate)}
+
+━━━━━━━━━━━━━━━━━━━━
+🔁 SWAP EFFECTUÉS : ${swapRows.length}
+${swapRows.length ? swapListe + swapReste : 'Aucun SWAP sur la période'}
+
+📦 MES RÉCEPTIONS STOCK SIM
+Reçu sur la période : ${stockRecu.toLocaleString('fr-FR')}
+${stockRows.length ? (stockHors > 0 ? `⚠️ ${stockHors} réception(s) hors plage globale` : '✓ Toutes les réceptions couvertes') : 'Aucune réception sur la période'}
+
+━━━━━━━━━━━━━━━━━━━━
+Rapport généré le ${isoToFR(todayISO)} — TeamVallee`;
+
+  return { kpiHtml, text };
+}
+
+function _rapText() { return document.getElementById('rap-text-preview')?.value || ''; }
+
+function copyRapportVallee() {
+  const text = _rapText();
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Copié', '', false);
+  }).catch(() => showToast('Erreur', 'Impossible de copier.', true));
+}
+
+function sendRapportWhatsAppVallee() {
+  const text = _rapText();
+  if (!text) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function sendRapportEmailVallee() {
+  const text = _rapText();
+  if (!text) return;
+  const subject = encodeURIComponent('Rapport TeamVallee — ' + (document.getElementById('rap-subtitle')?.textContent || ''));
+  window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(text);
 }
 
 /* ── DYSFONCTIONNEMENTS ── */
@@ -2329,7 +2679,7 @@ async function loadDysf() {
   _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); updateImpactEstime(); }
+      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); updateImpactEstime(); _refreshRapportIfActive(); }
       else { console.error('[loadDysf] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadDysf] erreur réseau:', err); })
@@ -2349,6 +2699,7 @@ async function loadKpiReel() {
         _kpiReelLoaded = true;
         renderKpiReelCard();
         if (document.getElementById('param-kpireel-tbody')) _renderKpiReelTable();
+        _refreshRapportIfActive();
       } else { console.error('[loadKpiReel] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadKpiReel] erreur réseau:', err); })
