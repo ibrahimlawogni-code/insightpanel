@@ -682,6 +682,66 @@
             </p>
             <div id="param-dfa-weights"></div>
           </div>
+          <div class="card" id="card-users-form" style="display:none;margin-top:14px">
+            <div class="card-title"><i class="fa fa-user-plus"></i> Gestion des utilisateurs</div>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:18px">
+              Crée un compte Superviseur, Agence ou Service CARE. L'identifiant et le mot de passe
+              générés ne seront affichés qu'une seule fois : note-les avant de fermer.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Type de compte</label>
+                <select id="user-new-role" onchange="_onUserNewRoleChange()">
+                  <option value="superviseur">Superviseur</option>
+                  <option value="agence">Agence</option>
+                  <option value="care">Service CARE</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label id="user-new-nom-label">Nom du superviseur</label>
+                <input type="text" id="user-new-nom" placeholder="Ex: Jean Dupont" oninput="_suggestUserId()">
+              </div>
+              <div class="form-group" id="user-new-zone-group">
+                <label>Zone</label>
+                <select id="user-new-zone">
+                  <option value="">— Sélectionner —</option>
+                  <option value="Akpro - Missérété">Akpro - Missérété</option>
+                  <option value="Aguégués - Dangbo">Aguégués - Dangbo</option>
+                  <option value="Adjarra">Adjarra</option>
+                  <option value="Avrankou">Avrankou</option>
+                  <option value="Bonou - Adjohoun">Bonou - Adjohoun</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Identifiant</label>
+                <input type="text" id="user-new-id" placeholder="Ex: Jean.Dupont">
+              </div>
+              <div class="form-group">
+                <label>Mot de passe</label>
+                <div style="display:flex;gap:8px">
+                  <input type="text" id="user-new-pwd" placeholder="Généré automatiquement" style="flex:1">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="_genUserPwd()" title="Générer"><i class="fa fa-shuffle"></i></button>
+                </div>
+              </div>
+            </div>
+            <div id="user-new-confirm" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:#fef9c3;color:#854d0e;font-size:13px"></div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveUtilisateur()" id="btn-save-user">
+                <i class="fa fa-floppy-disk"></i> Créer le compte
+              </button>
+            </div>
+          </div>
+          <div class="card" id="card-users-hist" style="display:none;margin-top:16px">
+            <div class="card-title"><i class="fa fa-users"></i> Comptes créés</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Nom</th><th>Rôle</th><th>Zone / Libellé</th><th>Identifiant</th><th>Créé le</th>
+                </tr></thead>
+                <tbody id="users-tbody"><tr><td colspan="5" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
       </div><!-- /page-body -->
@@ -694,13 +754,15 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCwmxGpBnwKpQyjF2_oCW7EfIHsKrdzygkrb6ZM9b1jKWuPljKH7j6Fi3VlGjAskQO/exec';
 const VALLEE_URL      = 'https://script.google.com/macros/s/AKfycbyxKgFQrBokXmJ9FndnC_-PW_k8rw1s7VLPWEvUKyVATp_-YOt-ty2nncadVnpf9HzGHA/exec';
 
-const VALLEE_SUPS = [
+const VALLEE_SUPS_BASE = [
   { id: 'Alphonse.Djokpe',    nom: 'Alphonse DJOKPE',    zone: 'Bonou - Adjohoun',  initiales: 'AD' },
   { id: 'Missimahou.Honkou',  nom: 'Missimahou HONKOU',  zone: 'Aguégués - Dangbo', initiales: 'MH' },
   { id: 'Ghislain.Bah',       nom: 'Ghislain BAH',       zone: 'Akpro - Missérété', initiales: 'GB' },
   { id: 'Loukmane.Yessoufou', nom: 'Loukmane YESSOUFOU', zone: 'Adjarra',           initiales: 'LY' },
   { id: 'François.Dansou',    nom: 'François DANSOU',    zone: 'Avrankou',          initiales: 'FD' },
 ];
+// Liste effective des superviseurs : de base + créés depuis Paramètres (voir _rebuildSupsList()).
+let VALLEE_SUPS = [...VALLEE_SUPS_BASE];
 
 let VALLEE_TEAM_TARGET    = { ga: 18660, momo: 16794 }; // fallback par défaut
 let VALLEE_MONTHLY_TARGETS = {};                          // { 'YYYY-MM': { ga, momo } }
@@ -734,13 +796,17 @@ const USERS_SEED = [
   { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
 ];
 
-const ALLOWED_ROLES = ['superviseur', 'ra', 'admin', 'dg', 'dga', 'dc', 'dcc'];
+const ALLOWED_ROLES = ['superviseur', 'ra', 'admin', 'dg', 'dga', 'dc', 'dcc', 'agence', 'care'];
 
 const ROLE_LABELS = {
   admin: 'Administrateur', dg: 'Directeur Général', dga: 'Dir. Général Adjoint',
   dcc: 'DCC', dc: 'Directeur Commercial', ra: 'Responsable Acquisition',
-  superviseur: 'Superviseur MPOS', agent: 'Agent Terrain'
+  superviseur: 'Superviseur MPOS', agent: 'Agent Terrain',
+  agence: 'Agence', care: 'Service CARE'
 };
+
+// Rôles créés depuis Paramètres (accès restreint : Dashboard équipe + Stocks SIM + SWAP)
+const FIELD_RESTRICTED_ROLES = ['agence', 'care'];
 
 /* ── INIT DATE ── */
 const today    = new Date();
@@ -772,6 +838,9 @@ let _enlvInFlight    = null;
 let VALLEE_SWAP      = []; // [{ date, sim, swaper, auteurId, auteurNom, horodatage }]
 let _swapLoaded      = false;
 let _swapInFlight    = null;
+let VALLEE_USERS_DYNAMIC = []; // [{ id, nom, role, libelle, initiales, horodatage }] — comptes créés depuis Paramètres
+let _usersDynLoaded      = false;
+let _usersDynInFlight    = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -844,6 +913,16 @@ async function doLogin() {
     user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password) || null;
   }
 
+  if (!user) {
+    try {
+      const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'loginVallee', id: identifiant, pwd: password }) });
+      const json = await res.json();
+      if (json.success && json.user) {
+        user = { ...json.user, zone: json.user.libelle };
+      }
+    } catch (_) {}
+  }
+
   btn.disabled = false; btn.textContent = 'Se connecter';
 
   if (!user) {
@@ -860,6 +939,43 @@ async function doLogin() {
   }
 
   startSession(user);
+}
+
+function _applySupOpts() {
+  const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
+  const saisieSel = document.getElementById('saisie-sup-select');
+  const stockSel  = document.getElementById('stock-sup-select');
+  if (saisieSel) saisieSel.innerHTML = supOpts;
+  if (stockSel)  stockSel.innerHTML  = supOpts;
+}
+
+// Recompose VALLEE_SUPS = superviseurs codés en dur + superviseurs créés depuis Paramètres.
+function _rebuildSupsList() {
+  const created = VALLEE_USERS_DYNAMIC
+    .filter(u => u.role === 'superviseur')
+    .map(u => ({ id: u.id, nom: u.nom, zone: u.libelle, initiales: u.initiales || '?' }));
+  VALLEE_SUPS = [...VALLEE_SUPS_BASE, ...created];
+  _applySupOpts();
+}
+
+async function loadUtilisateursDynamiques() {
+  if (_usersDynLoaded) return;
+  if (_usersDynInFlight) return _usersDynInFlight;
+  _usersDynInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getUtilisateursVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) {
+        VALLEE_USERS_DYNAMIC = json.data || [];
+        _usersDynLoaded = true;
+        _rebuildSupsList();
+        renderUtilisateursList();
+        renderDashboard();
+        _renderDfaWeights();
+      } else { console.error('[loadUtilisateursDynamiques] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadUtilisateursDynamiques] erreur réseau:', err); })
+    .finally(() => { _usersDynInFlight = null; });
+  return _usersDynInFlight;
 }
 
 function startSession(user) {
@@ -880,15 +996,20 @@ function startSession(user) {
   const navParam = document.getElementById('nav-parametres');
   if (navParam) navParam.style.display = isRa ? '' : 'none';
 
+  /* Comptes Agence / Service CARE : accès restreint (Dashboard + Stocks SIM + SWAP) */
+  const isFieldRestricted = FIELD_RESTRICTED_ROLES.includes(currentUser.role);
+  document.getElementById('nav-saisie').style.display = isFieldRestricted ? 'none' : '';
+  document.getElementById('nav-dysf').style.display   = isFieldRestricted ? 'none' : '';
+
   /* Pré-remplir sélecteurs superviseur */
-  const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
-  document.getElementById('saisie-sup-select').innerHTML = supOpts;
-  document.getElementById('stock-sup-select').innerHTML  = supOpts;
+  _applySupOpts();
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
-  document.getElementById('card-enlv-form').style.display = isRaAdmin ? '' : 'none';
-  document.getElementById('card-enlv-hist').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('card-enlv-form').style.display  = isRaAdmin ? '' : 'none';
+  document.getElementById('card-enlv-hist').style.display  = isRaAdmin ? '' : 'none';
+  document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('enlv-date').value = todayISO;
 
   /* Dates par défaut */
@@ -919,6 +1040,7 @@ function startSession(user) {
   loadKpiReel();
   loadEnlevements();
   loadSwap();
+  loadUtilisateursDynamiques();
 }
 
 /* ── PARAMÈTRES ── */
@@ -962,6 +1084,7 @@ function renderParametres() {
 
   _renderDfaWeights();
   _renderKpiReelTable();
+  renderUtilisateursList();
 }
 
 function _renderDfaWeights() {
@@ -1052,8 +1175,9 @@ function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = [];
-  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = []; VALLEE_USERS_DYNAMIC = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false;
+  VALLEE_SUPS = [...VALLEE_SUPS_BASE];
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('login-id').value = ''; document.getElementById('login-pwd').value = '';
@@ -1357,7 +1481,8 @@ function _filterPreviousPeriod(data) {
 }
 
 function renderDashboard() {
-  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
+  // Agence/Service CARE n'ont pas de zone de vente propre : vue équipe complète, comme dg/dc.
+  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role) || FIELD_RESTRICTED_ROLES.includes(currentUser?.role);
   const myId = currentUser?.id;
 
   /* Données filtrées par période + rôle */
@@ -2338,6 +2463,110 @@ async function saveKpiReel() {
   } catch (e) {
     showToast('Erreur', e.message, true);
   }
+}
+
+/* ── GESTION DES UTILISATEURS ── */
+function _slugifyForId(nom) {
+  return nom.trim().split(/\s+/).filter(Boolean).map(part =>
+    part.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('-')
+  ).join('.');
+}
+
+function _onUserNewRoleChange() {
+  const role      = document.getElementById('user-new-role').value;
+  const nomLabel  = document.getElementById('user-new-nom-label');
+  const zoneGroup = document.getElementById('user-new-zone-group');
+  if (role === 'superviseur') {
+    nomLabel.textContent = 'Nom du superviseur';
+    zoneGroup.style.display = '';
+  } else if (role === 'agence') {
+    nomLabel.textContent = "Nom de l'agence";
+    zoneGroup.style.display = 'none';
+  } else {
+    nomLabel.textContent = 'Nom du service CARE';
+    zoneGroup.style.display = 'none';
+  }
+  _suggestUserId();
+}
+
+function _userNewFullNom() {
+  const role     = document.getElementById('user-new-role').value;
+  const nomInput = document.getElementById('user-new-nom').value.trim();
+  const prefix   = role === 'agence' ? 'Agence ' : role === 'care' ? 'Service CARE ' : '';
+  return nomInput ? prefix + nomInput : '';
+}
+
+function _suggestUserId() {
+  const fullNom = _userNewFullNom();
+  document.getElementById('user-new-id').value = fullNom ? _slugifyForId(fullNom) : '';
+}
+
+function _genUserPwd() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let pwd = '';
+  for (let i = 0; i < 10; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+  document.getElementById('user-new-pwd').value = pwd;
+}
+
+async function saveUtilisateur() {
+  if (!currentUser) return;
+  const role     = document.getElementById('user-new-role').value;
+  const nomInput = document.getElementById('user-new-nom').value.trim();
+  const zoneVal  = document.getElementById('user-new-zone').value;
+  const id       = document.getElementById('user-new-id').value.trim();
+  const pwd      = document.getElementById('user-new-pwd').value.trim();
+
+  if (!nomInput) { showToast('Champ requis', 'Veuillez indiquer un nom.', true); return; }
+  if (role === 'superviseur' && !zoneVal) { showToast('Champ requis', 'Veuillez sélectionner une zone.', true); return; }
+  if (!id)  { showToast('Champ requis', 'Identifiant manquant.', true); return; }
+  if (!pwd) { showToast('Champ requis', 'Générez ou saisissez un mot de passe.', true); return; }
+
+  const fullNom   = _userNewFullNom();
+  const libelle   = role === 'superviseur' ? zoneVal : fullNom;
+  const initiales = fullNom.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('');
+
+  const btn = document.getElementById('btn-save-user');
+  btn.disabled = true;
+  try {
+    const payload = { action: 'saveUtilisateurVallee', id, pwd, nom: fullNom, role, libelle, initiales, auteurId: currentUser.id };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (json.success) {
+      const confirmEl = document.getElementById('user-new-confirm');
+      confirmEl.style.display = '';
+      confirmEl.innerHTML = `<i class="fa fa-triangle-exclamation"></i> Compte créé : identifiant <strong>${id}</strong>, mot de passe <strong>${pwd}</strong>. Note-les, ils ne seront plus affichés.`;
+      showToast('Compte créé', '', false);
+      _usersDynLoaded = false; _usersDynInFlight = null;
+      await loadUtilisateursDynamiques();
+      document.getElementById('user-new-nom').value  = '';
+      document.getElementById('user-new-zone').value = '';
+      document.getElementById('user-new-id').value   = '';
+      document.getElementById('user-new-pwd').value  = '';
+    } else {
+      showToast('Erreur', json.error || 'Erreur inconnue.', true);
+    }
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderUtilisateursList() {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+  const sorted = [...VALLEE_USERS_DYNAMIC].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun compte créé</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map(u => `<tr>
+      <td>${u.nom || '—'}</td>
+      <td>${ROLE_LABELS[u.role] || u.role}</td>
+      <td>${u.libelle || '—'}</td>
+      <td style="font-family:monospace;font-size:12px">${u.id || '—'}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${u.horodatage || '—'}</td>
+    </tr>`).join('');
 }
 
 async function saveDysf() {

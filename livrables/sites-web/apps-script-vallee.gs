@@ -37,6 +37,9 @@ function doPost(e) {
     if (data.action === 'saveEnlevementVallee')  return handleSaveEnlevementVallee(data);
     if (data.action === 'getSwapVallee')       return handleGetSwapVallee(data);
     if (data.action === 'saveSwapVallee')      return handleSaveSwapVallee(data);
+    if (data.action === 'loginVallee')            return handleLoginVallee(data);
+    if (data.action === 'getUtilisateursVallee')  return handleGetUtilisateursVallee(data);
+    if (data.action === 'saveUtilisateurVallee')  return handleSaveUtilisateurVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -659,6 +662,134 @@ function _getOrCreateSwapVallee(ss) {
   }
   // Sim/Swaper en texte brut pour éviter toute conversion numérique par Sheets.
   sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// UTILISATEURS TEAMVALLEE — comptes créés depuis Paramètres
+// (superviseurs, agences, services CARE). Ne s'ajoute PAS aux comptes
+// existants codés en dur côté client : système indépendant, en secours.
+// ─────────────────────────────────────────────────────────────
+function handleLoginVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateUtilisateursVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: false, error: 'Identifiant ou mot de passe incorrect.' });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    id:        headers.indexOf('id'),
+    password:  headers.indexOf('password'),
+    nom:       headers.indexOf('nom'),
+    role:      headers.indexOf('role'),
+    libelle:   headers.indexOf('libelle'),
+    initiales: headers.indexOf('initiales')
+  };
+
+  const idIn  = _cellStr(data.id).toLowerCase();
+  const pwdIn = _cellStr(data.pwd);
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (_cellStr(row[COL.id]).toLowerCase() === idIn && _cellStr(row[COL.password]) === pwdIn) {
+      return jsonResponse({
+        success: true,
+        user: {
+          id:        _cellStr(row[COL.id]),
+          nom:       _cellStr(row[COL.nom]),
+          role:      _cellStr(row[COL.role]),
+          libelle:   _cellStr(row[COL.libelle]),
+          initiales: _cellStr(row[COL.initiales])
+        }
+      });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Identifiant ou mot de passe incorrect.' });
+}
+
+// Liste des comptes SANS mot de passe (alimente VALLEE_SUPS et la liste en Paramètres).
+function handleGetUtilisateursVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateUtilisateursVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    id:         headers.indexOf('id'),
+    nom:        headers.indexOf('nom'),
+    role:       headers.indexOf('role'),
+    libelle:    headers.indexOf('libelle'),
+    initiales:  headers.indexOf('initiales'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.id]) continue;
+    entries.push({
+      id:         _cellStr(row[COL.id]),
+      nom:        _cellStr(row[COL.nom]),
+      role:       _cellStr(row[COL.role]),
+      libelle:    _cellStr(row[COL.libelle]),
+      initiales:  _cellStr(row[COL.initiales]),
+      horodatage: _cellStr(row[COL.horodatage])
+    });
+  }
+  return jsonResponse({ success: true, data: entries });
+}
+
+function handleSaveUtilisateurVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateUtilisateursVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const idCol = headers.indexOf('id') + 1;
+
+  const idIn = _cellStr(data.id).toLowerCase();
+  if (!idIn) return jsonResponse({ success: false, error: 'Identifiant requis.' });
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (_cellStr(ids[i][0]).toLowerCase() === idIn) {
+        return jsonResponse({ success: false, error: 'Cet identifiant existe déjà.' });
+      }
+    }
+  }
+
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+  set('id',         data.id         || '');
+  set('password',   data.pwd        || '');
+  set('nom',        data.nom        || '');
+  set('role',       data.role       || '');
+  set('libelle',    data.libelle    || '');
+  set('initiales',  data.initiales  || '');
+  set('creepar',    data.auteurId   || '');
+  set('horodatage', ts);
+
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, message: 'Compte créé.', horodatage: ts });
+}
+
+function _getOrCreateUtilisateursVallee(ss) {
+  let sheet = ss.getSheetByName('UtilisateursVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('UtilisateursVallee');
+    const headers = ['Id', 'Password', 'Nom', 'Role', 'Libelle', 'Initiales', 'CreePar', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [140, 100, 180, 110, 180, 90, 160, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  }
+  // Colonnes texte brut pour Id/Password : évite toute conversion numérique/date par Sheets.
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   return sheet;
 }
 
