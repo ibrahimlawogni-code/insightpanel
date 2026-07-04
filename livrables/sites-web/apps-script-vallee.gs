@@ -40,6 +40,8 @@ function doPost(e) {
     if (data.action === 'loginVallee')            return handleLoginVallee(data);
     if (data.action === 'getUtilisateursVallee')  return handleGetUtilisateursVallee(data);
     if (data.action === 'saveUtilisateurVallee')  return handleSaveUtilisateurVallee(data);
+    if (data.action === 'getDemandesVallee')      return handleGetDemandesVallee(data);
+    if (data.action === 'saveDemandeVallee')      return handleSaveDemandeVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -791,6 +793,153 @@ function _getOrCreateUtilisateursVallee(ss) {
   // Colonnes texte brut pour Id/Password : évite toute conversion numérique/date par Sheets.
   sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEMANDES D'EXPLICATION — lecture
+// ─────────────────────────────────────────────────────────────
+function handleGetDemandesVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateDemandesVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    ref:               headers.indexOf('ref'),
+    date:              headers.indexOf('date'),
+    destinatairenom:   headers.indexOf('destinatairenom'),
+    destinataireemail: headers.indexOf('destinataireemail'),
+    destinatairetype:  headers.indexOf('destinatairetype'),
+    motif:             headers.indexOf('motif'),
+    contexte:          headers.indexOf('contexte'),
+    message:           headers.indexOf('message'),
+    datelimite:        headers.indexOf('datelimite'),
+    statut:            headers.indexOf('statut'),
+    reponse:           headers.indexOf('reponse'),
+    datereponse:       headers.indexOf('datereponse'),
+    auteurid:          headers.indexOf('auteurid'),
+    horodatage:        headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.ref]) continue;
+    entries.push({
+      ref:               _cellStr(row[COL.ref]),
+      date:              _cellStr(row[COL.date]),
+      destinataireNom:   _cellStr(row[COL.destinatairenom]),
+      destinataireEmail: _cellStr(row[COL.destinataireemail]),
+      destinataireType:  _cellStr(row[COL.destinatairetype]),
+      motif:             _cellStr(row[COL.motif]),
+      contexte:          _cellStr(row[COL.contexte]),
+      message:           _cellStr(row[COL.message]),
+      dateLimite:        _cellStr(row[COL.datelimite]),
+      statut:            _cellStr(row[COL.statut]),
+      reponse:           _cellStr(row[COL.reponse]),
+      dateReponse:       _cellStr(row[COL.datereponse]),
+      auteurId:          _cellStr(row[COL.auteurid]),
+      horodatage:        _cellStr(row[COL.horodatage])
+    });
+  }
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEMANDES D'EXPLICATION — écriture (génère la référence côté serveur)
+// ─────────────────────────────────────────────────────────────
+function handleSaveDemandeVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateDemandesVallee(ss);
+  const ts    = new Date().toLocaleString('fr-FR');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+
+  const numero = Math.max(sheet.getLastRow() - 1, 0) + 1;
+  const ref = 'DEM-' + numero;
+
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+  set('ref',               ref);
+  set('date',               data.date              || _todayFR());
+  set('destinatairenom',   data.destinataireNom    || '');
+  set('destinataireemail', data.destinataireEmail  || '');
+  set('destinatairetype',  data.destinataireType   || '');
+  set('motif',              data.motif              || '');
+  set('contexte',           data.contexte           || '');
+  set('message',            data.message            || '');
+  set('datelimite',        data.dateLimite         || '');
+  set('statut',             'En attente');
+  set('reponse',            '');
+  set('datereponse',       '');
+  set('auteurid',          data.auteurId           || '');
+  set('horodatage',        ts);
+
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, ref: ref, horodatage: ts });
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRÉATION AUTOMATIQUE — feuille DemandesVallee
+// ─────────────────────────────────────────────────────────────
+function _getOrCreateDemandesVallee(ss) {
+  let sheet = ss.getSheetByName('DemandesVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('DemandesVallee');
+    const headers = ['Ref', 'Date', 'DestinataireNom', 'DestinataireEmail', 'DestinataireType',
+      'Motif', 'Contexte', 'Message', 'DateLimite', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [80, 90, 160, 180, 110, 180, 260, 260, 90, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  }
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEMANDES D'EXPLICATION — archivage automatique des réponses
+// ⚠️ Cette fonction n'est PAS appelée par doPost. Elle doit être exécutée
+// périodiquement via un déclencheur temporel (Éditeur Apps Script >
+// Déclencheurs > Ajouter un déclencheur > checkDemandesReponses >
+// Basé sur le temps > toutes les 15 ou 30 minutes). Elle scrute la boîte
+// Gmail du compte qui exécute le script pour retrouver les réponses aux
+// demandes envoyées (repérées par la référence "[DEM-x]" dans l'objet).
+// ─────────────────────────────────────────────────────────────
+function checkDemandesReponses() {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateDemandesVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return;
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = { ref: headers.indexOf('ref'), statut: headers.indexOf('statut') };
+
+  for (let i = 1; i < rows.length; i++) {
+    if (_cellStr(rows[i][COL.statut]) !== 'En attente') continue;
+    const ref = _cellStr(rows[i][COL.ref]);
+    if (!ref) continue;
+
+    const threads = GmailApp.search('subject:"[' + ref + ']"', 0, 5);
+    let latestReply = null;
+    threads.forEach(thread => {
+      const messages = thread.getMessages();
+      if (messages.length > 1) {
+        const last = messages[messages.length - 1];
+        if (!latestReply || last.getDate() > latestReply.getDate()) latestReply = last;
+      }
+    });
+
+    if (latestReply) {
+      const rowIndex = i + 1;
+      const set = (key, val) => { const c = headers.indexOf(key); if (c >= 0) sheet.getRange(rowIndex, c + 1).setValue(val); };
+      set('statut', 'Répondu');
+      set('reponse', latestReply.getPlainBody().substring(0, 3000));
+      set('datereponse', Utilities.formatDate(latestReply.getDate(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm'));
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

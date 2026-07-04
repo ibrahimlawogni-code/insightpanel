@@ -269,6 +269,9 @@
         <button class="nav-item" id="nav-rapport" onclick="showView('rapport', this)">
           <i class="fa fa-share-nodes"></i> Rapport
         </button>
+        <button class="nav-item" id="nav-demandes" onclick="showView('demandes', this)" style="display:none">
+          <i class="fa fa-file-signature"></i> Demandes
+        </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
           <i class="fa fa-gear"></i> Paramètres
         </button>
@@ -657,6 +660,78 @@
           </div>
         </div>
 
+        <!-- VUE DEMANDES D'EXPLICATION -->
+        <div id="view-demandes" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title"><i class="fa fa-file-signature"></i> Nouvelle demande d'explication</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Destinataire</label>
+                <select id="dem-dest-type" onchange="_onDemDestTypeChange()">
+                  <option value="utilisateur">Utilisateur du système</option>
+                  <option value="externe">Externe</option>
+                </select>
+              </div>
+              <div class="form-group" id="dem-dest-select-group">
+                <label>Choisir</label>
+                <select id="dem-dest-select" onchange="_onDemDestSelectChange()"></select>
+              </div>
+              <div class="form-group">
+                <label>Nom du destinataire</label>
+                <input type="text" id="dem-dest-nom" placeholder="Ex: Jean Dupont">
+              </div>
+              <div class="form-group">
+                <label>Email du destinataire</label>
+                <input type="email" id="dem-dest-email" placeholder="Ex: jean.dupont@mail.com">
+              </div>
+              <div class="form-group">
+                <label>Lié à un événement (optionnel)</label>
+                <select id="dem-lien-type" onchange="_onDemLienTypeChange()">
+                  <option value="">Aucun — libre</option>
+                  <option value="dysf">Dysfonctionnement</option>
+                  <option value="stock">Réception stock hors plage</option>
+                  <option value="kpireel">Écart KPI NEW ADD réel</option>
+                </select>
+              </div>
+              <div class="form-group" id="dem-lien-select-group" style="display:none">
+                <label>Sélectionner l'événement</label>
+                <select id="dem-lien-select" onchange="_onDemLienSelectChange()"></select>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Contexte (auto-rempli si événement lié, modifiable)</label>
+                <textarea id="dem-contexte" rows="2" placeholder="Détail du constat…"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Motif</label>
+                <input type="text" id="dem-motif" placeholder="Ex: Écart de déclaration GA">
+              </div>
+              <div class="form-group">
+                <label>Date limite de réponse</label>
+                <input type="date" id="dem-date-limite">
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Message / question</label>
+                <textarea id="dem-message" rows="4" placeholder="Précisez ce qui est demandé au destinataire…"></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button onclick="sendDemandeEmail()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Envoyer par Email</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fa fa-list"></i> Historique des demandes</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Réf.</th><th>Date</th><th>Destinataire</th><th>Motif</th>
+                  <th style="text-align:center">Statut</th><th>Date limite</th><th>Réponse</th>
+                </tr></thead>
+                <tbody id="dem-tbody"><tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- VUE PARAMETRES -->
         <div id="view-parametres" style="display:none">
           <div class="card" style="margin-bottom:14px">
@@ -877,6 +952,9 @@ let _usersDynLoaded      = false;
 let _usersDynInFlight    = null;
 let _rapPeriod  = 'jour';
 let _rapRefDate = new Date(today);
+let VALLEE_DEMANDES = []; // [{ ref, date, destinataireNom, destinataireEmail, destinataireType, motif, contexte, message, dateLimite, statut, reponse, dateReponse, auteurId, horodatage }]
+let _demandesLoaded   = false;
+let _demandesInFlight = null;
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -1008,6 +1086,7 @@ async function loadUtilisateursDynamiques() {
         renderDashboard();
         _renderDfaWeights();
         _refreshRapportIfActive();
+        _refreshDemandesIfActive();
       } else { console.error('[loadUtilisateursDynamiques] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadUtilisateursDynamiques] erreur réseau:', err); })
@@ -1047,7 +1126,10 @@ function startSession(user) {
   document.getElementById('card-enlv-hist').style.display  = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
   document.getElementById('enlv-date').value = todayISO;
+  const demLimite = new Date(today); demLimite.setDate(demLimite.getDate() + 3);
+  document.getElementById('dem-date-limite').value = _dateToISO(demLimite);
 
   /* Dates par défaut */
   document.getElementById('saisie-date').value = todayISO;
@@ -1067,9 +1149,10 @@ function startSession(user) {
   }
 
   _dashRefDate = new Date(today);
-  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', rapport: 'nav-rapport', parametres: 'nav-parametres' };
+  const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', rapport: 'nav-rapport', demandes: 'nav-demandes', parametres: 'nav-parametres' };
   const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
-  const _view     = (_lastView && _navMap[_lastView] && (isRa || _lastView !== 'parametres')) ? _lastView : 'dashboard';
+  const _viewBlocked = (_lastView === 'parametres' && !isRa) || (_lastView === 'demandes' && !isRaAdmin);
+  const _view     = (_lastView && _navMap[_lastView] && !_viewBlocked) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
   _updateDashControls();
   loadSaisies();
@@ -1079,6 +1162,7 @@ function startSession(user) {
   loadEnlevements();
   loadSwap();
   loadUtilisateursDynamiques();
+  loadDemandesVallee();
 }
 
 /* ── PARAMÈTRES ── */
@@ -1213,8 +1297,8 @@ function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
-  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = []; VALLEE_USERS_DYNAMIC = [];
-  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false;
+  currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = []; VALLEE_USERS_DYNAMIC = []; VALLEE_DEMANDES = [];
+  _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false; _demandesLoaded = false;
   VALLEE_SUPS = [...VALLEE_SUPS_BASE];
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
@@ -1233,13 +1317,13 @@ function doLogout() {
 
 /* ── VIEWS ── */
 function showView(name, el) {
-  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'swap', 'rapport', 'parametres'].forEach(v => {
+  ['dashboard', 'saisie', 'stocks', 'dysfonctionnement', 'swap', 'rapport', 'demandes', 'parametres'].forEach(v => {
     document.getElementById('view-' + v).style.display = (v === name) ? '' : 'none';
   });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', parametres: 'Paramètres' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', demandes: "Demandes d'explication", parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
@@ -1249,6 +1333,7 @@ function showView(name, el) {
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
   if (name === 'swap')              renderSwapTable();
   if (name === 'rapport')           renderRapport();
+  if (name === 'demandes')          { renderDemandesList(); _onDemDestTypeChange(); }
   if (name === 'parametres')        renderParametres();
 }
 
@@ -2576,6 +2661,210 @@ function sendRapportEmailVallee() {
   if (!text) return;
   const subject = encodeURIComponent('Rapport TeamVallee — ' + (document.getElementById('rap-subtitle')?.textContent || ''));
   window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(text);
+}
+
+/* ── DEMANDES D'EXPLICATION ── */
+function _refreshDemandesIfActive() {
+  const el = document.getElementById('view-demandes');
+  if (el && el.style.display !== 'none') { renderDemandesList(); _populateDemDestOptions(); }
+}
+
+let _demLienItems = []; // liste courante des événements sélectionnables (dysf/stock/kpiréel)
+
+async function loadDemandesVallee() {
+  if (_demandesLoaded) return;
+  if (_demandesInFlight) return _demandesInFlight;
+  _demandesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDemandesVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (json.success) { VALLEE_DEMANDES = json.data || []; _demandesLoaded = true; renderDemandesList(); }
+      else { console.error('[loadDemandesVallee] erreur GAS:', json.error); }
+    })
+    .catch(err => { console.error('[loadDemandesVallee] erreur réseau:', err); })
+    .finally(() => { _demandesInFlight = null; });
+  return _demandesInFlight;
+}
+
+function _onDemDestTypeChange() {
+  const type = document.getElementById('dem-dest-type').value;
+  document.getElementById('dem-dest-select-group').style.display = type === 'utilisateur' ? '' : 'none';
+  if (type === 'utilisateur') {
+    _populateDemDestOptions();
+    _onDemDestSelectChange();
+  } else {
+    document.getElementById('dem-dest-nom').value   = '';
+    document.getElementById('dem-dest-email').value = '';
+  }
+}
+
+function _populateDemDestOptions() {
+  const sel = document.getElementById('dem-dest-select');
+  const supOpts   = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — Superviseur</option>`);
+  const autresOpts = VALLEE_USERS_DYNAMIC.filter(u => u.role !== 'superviseur')
+    .map(u => `<option value="${u.id}">${u.nom} — ${ROLE_LABELS[u.role] || u.role}</option>`);
+  sel.innerHTML = [...supOpts, ...autresOpts].join('');
+}
+
+function _onDemDestSelectChange() {
+  const id  = document.getElementById('dem-dest-select').value;
+  const sup = VALLEE_SUPS.find(s => s.id === id);
+  const usr = VALLEE_USERS_DYNAMIC.find(u => u.id === id);
+  document.getElementById('dem-dest-nom').value = sup ? sup.nom : (usr ? usr.nom : '');
+}
+
+function _onDemLienTypeChange() {
+  const type = document.getElementById('dem-lien-type').value;
+  document.getElementById('dem-lien-select-group').style.display = type ? '' : 'none';
+  if (type) _populateDemLienOptions();
+  else { _demLienItems = []; document.getElementById('dem-contexte').value = ''; }
+}
+
+function _populateDemLienOptions() {
+  const type = document.getElementById('dem-lien-type').value;
+  const sel  = document.getElementById('dem-lien-select');
+  if (!type) return;
+
+  if (type === 'dysf') {
+    _demLienItems = [...VALLEE_DYSF]
+      .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+      .slice(0, 25);
+    sel.innerHTML = _demLienItems.map((d, i) =>
+      `<option value="${i}">${isoToFR(d.date) || d.date} — ${d.nature || '—'} (${d.localite || '—'})</option>`).join('');
+  } else if (type === 'stock') {
+    _demLienItems = [...VALLEE_STOCK]
+      .filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type))
+      .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+      .slice(0, 25);
+    sel.innerHTML = _demLienItems.map((r, i) =>
+      `<option value="${i}">${isoToFR(r.date) || r.date} — SIM ${r.simDebut}–${r.simFin}</option>`).join('');
+  } else if (type === 'kpireel') {
+    _demLienItems = [...VALLEE_KPI_REEL].sort((a, b) => (b.periode || '').localeCompare(a.periode || ''));
+    sel.innerHTML = _demLienItems.map((k, i) => {
+      const [yy, mm] = k.periode.split('-').map(Number);
+      const decl = _declaratifForMonth(yy, mm - 1);
+      const ecart = decl - (Number(k.kpiNewAdd) || 0);
+      return `<option value="${i}">${FR_MONTHS[mm - 1]} ${yy} — écart ${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}</option>`;
+    }).join('');
+  }
+  if (_demLienItems.length) _onDemLienSelectChange();
+}
+
+function _onDemLienSelectChange() {
+  const type = document.getElementById('dem-lien-type').value;
+  const idx  = Number(document.getElementById('dem-lien-select').value);
+  const item = _demLienItems[idx];
+  if (!item) return;
+  const ctx = document.getElementById('dem-contexte');
+
+  if (type === 'dysf') {
+    ctx.value = `Dysfonctionnement ${item.nature || '—'} signalé le ${isoToFR(item.date) || item.date} dans la zone ${item.localite || '—'}, durée ${item.duree || '—'}${item.impactSims ? `, impact estimé -${Number(item.impactSims).toLocaleString('fr-FR')} SIMs` : ''}.`;
+  } else if (type === 'stock') {
+    ctx.value = `Réception stock du ${isoToFR(item.date) || item.date} (SIM ${item.simDebut}–${item.simFin}, type ${item.type?.toUpperCase() || '—'}) non couverte par un enlèvement global enregistré.`;
+  } else if (type === 'kpireel') {
+    const [yy, mm] = item.periode.split('-').map(Number);
+    const decl = _declaratifForMonth(yy, mm - 1);
+    const reel = Number(item.kpiNewAdd) || 0;
+    ctx.value = `Écart NEW ADD réel/déclaratif — ${FR_MONTHS[mm - 1]} ${yy} : déclaratif ${decl.toLocaleString('fr-FR')}, réel validé ${reel.toLocaleString('fr-FR')}, écart ${(decl - reel) > 0 ? '+' : ''}${(decl - reel).toLocaleString('fr-FR')}.`;
+  }
+}
+
+function _demBuildEmailText(ref, destNom, motif, contexte, message, dateLimite) {
+  const dateLimiteTxt = dateLimite ? isoToFR(dateLimite) : '—';
+  return `${destNom},
+
+Dans le cadre du contrôle de conformité et de performance opérationnelle
+de ZEPHIR GROUP, distributeur agréé MTN Bénin, la présente constitue une
+demande d'explication formelle concernant le point suivant :
+
+MOTIF : ${motif}
+CONSTAT : ${contexte || '—'}
+
+Il vous est demandé de fournir, par retour de ce courrier électronique,
+les éléments de réponse suivants :
+
+${message}
+
+Cette réponse est attendue au plus tard le ${dateLimiteTxt}. Sans retour de
+votre part dans ce délai, ce dossier sera considéré comme non traité et
+transmis à la hiérarchie pour suite à donner.
+
+Merci de répondre directement à cet email, en conservant l'objet du
+message, afin d'assurer la traçabilité de cet échange.
+
+${currentUser?.nom || ''}
+Responsable Acquisition
+ZEPHIR GROUP — Distributeur agréé MTN Bénin`;
+}
+
+async function sendDemandeEmail() {
+  if (!currentUser) return;
+  const destType  = document.getElementById('dem-dest-type').value;
+  const destNom   = document.getElementById('dem-dest-nom').value.trim();
+  const destEmail = document.getElementById('dem-dest-email').value.trim();
+  const motif     = document.getElementById('dem-motif').value.trim();
+  const contexte  = document.getElementById('dem-contexte').value.trim();
+  const message   = document.getElementById('dem-message').value.trim();
+  const dateLimite = document.getElementById('dem-date-limite').value;
+
+  if (!destNom)   { showToast('Champ requis', 'Veuillez indiquer le nom du destinataire.', true); return; }
+  if (!destEmail) { showToast('Champ requis', 'Veuillez indiquer l\'email du destinataire.', true); return; }
+  if (!motif)     { showToast('Champ requis', 'Veuillez indiquer un motif.', true); return; }
+  if (!message)   { showToast('Champ requis', 'Veuillez rédiger le message.', true); return; }
+
+  try {
+    const payload = {
+      action: 'saveDemandeVallee', date: todayISO, destinataireNom: destNom, destinataireEmail: destEmail,
+      destinataireType: destType, motif, contexte, message, dateLimite, auteurId: currentUser.id
+    };
+    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!json.success) { showToast('Erreur', json.error || 'Erreur inconnue.', true); return; }
+
+    const ref     = json.ref;
+    const subject = encodeURIComponent(`[${ref}] Demande d'explication officielle — ${motif}`);
+    const body    = encodeURIComponent(_demBuildEmailText(ref, destNom, motif, contexte, message, dateLimite));
+    window.location.href = `mailto:${encodeURIComponent(destEmail)}?subject=${subject}&body=${body}`;
+
+    showToast('Demande enregistrée', `Référence ${ref}`, false);
+    _demandesLoaded = false; _demandesInFlight = null;
+    await loadDemandesVallee();
+    document.getElementById('dem-dest-nom').value    = '';
+    document.getElementById('dem-dest-email').value  = '';
+    document.getElementById('dem-motif').value       = '';
+    document.getElementById('dem-contexte').value    = '';
+    document.getElementById('dem-message').value     = '';
+    document.getElementById('dem-lien-type').value   = '';
+    document.getElementById('dem-lien-select-group').style.display = 'none';
+  } catch (e) {
+    showToast('Erreur réseau', e.message, true);
+  }
+}
+
+function renderDemandesList() {
+  const tbody = document.getElementById('dem-tbody');
+  if (!tbody) return;
+  const sorted = [...VALLEE_DEMANDES].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Aucune demande enregistrée</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map(d => {
+    const badge = d.statut === 'Répondu'
+      ? '<span class="badge badge-green">Répondu</span>'
+      : '<span class="badge badge-yellow">En attente</span>';
+    const reponseApercu = d.reponse
+      ? `<span title="${d.reponse.replace(/"/g, '&quot;')}" style="cursor:help">${d.reponse.slice(0, 60)}${d.reponse.length > 60 ? '…' : ''}</span>`
+      : '<span style="color:var(--text-muted)">—</span>';
+    return `<tr>
+      <td style="font-family:monospace;font-size:12px">${d.ref}</td>
+      <td>${isoToFR(d.date) || d.date}</td>
+      <td>${d.destinataireNom}</td>
+      <td>${d.motif}</td>
+      <td style="text-align:center">${badge}</td>
+      <td>${isoToFR(d.dateLimite) || d.dateLimite || '—'}</td>
+      <td style="max-width:220px">${reponseApercu}</td>
+    </tr>`;
+  }).join('');
 }
 
 /* ── DYSFONCTIONNEMENTS ── */
