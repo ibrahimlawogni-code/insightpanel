@@ -270,7 +270,7 @@
           <i class="fa fa-share-nodes"></i> Rapport
         </button>
         <button class="nav-item" id="nav-demandes" onclick="showView('demandes', this)" style="display:none">
-          <i class="fa fa-file-signature"></i> Demandes
+          <i class="fa fa-file-signature"></i> Courriers
         </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
           <i class="fa fa-gear"></i> Paramètres
@@ -660,11 +660,19 @@
           </div>
         </div>
 
-        <!-- VUE DEMANDES D'EXPLICATION -->
+        <!-- VUE COURRIERS -->
         <div id="view-demandes" style="display:none">
           <div class="card" style="margin-bottom:16px">
-            <div class="card-title"><i class="fa fa-file-signature"></i> Nouvelle demande d'explication</div>
+            <div class="card-title"><i class="fa fa-file-signature"></i> Nouveau courrier</div>
             <div class="form-grid">
+              <div class="form-group">
+                <label>Type de courrier</label>
+                <select id="dem-type" onchange="_onDemTypeChange()">
+                  <option value="demande">Demande d'explication</option>
+                  <option value="avertissement">Avertissement</option>
+                  <option value="notification">Notification de sanction</option>
+                </select>
+              </div>
               <div class="form-group">
                 <label>Destinataire</label>
                 <select id="dem-dest-type" onchange="_onDemDestTypeChange()">
@@ -685,20 +693,21 @@
                 <input type="email" id="dem-dest-email" placeholder="Ex: jean.dupont@mail.com">
               </div>
               <div class="form-group">
-                <label>Lié à un événement (optionnel)</label>
+                <label>Lié à (optionnel)</label>
                 <select id="dem-lien-type" onchange="_onDemLienTypeChange()">
                   <option value="">Aucun — libre</option>
                   <option value="dysf">Dysfonctionnement</option>
                   <option value="stock">Réception stock hors plage</option>
                   <option value="kpireel">Écart KPI NEW ADD réel</option>
+                  <option value="courrier">Courrier précédent</option>
                 </select>
               </div>
               <div class="form-group" id="dem-lien-select-group" style="display:none">
-                <label>Sélectionner l'événement</label>
+                <label>Sélectionner</label>
                 <select id="dem-lien-select" onchange="_onDemLienSelectChange()"></select>
               </div>
               <div class="form-group" style="grid-column:1/-1">
-                <label>Contexte (auto-rempli si événement lié, modifiable)</label>
+                <label id="dem-contexte-label">Contexte / faits constatés (auto-rempli si lien sélectionné, modifiable)</label>
                 <textarea id="dem-contexte" rows="2" placeholder="Détail du constat…"></textarea>
               </div>
               <div class="form-group">
@@ -706,12 +715,16 @@
                 <input type="text" id="dem-motif" placeholder="Ex: Écart de déclaration GA">
               </div>
               <div class="form-group">
-                <label>Date limite de réponse</label>
+                <label id="dem-date-limite-label">Date limite de réponse</label>
                 <input type="date" id="dem-date-limite">
               </div>
-              <div class="form-group" style="grid-column:1/-1">
+              <div class="form-group" style="grid-column:1/-1" id="dem-message-group">
                 <label>Message / question</label>
                 <textarea id="dem-message" rows="4" placeholder="Précisez ce qui est demandé au destinataire…"></textarea>
+              </div>
+              <div class="form-group" id="dem-decision-group" style="grid-column:1/-1;display:none">
+                <label>Décision (sanction notifiée)</label>
+                <textarea id="dem-decision" rows="3" placeholder="Ex: Suspension de 15 jours de la zone Adjarra…"></textarea>
               </div>
             </div>
             <div class="form-actions">
@@ -719,14 +732,14 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fa fa-list"></i> Historique des demandes</div>
+            <div class="card-title"><i class="fa fa-list"></i> Historique des courriers</div>
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th>Réf.</th><th>Date</th><th>Destinataire</th><th>Motif</th>
+                  <th>Réf.</th><th>Type</th><th>Date</th><th>Destinataire</th><th>Motif</th>
                   <th style="text-align:center">Statut</th><th>Date limite</th><th>Réponse</th>
                 </tr></thead>
-                <tbody id="dem-tbody"><tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr></tbody>
+                <tbody id="dem-tbody"><tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr></tbody>
               </table>
             </div>
           </div>
@@ -1323,7 +1336,7 @@ function showView(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
-  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', demandes: "Demandes d'explication", parametres: 'Paramètres' };
+  const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', demandes: 'Courriers', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
 
@@ -2685,6 +2698,19 @@ async function loadDemandesVallee() {
   return _demandesInFlight;
 }
 
+const DEM_TYPE_LABELS = { demande: "Demande d'explication", avertissement: 'Avertissement', notification: 'Notification de sanction' };
+
+function _onDemTypeChange() {
+  const type = document.getElementById('dem-type').value;
+  document.getElementById('dem-message-group').style.display  = type === 'demande'      ? '' : 'none';
+  document.getElementById('dem-decision-group').style.display = type === 'notification' ? '' : 'none';
+  document.getElementById('dem-contexte-label').textContent =
+    type === 'demande' ? 'Contexte (auto-rempli si lien sélectionné, modifiable)' : 'Faits constatés (auto-rempli si lien sélectionné, modifiable)';
+  document.getElementById('dem-date-limite-label').textContent =
+    type === 'notification' ? "Date de prise d'effet" : type === 'avertissement' ? 'Date limite de correction' : 'Date limite de réponse';
+  if (document.getElementById('dem-lien-select-group').style.display !== 'none') _populateDemLienOptions();
+}
+
 function _onDemDestTypeChange() {
   const type = document.getElementById('dem-dest-type').value;
   document.getElementById('dem-dest-select-group').style.display = type === 'utilisateur' ? '' : 'none';
@@ -2745,6 +2771,10 @@ function _populateDemLienOptions() {
       const ecart = decl - (Number(k.kpiNewAdd) || 0);
       return `<option value="${i}">${FR_MONTHS[mm - 1]} ${yy} — écart ${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}</option>`;
     }).join('');
+  } else if (type === 'courrier') {
+    _demLienItems = [...VALLEE_DEMANDES].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+    sel.innerHTML = _demLienItems.map((c, i) =>
+      `<option value="${i}">[${c.ref}] ${DEM_TYPE_LABELS[c.type] || c.type} — ${c.destinataireNom} — ${c.motif}</option>`).join('');
   }
   if (_demLienItems.length) _onDemLienSelectChange();
 }
@@ -2765,11 +2795,55 @@ function _onDemLienSelectChange() {
     const decl = _declaratifForMonth(yy, mm - 1);
     const reel = Number(item.kpiNewAdd) || 0;
     ctx.value = `Écart NEW ADD réel/déclaratif — ${FR_MONTHS[mm - 1]} ${yy} : déclaratif ${decl.toLocaleString('fr-FR')}, réel validé ${reel.toLocaleString('fr-FR')}, écart ${(decl - reel) > 0 ? '+' : ''}${(decl - reel).toLocaleString('fr-FR')}.`;
+  } else if (type === 'courrier') {
+    ctx.value = `Suite à ${item.type === 'notification' ? 'la notification' : item.type === 'avertissement' ? "l'avertissement" : "la demande d'explication"} [${item.ref}] du ${isoToFR(item.date) || item.date} (${item.motif}), restée sans réponse satisfaisante.`;
   }
 }
 
-function _demBuildEmailText(ref, destNom, motif, contexte, message, dateLimite) {
-  const dateLimiteTxt = dateLimite ? isoToFR(dateLimite) : '—';
+function _demBuildEmailText(type, destNom, motif, contexte, message, decision, dateLimite) {
+  const dateTxt = dateLimite ? isoToFR(dateLimite) : '—';
+  const sign = `${currentUser?.nom || ''}\nResponsable Acquisition\nZEPHIR GROUP — Distributeur agréé MTN Bénin`;
+
+  if (type === 'avertissement') {
+    return `${destNom},
+
+Par la présente, ZEPHIR GROUP, distributeur agréé MTN Bénin, vous notifie
+un avertissement officiel concernant les faits suivants :
+
+MOTIF : ${motif}
+FAITS CONSTATÉS : ${contexte || '—'}
+
+Nous vous rappelons que ces agissements sont contraires aux obligations
+qui vous incombent dans le cadre de vos fonctions au sein de l'équipe. Il
+vous est demandé de prendre, sans délai, toutes les dispositions
+nécessaires afin qu'un tel manquement ne se reproduise plus${dateLimite ? `, et ce avant le ${dateTxt}` : ''}.
+
+Nous attirons votre attention sur le fait que la persistance de ce type
+de manquement pourrait entraîner des mesures plus sévères, pouvant aller
+jusqu'à la rupture de notre collaboration.
+
+Le présent avertissement est versé à votre dossier.
+
+${sign}`;
+  }
+
+  if (type === 'notification') {
+    return `${destNom},
+
+ZEPHIR GROUP, distributeur agréé MTN Bénin, vous notifie par la présente
+la décision suivante :
+
+MOTIF : ${motif}
+CONSTAT : ${contexte || '—'}
+DÉCISION : ${decision || '—'}
+PRISE D'EFFET : ${dateTxt}
+
+Cette décision fait suite aux manquements constatés et dûment notifiés,
+demeurés sans justification recevable ni correction de votre part.
+
+${sign}`;
+  }
+
   return `${destNom},
 
 Dans le cadre du contrôle de conformité et de performance opérationnelle
@@ -2784,48 +2858,49 @@ les éléments de réponse suivants :
 
 ${message}
 
-Cette réponse est attendue au plus tard le ${dateLimiteTxt}. Sans retour de
+Cette réponse est attendue au plus tard le ${dateTxt}. Sans retour de
 votre part dans ce délai, ce dossier sera considéré comme non traité et
 transmis à la hiérarchie pour suite à donner.
 
 Merci de répondre directement à cet email, en conservant l'objet du
 message, afin d'assurer la traçabilité de cet échange.
 
-${currentUser?.nom || ''}
-Responsable Acquisition
-ZEPHIR GROUP — Distributeur agréé MTN Bénin`;
+${sign}`;
 }
 
 async function sendDemandeEmail() {
   if (!currentUser) return;
+  const type      = document.getElementById('dem-type').value;
   const destType  = document.getElementById('dem-dest-type').value;
   const destNom   = document.getElementById('dem-dest-nom').value.trim();
   const destEmail = document.getElementById('dem-dest-email').value.trim();
   const motif     = document.getElementById('dem-motif').value.trim();
   const contexte  = document.getElementById('dem-contexte').value.trim();
   const message   = document.getElementById('dem-message').value.trim();
+  const decision  = document.getElementById('dem-decision').value.trim();
   const dateLimite = document.getElementById('dem-date-limite').value;
 
   if (!destNom)   { showToast('Champ requis', 'Veuillez indiquer le nom du destinataire.', true); return; }
   if (!destEmail) { showToast('Champ requis', 'Veuillez indiquer l\'email du destinataire.', true); return; }
   if (!motif)     { showToast('Champ requis', 'Veuillez indiquer un motif.', true); return; }
-  if (!message)   { showToast('Champ requis', 'Veuillez rédiger le message.', true); return; }
+  if (type === 'demande' && !message)   { showToast('Champ requis', 'Veuillez rédiger le message.', true); return; }
+  if (type === 'notification' && !decision) { showToast('Champ requis', 'Veuillez préciser la décision notifiée.', true); return; }
 
   try {
     const payload = {
-      action: 'saveDemandeVallee', date: todayISO, destinataireNom: destNom, destinataireEmail: destEmail,
-      destinataireType: destType, motif, contexte, message, dateLimite, auteurId: currentUser.id
+      action: 'saveDemandeVallee', type, date: todayISO, destinataireNom: destNom, destinataireEmail: destEmail,
+      destinataireType: destType, motif, contexte, message, decision, dateEffet: dateLimite, dateLimite, auteurId: currentUser.id
     };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
     if (!json.success) { showToast('Erreur', json.error || 'Erreur inconnue.', true); return; }
 
     const ref     = json.ref;
-    const subject = encodeURIComponent(`[${ref}] Demande d'explication officielle — ${motif}`);
-    const body    = encodeURIComponent(_demBuildEmailText(ref, destNom, motif, contexte, message, dateLimite));
+    const subject = encodeURIComponent(`[${ref}] ${DEM_TYPE_LABELS[type]} — ${motif}`);
+    const body    = encodeURIComponent(_demBuildEmailText(type, destNom, motif, contexte, message, decision, dateLimite));
     window.location.href = `mailto:${encodeURIComponent(destEmail)}?subject=${subject}&body=${body}`;
 
-    showToast('Demande enregistrée', `Référence ${ref}`, false);
+    showToast('Courrier enregistré', `Référence ${ref}`, false);
     _demandesLoaded = false; _demandesInFlight = null;
     await loadDemandesVallee();
     document.getElementById('dem-dest-nom').value    = '';
@@ -2833,6 +2908,7 @@ async function sendDemandeEmail() {
     document.getElementById('dem-motif').value       = '';
     document.getElementById('dem-contexte').value    = '';
     document.getElementById('dem-message').value     = '';
+    document.getElementById('dem-decision').value    = '';
     document.getElementById('dem-lien-type').value   = '';
     document.getElementById('dem-lien-select-group').style.display = 'none';
   } catch (e) {
@@ -2845,18 +2921,20 @@ function renderDemandesList() {
   if (!tbody) return;
   const sorted = [...VALLEE_DEMANDES].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Aucune demande enregistrée</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun courrier enregistré</td></tr>';
     return;
   }
   tbody.innerHTML = sorted.map(d => {
     const badge = d.statut === 'Répondu'
       ? '<span class="badge badge-green">Répondu</span>'
       : '<span class="badge badge-yellow">En attente</span>';
+    const typeBadgeCls = d.type === 'notification' ? 'badge-red' : d.type === 'avertissement' ? 'badge-yellow' : 'badge-gray';
     const reponseApercu = d.reponse
       ? `<span title="${d.reponse.replace(/"/g, '&quot;')}" style="cursor:help">${d.reponse.slice(0, 60)}${d.reponse.length > 60 ? '…' : ''}</span>`
       : '<span style="color:var(--text-muted)">—</span>';
     return `<tr>
       <td style="font-family:monospace;font-size:12px">${d.ref}</td>
+      <td><span class="badge ${typeBadgeCls}">${DEM_TYPE_LABELS[d.type] || d.type}</span></td>
       <td>${isoToFR(d.date) || d.date}</td>
       <td>${d.destinataireNom}</td>
       <td>${d.motif}</td>

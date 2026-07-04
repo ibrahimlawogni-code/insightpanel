@@ -807,6 +807,7 @@ function handleGetDemandesVallee(data) {
   const headers = rows[0].map(h => h.toString().toLowerCase().trim());
   const COL = {
     ref:               headers.indexOf('ref'),
+    type:              headers.indexOf('type'),
     date:              headers.indexOf('date'),
     destinatairenom:   headers.indexOf('destinatairenom'),
     destinataireemail: headers.indexOf('destinataireemail'),
@@ -814,6 +815,8 @@ function handleGetDemandesVallee(data) {
     motif:             headers.indexOf('motif'),
     contexte:          headers.indexOf('contexte'),
     message:           headers.indexOf('message'),
+    decision:          headers.indexOf('decision'),
+    dateeffet:         headers.indexOf('dateeffet'),
     datelimite:        headers.indexOf('datelimite'),
     statut:            headers.indexOf('statut'),
     reponse:           headers.indexOf('reponse'),
@@ -828,6 +831,7 @@ function handleGetDemandesVallee(data) {
     if (!row[COL.ref]) continue;
     entries.push({
       ref:               _cellStr(row[COL.ref]),
+      type:              _cellStr(row[COL.type]) || 'demande',
       date:              _cellStr(row[COL.date]),
       destinataireNom:   _cellStr(row[COL.destinatairenom]),
       destinataireEmail: _cellStr(row[COL.destinataireemail]),
@@ -835,6 +839,8 @@ function handleGetDemandesVallee(data) {
       motif:             _cellStr(row[COL.motif]),
       contexte:          _cellStr(row[COL.contexte]),
       message:           _cellStr(row[COL.message]),
+      decision:          _cellStr(row[COL.decision]),
+      dateEffet:         _cellStr(row[COL.dateeffet]),
       dateLimite:        _cellStr(row[COL.datelimite]),
       statut:            _cellStr(row[COL.statut]),
       reponse:           _cellStr(row[COL.reponse]),
@@ -857,12 +863,23 @@ function handleSaveDemandeVallee(data) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
 
-  const numero = Math.max(sheet.getLastRow() - 1, 0) + 1;
-  const ref = 'DEM-' + numero;
+  const type   = data.type || 'demande';
+  const prefix = type === 'avertissement' ? 'AVT' : type === 'notification' ? 'NOT' : 'DEM';
+  const typeCol = headers.indexOf('type') + 1;
+  const refCol  = headers.indexOf('ref') + 1;
+  let numero = 1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const existing = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+    const count = existing.filter(r => _cellStr(r[refCol - 1]).indexOf(prefix + '-') === 0).length;
+    numero = count + 1;
+  }
+  const ref = prefix + '-' + numero;
 
   const row = new Array(headers.length).fill('');
   const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
   set('ref',               ref);
+  set('type',              type);
   set('date',               data.date              || _todayFR());
   set('destinatairenom',   data.destinataireNom    || '');
   set('destinataireemail', data.destinataireEmail  || '');
@@ -870,6 +887,8 @@ function handleSaveDemandeVallee(data) {
   set('motif',              data.motif              || '');
   set('contexte',           data.contexte           || '');
   set('message',            data.message            || '');
+  set('decision',          data.decision           || '');
+  set('dateeffet',         data.dateEffet          || '');
   set('datelimite',        data.dateLimite         || '');
   set('statut',             'En attente');
   set('reponse',            '');
@@ -888,13 +907,13 @@ function _getOrCreateDemandesVallee(ss) {
   let sheet = ss.getSheetByName('DemandesVallee');
   if (!sheet) {
     sheet = ss.insertSheet('DemandesVallee');
-    const headers = ['Ref', 'Date', 'DestinataireNom', 'DestinataireEmail', 'DestinataireType',
-      'Motif', 'Contexte', 'Message', 'DateLimite', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
+    const headers = ['Ref', 'Type', 'Date', 'DestinataireNom', 'DestinataireEmail', 'DestinataireType',
+      'Motif', 'Contexte', 'Message', 'Decision', 'DateEffet', 'DateLimite', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
     sheet.appendRow(headers);
     const hdr = sheet.getRange(1, 1, 1, headers.length);
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
-    [80, 90, 160, 180, 110, 180, 260, 260, 90, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    [80, 110, 90, 160, 180, 110, 180, 260, 260, 220, 100, 90, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
   return sheet;
 }
