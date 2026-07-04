@@ -468,10 +468,6 @@
           <div class="card">
             <div class="card-title"><i class="fa fa-plus"></i> Enregistrer une réception</div>
             <div class="form-grid">
-              <div class="form-group" id="stock-sup-selector" style="display:none">
-                <label>Superviseur concerné</label>
-                <select id="stock-sup-select"></select>
-              </div>
               <div class="form-group">
                 <label>Date</label>
                 <input type="date" id="stock-date">
@@ -1071,9 +1067,7 @@ async function doLogin() {
 function _applySupOpts() {
   const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
   const saisieSel = document.getElementById('saisie-sup-select');
-  const stockSel  = document.getElementById('stock-sup-select');
   if (saisieSel) saisieSel.innerHTML = supOpts;
-  if (stockSel)  stockSel.innerHTML  = supOpts;
 }
 
 // Recompose VALLEE_SUPS = superviseurs codés en dur + superviseurs créés depuis Paramètres.
@@ -1133,7 +1127,6 @@ function startSession(user) {
   /* Pré-remplir sélecteurs superviseur */
   _applySupOpts();
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
-  document.getElementById('stock-sup-selector').style.display  = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
   document.getElementById('card-enlv-form').style.display  = isRaAdmin ? '' : 'none';
   document.getElementById('card-enlv-hist').style.display  = isRaAdmin ? '' : 'none';
@@ -2114,16 +2107,6 @@ function _updateStockCoverageHint() {
 
 async function saveStock() {
   if (!currentUser) return;
-  const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser.role);
-  let sup;
-  if (isRa) {
-    const selId = document.getElementById('stock-sup-select')?.value;
-    sup = VALLEE_SUPS.find(s => s.id === selId);
-  } else {
-    sup = { id: currentUser.id, nom: currentUser.nom, zone: currentUser.zone || '' };
-  }
-
-  if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
 
   const date   = document.getElementById('stock-date').value;
   const debut  = document.getElementById('stock-sim-debut').value.trim();
@@ -2143,7 +2126,7 @@ async function saveStock() {
   try {
     const payload = {
       action: 'saveStockVallee', date, simDebut: debut, simFin: fin, quantite,
-      auteurId: sup.id, auteurNom: sup.nom, auteurRole: currentUser.role, type
+      auteurId: currentUser.id, auteurNom: currentUser.nom, auteurRole: currentUser.role, type
     };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
