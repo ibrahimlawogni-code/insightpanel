@@ -328,19 +328,19 @@
           <!-- Stats secondaires -->
           <div class="kpi-stat-grid" id="kpi-stat-grid"></div>
           <!-- Objectifs Journalier / Hebdo / Mensuel -->
-          <div class="card" style="margin-bottom:16px">
+          <div class="card" style="margin-bottom:16px" id="card-dash-objectifs">
             <div class="card-title" style="margin-bottom:0">
               <i class="fa fa-bullseye"></i> Objectifs
             </div>
             <div id="objectifs-body" style="margin-top:16px"></div>
           </div>
           <!-- KPI NEW ADD réel vs déclaratif -->
-          <div class="card" style="margin-bottom:16px">
+          <div class="card" style="margin-bottom:16px" id="card-dash-kpireel">
             <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD — Déclaratif vs Réel</div>
             <div id="kpi-reel-body" style="margin-top:16px"></div>
           </div>
           <!-- Table superviseurs -->
-          <div class="card">
+          <div class="card" id="card-dash-supperf">
             <div class="card-title"><i class="fa fa-table"></i> Performance par superviseur</div>
             <div class="table-wrap">
               <table>
@@ -1611,9 +1611,73 @@ function _filterPreviousPeriod(data) {
   return [];
 }
 
+function renderDashboardSwap() {
+  document.getElementById('card-dash-objectifs').style.display = 'none';
+  document.getElementById('card-dash-kpireel').style.display   = 'none';
+  document.getElementById('card-dash-supperf').style.display   = 'none';
+
+  const filtered     = filterByPeriod(VALLEE_SWAP, _dashPeriod);
+  const prevFiltered = _filterPreviousPeriod(VALLEE_SWAP);
+  const effectuesPeriode = filtered.length;
+  const prevEffectues    = prevFiltered.length;
+
+  const stockSwapTotal     = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap').reduce((s, e) => s + (Number(e.quantite) || 0), 0);
+  const swapEffectuesTotal = VALLEE_SWAP.length;
+  const swapRestant        = stockSwapTotal - swapEffectuesTotal;
+
+  const sorted  = [...VALLEE_SWAP].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0));
+  const dernier = sorted[0];
+
+  const diff = effectuesPeriode - prevEffectues;
+  const deltaHtml = !prevEffectues && !effectuesPeriode
+    ? `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> —</span>`
+    : diff > 0 ? `<span class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +${diff}</span>`
+    : diff < 0 ? `<span class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> ${diff}</span>`
+    : `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> 0</span>`;
+
+  const restantCol = stockSwapTotal <= 0 ? 'inherit' : swapRestant <= 0 ? 'var(--danger)' : swapRestant < stockSwapTotal * 0.15 ? 'var(--warning)' : 'var(--success)';
+
+  document.getElementById('kpi-big-grid').innerHTML = `
+    <div class="kpi-big">
+      <div class="kpi-big-label">SWAP Effectués</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div class="kpi-big-value">${effectuesPeriode.toLocaleString('fr-FR')}</div>
+        ${deltaHtml}
+      </div>
+      <div class="kpi-big-sub">${_periodLabel()}</div>
+    </div>
+    <div class="kpi-big">
+      <div class="kpi-big-label">SWAP Restant</div>
+      <div class="kpi-big-value" style="color:${restantCol}">${stockSwapTotal > 0 ? swapRestant.toLocaleString('fr-FR') : '—'}</div>
+      <div class="kpi-big-sub">${stockSwapTotal > 0 ? `Stock global SWAP : ${stockSwapTotal.toLocaleString('fr-FR')}` : 'Aucun stock SWAP global enregistré'}</div>
+    </div>`;
+
+  document.getElementById('kpi-stat-grid').innerHTML = `
+    <div class="kpi-stat">
+      <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-right-left"></i></div>
+      <div>
+        <div class="kpi-stat-val">${swapEffectuesTotal.toLocaleString('fr-FR')}</div>
+        <div class="kpi-stat-lbl">SWAP effectués (total)</div>
+      </div>
+    </div>
+    <div class="kpi-stat">
+      <div class="kpi-stat-icon" style="background:#dcfce7;color:#16a34a"><i class="fa fa-calendar-check"></i></div>
+      <div>
+        <div class="kpi-stat-val">${dernier ? (isoToFR(dernier.date) || dernier.date) : '—'}</div>
+        <div class="kpi-stat-lbl">Dernier SWAP</div>
+      </div>
+    </div>`;
+}
+
 function renderDashboard() {
-  // Agence/Service CARE n'ont pas de zone de vente propre : vue équipe complète, comme dg/dc.
-  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role) || FIELD_RESTRICTED_ROLES.includes(currentUser?.role);
+  // Agence/Service CARE : dashboard dédié SWAP uniquement, pas de GA/MoMo/équipe.
+  if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { renderDashboardSwap(); return; }
+
+  document.getElementById('card-dash-objectifs').style.display = '';
+  document.getElementById('card-dash-kpireel').style.display   = '';
+  document.getElementById('card-dash-supperf').style.display   = '';
+
+  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
   const myId = currentUser?.id;
 
   /* Données filtrées par période + rôle */
@@ -2200,6 +2264,7 @@ async function loadEnlevements() {
         renderEnlevementsTable();
         renderStockTable();
         _updateStockCoverageHint();
+        renderDashboard();
         _refreshRapportIfActive();
       } else { console.error('[loadEnlevements] erreur GAS:', json.error); }
     })
@@ -2289,7 +2354,7 @@ async function loadSwap() {
   _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); _refreshRapportIfActive(); }
+      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); renderDashboard(); _refreshRapportIfActive(); }
       else { console.error('[loadSwap] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadSwap] erreur réseau:', err); })
