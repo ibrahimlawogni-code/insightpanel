@@ -513,6 +513,18 @@
 
         <!-- VUE DYSFONCTIONNEMENTS -->
         <div id="view-dysfonctionnement" style="display:none">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px">
+            <div class="period-tabs" id="dysf-kpi-tabs">
+              <button class="period-tab active" onclick="setDysfKpiPeriod('jour', this)">Jour</button>
+              <button class="period-tab" onclick="setDysfKpiPeriod('semaine', this)">Semaine</button>
+              <button class="period-tab" onclick="setDysfKpiPeriod('mois', this)">Mois</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <button class="btn btn-secondary btn-sm" onclick="dysfKpiNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <input type="date" id="dysf-kpi-date" onchange="dysfKpiDateChanged()" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
+              <button class="btn btn-secondary btn-sm" onclick="dysfKpiNavDate(1)"><i class="fa fa-chevron-right"></i></button>
+            </div>
+          </div>
           <div class="kpi-big-grid" style="margin-bottom:16px">
             <div class="kpi-big">
               <div class="kpi-big-label">Durée totale</div>
@@ -992,6 +1004,8 @@ let _usersDynLoaded      = false;
 let _usersDynInFlight    = null;
 let _rapPeriod  = 'jour';
 let _rapRefDate = new Date(today);
+let _dysfKpiPeriod  = 'jour';
+let _dysfKpiRefDate = new Date(today);
 let VALLEE_DEMANDES = []; // [{ ref, date, destinataireNom, destinataireEmail, destinataireType, motif, contexte, message, dateLimite, statut, reponse, dateReponse, auteurId, horodatage }]
 let _demandesLoaded   = false;
 let _demandesInFlight = null;
@@ -1180,6 +1194,7 @@ function startSession(user) {
   document.getElementById('saisie-date').value = todayISO;
   document.getElementById('stock-date').value  = todayISO;
   document.getElementById('dysf-date').value   = todayISO;
+  document.getElementById('dysf-kpi-date').value = todayISO;
   document.getElementById('swap-date').value   = todayISO;
   document.getElementById('rap-date').value    = todayISO;
   /* Verrouiller localité pour superviseur */
@@ -3485,18 +3500,42 @@ async function saveDysf() {
   }
 }
 
+function setDysfKpiPeriod(p, el) {
+  _dysfKpiPeriod = p;
+  document.querySelectorAll('#dysf-kpi-tabs .period-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderDysfHist();
+}
+
+function dysfKpiNavDate(dir) {
+  const d = new Date(_dysfKpiRefDate);
+  if (_dysfKpiPeriod === 'jour') d.setDate(d.getDate() + dir);
+  else if (_dysfKpiPeriod === 'semaine') d.setDate(d.getDate() + dir * 7);
+  else d.setMonth(d.getMonth() + dir);
+  _dysfKpiRefDate = d;
+  document.getElementById('dysf-kpi-date').value = _dateToISO(d);
+  renderDysfHist();
+}
+
+function dysfKpiDateChanged() {
+  const v = document.getElementById('dysf-kpi-date').value;
+  if (v) { _dysfKpiRefDate = new Date(v + 'T00:00:00'); renderDysfHist(); }
+}
+
 function renderDysfDashboardKpis(data) {
   const dureeEl  = document.getElementById('dysf-kpi-duree');
   const impactEl = document.getElementById('dysf-kpi-impact');
   const countEl  = document.getElementById('dysf-kpi-count');
   if (!dureeEl || !impactEl || !countEl) return;
 
-  const totalMinutes = data.reduce((s, r) => s + _dureeToMinutes(r.duree), 0);
-  const totalImpact  = data.reduce((s, r) => s + (Number(r.impactSims) || 0), 0);
+  const periode = _filterRapport(data, _dysfKpiPeriod, _dysfKpiRefDate);
 
-  dureeEl.textContent  = data.length ? _minutesToDuree(totalMinutes) : '—';
-  impactEl.textContent = data.length ? `-${totalImpact.toLocaleString('fr-FR')}` : '—';
-  countEl.textContent  = `${data.length} dysfonctionnement(s)`;
+  const totalMinutes = periode.reduce((s, r) => s + _dureeToMinutes(r.duree), 0);
+  const totalImpact  = periode.reduce((s, r) => s + (Number(r.impactSims) || 0), 0);
+
+  dureeEl.textContent  = periode.length ? _minutesToDuree(totalMinutes) : '—';
+  impactEl.textContent = periode.length ? `-${totalImpact.toLocaleString('fr-FR')}` : '—';
+  countEl.textContent  = `${periode.length} dysfonctionnement(s)`;
 }
 
 function renderDysfHist() {
