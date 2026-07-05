@@ -593,6 +593,19 @@
             <div class="card-title"><i class="fa fa-warehouse"></i> Stock Restant Global (SWAP)</div>
             <div id="swap-stock-global-body" style="margin-top:12px"></div>
           </div>
+          <div class="card" id="card-swap-cumul" style="display:none;margin-bottom:16px">
+            <div class="card-title"><i class="fa fa-users"></i> Cumul SWAP par agent</div>
+            <div style="display:flex;align-items:center;gap:8px;margin:10px 0 14px">
+              <label style="font-size:13px;color:var(--text-muted)">Date</label>
+              <input type="date" id="swap-cumul-date" onchange="renderSwapCumulParAgent()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Agent</th><th style="text-align:right">SWAP effectués</th></tr></thead>
+                <tbody id="swap-cumul-tbody"></tbody>
+              </table>
+            </div>
+          </div>
           <div class="card">
             <div class="card-title"><i class="fa fa-right-left"></i> Nouveau SWAP</div>
             <div class="form-grid">
@@ -1139,6 +1152,8 @@ function startSession(user) {
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
   document.getElementById('card-swap-stock-global').style.display = isRaAdmin ? '' : 'none';
+  document.getElementById('card-swap-cumul').style.display        = isRaAdmin ? '' : 'none';
+  document.getElementById('swap-cumul-date').value = todayISO;
   document.getElementById('enlv-date').value = todayISO;
   const demLimite = new Date(today); demLimite.setDate(demLimite.getDate() + 3);
   document.getElementById('dem-date-limite').value = _dateToISO(demLimite);
@@ -1343,7 +1358,7 @@ function showView(name, el) {
   if (name === 'saisie')            renderSaisieHist();
   if (name === 'stocks')            { renderStockTable(); renderEnlevementsTable(); }
   if (name === 'dysfonctionnement') { renderDysfHist(); if (!_dysfLoaded && !_dysfInFlight) loadDysf(); }
-  if (name === 'swap')              { renderSwapTable(); renderSwapStockGlobal(); }
+  if (name === 'swap')              { renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); }
   if (name === 'rapport')           renderRapport();
   if (name === 'demandes')          { renderDemandesList(); _onDemDestTypeChange(); }
   if (name === 'parametres')        renderParametres();
@@ -2362,7 +2377,7 @@ async function loadSwap() {
   _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); renderSwapStockGlobal(); renderDashboard(); _refreshRapportIfActive(); }
+      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); renderDashboard(); _refreshRapportIfActive(); }
       else { console.error('[loadSwap] erreur GAS:', json.error); }
     })
     .catch(err => { console.error('[loadSwap] erreur réseau:', err); })
@@ -2407,7 +2422,9 @@ function renderSwapTable() {
   const tbody = document.getElementById('swap-tbody');
   if (!tbody) return;
 
-  const sorted = [...VALLEE_SWAP].sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
+  const isRaAdmin = ['ra', 'admin'].includes(currentUser?.role);
+  const data = isRaAdmin ? [...VALLEE_SWAP] : VALLEE_SWAP.filter(r => r.auteurId === currentUser?.id);
+  const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
 
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun SWAP enregistré</td></tr>';
@@ -2420,6 +2437,40 @@ function renderSwapTable() {
       <td style="font-family:monospace;font-size:12px">${r.swaper || '—'}</td>
       <td>${r.auteurNom || r.auteurId || '—'}</td>
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+    </tr>`).join('');
+}
+
+function renderSwapCumulParAgent() {
+  const tbody = document.getElementById('swap-cumul-tbody');
+  if (!tbody) return;
+  if (!['ra', 'admin'].includes(currentUser?.role)) return;
+
+  const dateSel = document.getElementById('swap-cumul-date').value;
+  if (!dateSel) return;
+  const refDate = new Date(dateSel + 'T00:00:00');
+
+  const rows = VALLEE_SWAP.filter(r => {
+    const d = parseSaisieDate(r.date);
+    return d && d.getFullYear() === refDate.getFullYear() && d.getMonth() === refDate.getMonth() && d.getDate() === refDate.getDate();
+  });
+
+  const counts = {};
+  rows.forEach(r => {
+    const key = r.auteurId || '—';
+    if (!counts[key]) counts[key] = { nom: r.auteurNom || r.auteurId || '—', n: 0 };
+    counts[key].n++;
+  });
+
+  const sorted = Object.values(counts).sort((a, b) => b.n - a.n);
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun SWAP pour cette date</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(c => `<tr>
+      <td>${c.nom}</td>
+      <td style="text-align:right;font-weight:700">${c.n}</td>
     </tr>`).join('');
 }
 
