@@ -441,9 +441,7 @@
               </div>
               <div class="form-group">
                 <label>Type</label>
-                <select id="enlv-type">
-                  <option value="swap">SWAP</option>
-                </select>
+                <select id="enlv-type"></select>
               </div>
             </div>
             <div class="form-actions">
@@ -1148,9 +1146,13 @@ function startSession(user) {
   _applySupOpts();
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
-  const canSeeEnlv = isRaAdmin || FIELD_RESTRICTED_ROLES.includes(currentUser.role);
+  const canSeeEnlv = isRaAdmin || currentUser.role === 'superviseur' || FIELD_RESTRICTED_ROLES.includes(currentUser.role);
   document.getElementById('card-enlv-form').style.display  = canSeeEnlv ? '' : 'none';
   document.getElementById('card-enlv-hist').style.display  = canSeeEnlv ? '' : 'none';
+  const enlvTypeOpts = (isRaAdmin || currentUser.role === 'superviseur')
+    ? '<option value="p100">P100</option><option value="swap">SWAP</option>'
+    : '<option value="swap">SWAP</option>';
+  document.getElementById('enlv-type').innerHTML = enlvTypeOpts;
   document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
