@@ -1919,7 +1919,17 @@ function renderDashboard() {
 
   function sumGA_Mo(arr) { let g=0,m=0; arr.forEach(r => { g+=Number(r.grossAdd)||0; m+=Number(r.momoUser)||0; }); return [g,m]; }
 
-  function objPeriodCard(title, tGA, tMo, aGA, aMo, iconCls, iconBg, iconColor, subtitle) {
+  function wowLine(cur, prev) {
+    if (!prev && !cur) return '';
+    const diff = cur - prev;
+    const pct  = prev > 0 ? Math.round(diff / prev * 100) : (cur > 0 ? 100 : 0);
+    const color = diff > 0 ? '#22c55e' : diff < 0 ? '#ef4444' : 'var(--text-muted)';
+    const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+    const sign  = diff > 0 ? '+' : '';
+    return `<div style="font-size:11px;font-weight:600;color:${color};margin-top:3px">${arrow} ${sign}${pct}% vs semaine dernière</div>`;
+  }
+
+  function objPeriodCard(title, tGA, tMo, aGA, aMo, iconCls, iconBg, iconColor, subtitle, wowGA, wowMo) {
     const pGA = tGA > 0 ? Math.round(aGA / tGA * 100) : 0;
     const pMo = tMo > 0 ? Math.round(aMo / tMo * 100) : 0;
     const col = p => p >= 100 ? '#22c55e' : p >= 70 ? '#f59e0b' : '#ef4444';
@@ -1933,11 +1943,13 @@ function renderDashboard() {
           <div class="objp-metric-lbl">Gross Add</div>
           <div class="objp-vals"><span class="objp-actual" style="color:${col(pGA)}">${aGA.toLocaleString('fr-FR')}</span><span class="objp-sep">/</span><span class="objp-target">${tGA.toLocaleString('fr-FR')}</span></div>
           <div class="objp-bar"><div style="width:${Math.min(pGA,100)}%;background:${col(pGA)}"></div></div>
+          ${wowGA || ''}
         </div>
         <div>
           <div class="objp-metric-lbl">MoMo User</div>
           <div class="objp-vals"><span class="objp-actual" style="color:${col(pMo)}">${aMo.toLocaleString('fr-FR')}</span><span class="objp-sep">/</span><span class="objp-target">${tMo.toLocaleString('fr-FR')}</span></div>
           <div class="objp-bar"><div style="width:${Math.min(pMo,100)}%;background:${col(pMo)}"></div></div>
+          ${wowMo || ''}
         </div>
       </div>
     </div>`;
@@ -1952,6 +1964,11 @@ function renderDashboard() {
   const sunObj  = new Date(lunObj); sunObj.setDate(lunObj.getDate()+6);
   const hebSub  = lunObj.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) + ' – ' + sunObj.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
 
+  const lunPrev = new Date(lunObj); lunPrev.setDate(lunObj.getDate() - 7);
+  const dimPrev = new Date(lunPrev); dimPrev.setDate(lunPrev.getDate() + 6); dimPrev.setHours(23,59,59,999);
+  const prevWeekSrc = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => r.supId === myId);
+  const [prevHebdoGA, prevHebdoMo] = sumGA_Mo(prevWeekSrc.filter(r => { const d = parseSaisieDate(r.date); return d && d >= lunPrev && d <= dimPrev; }));
+
   document.getElementById('objectifs-body').innerHTML = `<div class="objectifs-grid">
     ${objPeriodCard('Journalier',
         Math.round(baseGA/objDim), Math.round(baseMo/objDim),
@@ -1961,7 +1978,8 @@ function renderDashboard() {
     ${objPeriodCard('Hebdomadaire',
         Math.round(baseGA/objDim*weekDays), Math.round(baseMo/objDim*weekDays),
         hebdoGA, hebdoMo,
-        'fa-calendar-week', '#dbeafe', '#2563eb', hebSub)}
+        'fa-calendar-week', '#dbeafe', '#2563eb', hebSub,
+        wowLine(hebdoGA, prevHebdoGA), wowLine(hebdoMo, prevHebdoMo))}
     ${objPeriodCard('Mensuel',
         baseGA, baseMo,
         moisGA, moisMo,
