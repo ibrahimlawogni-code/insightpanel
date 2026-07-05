@@ -7,7 +7,58 @@
 
 ---
 
-## 2026-07-02
+## 2026-07-03 → 2026-07-06
+
+### TeamVallee — Extension massive : dysfonctionnements enrichis, stocks/SWAP, comptes utilisateurs, courriers officiels, rapports, logo
+
+Session la plus dense à ce jour sur TeamVallee, plusieurs jours de travail continu. Résumé par domaine.
+
+**Dysfonctionnements**
+- "Nature" passe d'un champ texte libre à un menu déroulant : MPOS, ANIP, MPOS & ANIP, PLUIE, MOMO, puis USSD ajouté ensuite
+- Impact calculé automatiquement (fini le choix manuel Faible/Moyen/Élevé/Critique) : taux horaire de référence = moyenne mobile des 7 derniers jours "propres" (hors jours déjà marqués par un dysfonctionnement) pour la zone, divisé par l'amplitude de travail (12h, 8h-20h) ; impact estimé = taux × durée du dysfonctionnement ; badge de sévérité dérivé automatiquement de seuils sur ce volume
+- Mini-dashboard en haut de la vue : "Durée totale" et "Impact total" (cumul des SIMs estimées perdues), avec sélecteur de période Jour/Semaine/Mois + navigation par date pour consulter n'importe quelle période passée
+
+**Stocks SIM / Enlèvements globaux / SWAP**
+- Nouvelle notion "Enlèvements globaux" (RA/admin) : plages de SIM réellement retirées chez MTN, source de vérité
+- Le formulaire "Enregistrer une réception" vérifie automatiquement si la plage saisie est incluse dans un enlèvement global existant (badge Incluse / Hors plage), et le sélecteur "Superviseur concerné" a été supprimé (chaque saisie s'attribue directement à l'utilisateur connecté, comme SWAP)
+- Ajout du type "SWAP" aux sélecteurs Type (Stock SIM et Enlèvements globaux) ; "Autres" retiré des deux ; "P100" retiré puis restauré uniquement pour RA/admin et superviseurs (Agence/CARE restent limités à SWAP)
+- Nouveau menu SWAP (Date, N° SIM 11 chiffres, N° SWAPER 10 chiffres), devenu saisie globale sans sélection de destinataire. Historique filtré par rôle (RA/admin voient tout, les autres seulement les leurs). Nouveau tableau "Cumul SWAP par agent" (RA/admin) avec sélecteur de date
+- "Stock Restant" distingué par compte (Agence/CARE ne voient que leur propre allocation) vs stock global restant (visible RA/admin uniquement, sur la page SWAP) — chaque compte peut désormais saisir son propre enlèvement SWAP, auto-rattaché
+- Historique des enlèvements globaux également filtré par rôle
+
+**KPI NEW ADD réel**
+- Nouvelle carte Paramètres (RA/admin) pour saisir mensuellement le chiffre officiel validé (ex. MTN), comparé au déclaratif (somme des saisies) avec écart en valeur et %, alerte si >15%
+- Bug corrigé : Google Sheets convertissait la colonne "Periode" en date, cassant l'affichage et créant des doublons — colonne forcée en texte brut + reconversion à la lecture
+
+**Comptes utilisateurs**
+- Nouvelle carte Paramètres "Gestion des utilisateurs" (RA/admin) : création de comptes Superviseur (avec zone), Agence ou Service CARE (nom libre), identifiant/mot de passe générés et affichés une seule fois
+- Système d'authentification `loginVallee` en 3ᵉ recours (après InsightPanel puis le tableau codé en dur), qui ne renvoie jamais la liste des mots de passe — aucun compte existant n'a été touché/migré, décision volontaire pour garder un filet de sécurité hors-ligne
+- VALLEE_SUPS devient dynamique : un superviseur créé ainsi apparaît automatiquement dans tous les sélecteurs/tableaux/pondérations DFA
+- Nouveaux rôles "agence" et "care" : accès restreint à Dashboard + Stocks SIM + SWAP (Saisie du jour, Dysfonctionnements, Paramètres masqués). Dashboard dédié entièrement différent : SWAP Effectués (période) et Stock Restant personnel, sans aucune donnée GA/MoMo/équipe
+
+**Courriers (ex-"Demandes d'explication")**
+- Menu devenu générique "Courriers" avec sélecteur de type : Demande d'explication, Avertissement, Notification de sanction — chacun son propre gabarit de texte formel, sa propre référence (DEM-x / AVT-x / NOT-x), et champs spécifiques (Décision + date d'effet pour Notification)
+- Destinataire : utilisateur du système ou contact externe ; lien optionnel vers un événement existant (dysfonctionnement, réception hors plage, écart KPI réel, ou courrier précédent) qui pré-remplit le constat
+- Champ CC (copie) avec validation basique, plusieurs adresses séparées par virgules
+- Envoi par email directement depuis le serveur (GmailApp.sendEmail) plutôt que par lien mailto: — le mailto échouait silencieusement via le gestionnaire Gmail du navigateur pour des textes trop longs
+- Archivage automatique des réponses : `checkDemandesReponses()` scrute Gmail par référence, nécessite un déclencheur temporel configuré manuellement dans l'éditeur Apps Script (Déclencheurs > toutes les 15-30 min)
+- Correcteur orthographique du navigateur activé sur les champs texte (Motif, Contexte, Message, Décision)
+
+**Rapports**
+- Nouveau menu Rapport (période Jour/Semaine/Mois, aperçu texte, envoi WhatsApp/Email) avec contenu adapté par rôle : Superviseur (GA/MoMo zone, DFA, stock, dysfonctionnements), RA/Admin (équipe complète, tableau par superviseur, KPI réel, alertes), DG/DGA/DC/DCC (version condensée), Agence/CARE (SWAP + stock personnel)
+- Emojis plutôt que FontAwesome pour les boutons d'action, cohérent avec le fix déjà appliqué sur InsightPanel pour le réseau lent
+
+**Dashboard**
+- Comparatif WoW (semaine vs semaine précédente) intégré à la carte Hebdomadaire d'Objectifs, format "↑ +23% vs semaine dernière (W-1=2847)"
+
+**Identité visuelle**
+- Logo "Signal en Hausse" (quatre points de collecte reliés par une ligne montante, symbolisant données terrain → analyse) intégré en SVG inline : favicon, écran de connexion, barre latérale — pas de fichier image externe
+
+**Incidents de déploiement rencontrés (résolus)**
+- Plusieurs lags de déploiement GitHub Pages (build en attente, jusqu'à 45+ min) et un échec pur de l'étape "Deploy" malgré un build réussi — résolus à chaque fois par un commit vide pour relancer le pipeline
+- Plusieurs oublis de redéploiement Apps Script après modification du fichier .gs — à surveiller systématiquement après toute modification du backend
+
+
 
 ### TeamVallee — Objectifs mensuels, DFA weighting, restauration vue, UX dysfonctionnements
 
