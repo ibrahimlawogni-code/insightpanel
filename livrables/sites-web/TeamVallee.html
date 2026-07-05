@@ -3012,20 +3012,22 @@ async function sendDemandeEmail() {
   if (type === 'notification' && !decision) { showToast('Champ requis', 'Veuillez préciser la décision notifiée.', true); return; }
 
   try {
+    const emailBody = _demBuildEmailText(type, destNom, motif, contexte, message, decision, dateLimite);
     const payload = {
       action: 'saveDemandeVallee', type, date: todayISO, destinataireNom: destNom, destinataireEmail: destEmail,
-      destinataireType: destType, motif, contexte, message, decision, dateEffet: dateLimite, dateLimite, auteurId: currentUser.id
+      destinataireType: destType, motif, contexte, message, decision, dateEffet: dateLimite, dateLimite, auteurId: currentUser.id,
+      emailBody
     };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
     if (!json.success) { showToast('Erreur', json.error || 'Erreur inconnue.', true); return; }
 
-    const ref     = json.ref;
-    const subject = encodeURIComponent(`[${ref}] ${DEM_TYPE_LABELS[type]} — ${motif}`);
-    const body    = encodeURIComponent(_demBuildEmailText(type, destNom, motif, contexte, message, decision, dateLimite));
-    window.location.href = `mailto:${encodeURIComponent(destEmail)}?subject=${subject}&body=${body}`;
-
-    showToast('Courrier enregistré', `Référence ${ref}`, false);
+    const ref = json.ref;
+    if (json.emailError) {
+      showToast('Courrier enregistré, email non envoyé', `Référence ${ref} — ${json.emailError}`, true);
+    } else {
+      showToast('Courrier enregistré et envoyé par email', `Référence ${ref}`, false);
+    }
     _demandesLoaded = false; _demandesInFlight = null;
     await loadDemandesVallee();
     document.getElementById('dem-dest-nom').value    = '';

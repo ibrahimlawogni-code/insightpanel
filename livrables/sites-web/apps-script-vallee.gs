@@ -897,6 +897,19 @@ function handleSaveDemandeVallee(data) {
   set('horodatage',        ts);
 
   sheet.appendRow(row);
+
+  // Envoi direct de l'email depuis le serveur : évite les limites de longueur
+  // des liens mailto: (constatées avec le gestionnaire Gmail du navigateur).
+  if (data.destinataireEmail && data.emailBody) {
+    const typeLabels = { demande: "Demande d'explication", avertissement: 'Avertissement', notification: 'Notification de sanction' };
+    const subject = '[' + ref + '] ' + (typeLabels[type] || typeLabels.demande) + ' — ' + (data.motif || '');
+    try {
+      GmailApp.sendEmail(data.destinataireEmail, subject, data.emailBody);
+    } catch (err) {
+      return jsonResponse({ success: true, ref: ref, horodatage: ts, emailError: err.toString() });
+    }
+  }
+
   return jsonResponse({ success: true, ref: ref, horodatage: ts });
 }
 
