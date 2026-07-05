@@ -1132,8 +1132,9 @@ function startSession(user) {
   _applySupOpts();
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
   const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
-  document.getElementById('card-enlv-form').style.display  = isRaAdmin ? '' : 'none';
-  document.getElementById('card-enlv-hist').style.display  = isRaAdmin ? '' : 'none';
+  const canSeeEnlv = isRaAdmin || FIELD_RESTRICTED_ROLES.includes(currentUser.role);
+  document.getElementById('card-enlv-form').style.display  = canSeeEnlv ? '' : 'none';
+  document.getElementById('card-enlv-hist').style.display  = canSeeEnlv ? '' : 'none';
   document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
@@ -1626,12 +1627,12 @@ function renderDashboardSwap() {
   const effectuesPeriode = filtered.length;
   const prevEffectues    = prevFiltered.length;
 
-  const stockSwapTotal   = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap').reduce((s, e) => s + (Number(e.quantite) || 0), 0);
-  const swapEffectuesMoi = VALLEE_SWAP.filter(s => s.auteurId === currentUser.id).length;
-  const restantMoi       = stockSwapTotal - swapEffectuesMoi;
-  const swapEffectuesTotal = VALLEE_SWAP.length;
+  const stockSwapMoi     = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap' && e.auteurId === currentUser.id).reduce((s, e) => s + (Number(e.quantite) || 0), 0);
+  const mesSwaps         = VALLEE_SWAP.filter(s => s.auteurId === currentUser.id);
+  const swapEffectuesMoi = mesSwaps.length;
+  const restantMoi       = stockSwapMoi - swapEffectuesMoi;
 
-  const sorted  = [...VALLEE_SWAP].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0));
+  const sorted  = [...mesSwaps].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0));
   const dernier = sorted[0];
 
   const diff = effectuesPeriode - prevEffectues;
@@ -1641,7 +1642,7 @@ function renderDashboardSwap() {
     : diff < 0 ? `<span class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> ${diff}</span>`
     : `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> 0</span>`;
 
-  const restantCol = stockSwapTotal <= 0 ? 'inherit' : restantMoi <= 0 ? 'var(--danger)' : restantMoi < stockSwapTotal * 0.15 ? 'var(--warning)' : 'var(--success)';
+  const restantCol = stockSwapMoi <= 0 ? 'inherit' : restantMoi <= 0 ? 'var(--danger)' : restantMoi < stockSwapMoi * 0.15 ? 'var(--warning)' : 'var(--success)';
 
   document.getElementById('kpi-big-grid').innerHTML = `
     <div class="kpi-big">
@@ -1654,16 +1655,16 @@ function renderDashboardSwap() {
     </div>
     <div class="kpi-big">
       <div class="kpi-big-label">Stock Restant — ${currentUser.nom}</div>
-      <div class="kpi-big-value" style="color:${restantCol}">${stockSwapTotal > 0 ? restantMoi.toLocaleString('fr-FR') : '—'}</div>
-      <div class="kpi-big-sub">${stockSwapTotal > 0 ? `Calculé sur mes propres SWAP effectués` : 'Aucun stock SWAP global enregistré'}</div>
+      <div class="kpi-big-value" style="color:${restantCol}">${restantMoi.toLocaleString('fr-FR')}</div>
+      <div class="kpi-big-sub">${stockSwapMoi > 0 ? `Mon stock alloué : ${stockSwapMoi.toLocaleString('fr-FR')}` : "Aucun enlèvement enregistré pour mon compte"}</div>
     </div>`;
 
   document.getElementById('kpi-stat-grid').innerHTML = `
     <div class="kpi-stat">
       <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-right-left"></i></div>
       <div>
-        <div class="kpi-stat-val">${swapEffectuesTotal.toLocaleString('fr-FR')}</div>
-        <div class="kpi-stat-lbl">SWAP effectués (total)</div>
+        <div class="kpi-stat-val">${swapEffectuesMoi.toLocaleString('fr-FR')}</div>
+        <div class="kpi-stat-lbl">Mes SWAP effectués (total)</div>
       </div>
     </div>
     <div class="kpi-stat">
