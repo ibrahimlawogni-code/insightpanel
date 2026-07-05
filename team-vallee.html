@@ -1951,7 +1951,7 @@ function renderDashboard() {
     const color = diff > 0 ? '#22c55e' : diff < 0 ? '#ef4444' : 'var(--text-muted)';
     const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
     const sign  = diff > 0 ? '+' : '';
-    return `<div style="font-size:11px;font-weight:600;color:${color};margin-top:3px">${arrow} ${sign}${pct}% vs semaine dernière</div>`;
+    return `<div style="font-size:11px;font-weight:600;color:${color};margin-top:3px">${arrow} ${sign}${pct}% vs semaine dernière (W-1=${prev.toLocaleString('fr-FR')})</div>`;
   }
 
   function objPeriodCard(title, tGA, tMo, aGA, aMo, iconCls, iconBg, iconColor, subtitle, wowGA, wowMo) {
