@@ -442,7 +442,6 @@
               <div class="form-group">
                 <label>Type</label>
                 <select id="enlv-type">
-                  <option value="p100">P100</option>
                   <option value="swap">SWAP</option>
                 </select>
               </div>
@@ -2352,7 +2351,9 @@ function renderEnlevementsTable() {
   const tbody = document.getElementById('enlv-tbody');
   if (!tbody) return;
 
-  const sorted = [...VALLEE_ENLEVEMENTS].sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
+  const isRaAdmin = ['ra', 'admin'].includes(currentUser?.role);
+  const data = isRaAdmin ? [...VALLEE_ENLEVEMENTS] : VALLEE_ENLEVEMENTS.filter(r => r.auteurId === currentUser?.id);
+  const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
 
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun enlèvement enregistré</td></tr>';
