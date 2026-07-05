@@ -513,6 +513,18 @@
 
         <!-- VUE DYSFONCTIONNEMENTS -->
         <div id="view-dysfonctionnement" style="display:none">
+          <div class="kpi-big-grid" style="margin-bottom:16px">
+            <div class="kpi-big">
+              <div class="kpi-big-label">Durée totale</div>
+              <div class="kpi-big-value" id="dysf-kpi-duree">—</div>
+              <div class="kpi-big-sub" id="dysf-kpi-count">0 dysfonctionnement(s)</div>
+            </div>
+            <div class="kpi-big">
+              <div class="kpi-big-label">Impact total</div>
+              <div class="kpi-big-value" id="dysf-kpi-impact" style="color:var(--danger)">—</div>
+              <div class="kpi-big-sub">SIMs estimées perdues</div>
+            </div>
+          </div>
           <div class="card">
             <div class="card-title"><i class="fa fa-triangle-exclamation"></i> Signaler un dysfonctionnement</div>
             <div class="form-grid">
@@ -3473,11 +3485,27 @@ async function saveDysf() {
   }
 }
 
+function renderDysfDashboardKpis(data) {
+  const dureeEl  = document.getElementById('dysf-kpi-duree');
+  const impactEl = document.getElementById('dysf-kpi-impact');
+  const countEl  = document.getElementById('dysf-kpi-count');
+  if (!dureeEl || !impactEl || !countEl) return;
+
+  const totalMinutes = data.reduce((s, r) => s + _dureeToMinutes(r.duree), 0);
+  const totalImpact  = data.reduce((s, r) => s + (Number(r.impactSims) || 0), 0);
+
+  dureeEl.textContent  = data.length ? _minutesToDuree(totalMinutes) : '—';
+  impactEl.textContent = data.length ? `-${totalImpact.toLocaleString('fr-FR')}` : '—';
+  countEl.textContent  = `${data.length} dysfonctionnement(s)`;
+}
+
 function renderDysfHist() {
   const isRa  = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
   const myId  = currentUser?.id;
   let data    = isRa ? [...VALLEE_DYSF] : VALLEE_DYSF.filter(r => r.auteurId === myId);
   data.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.heureDebut || '').localeCompare(a.heureDebut || ''));
+
+  renderDysfDashboardKpis(data);
 
   const impactBadge = (imp, sims) => {
     if (!imp) return '—';
