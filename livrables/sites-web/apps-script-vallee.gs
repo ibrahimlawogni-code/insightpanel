@@ -818,6 +818,7 @@ function handleGetDemandesVallee(data) {
     decision:          headers.indexOf('decision'),
     dateeffet:         headers.indexOf('dateeffet'),
     datelimite:        headers.indexOf('datelimite'),
+    cc:                headers.indexOf('cc'),
     statut:            headers.indexOf('statut'),
     reponse:           headers.indexOf('reponse'),
     datereponse:       headers.indexOf('datereponse'),
@@ -842,6 +843,7 @@ function handleGetDemandesVallee(data) {
       decision:          _cellStr(row[COL.decision]),
       dateEffet:         _cellStr(row[COL.dateeffet]),
       dateLimite:        _cellStr(row[COL.datelimite]),
+      cc:                _cellStr(row[COL.cc]),
       statut:            _cellStr(row[COL.statut]),
       reponse:           _cellStr(row[COL.reponse]),
       dateReponse:       _cellStr(row[COL.datereponse]),
@@ -890,6 +892,7 @@ function handleSaveDemandeVallee(data) {
   set('decision',          data.decision           || '');
   set('dateeffet',         data.dateEffet          || '');
   set('datelimite',        data.dateLimite         || '');
+  set('cc',                data.cc                 || '');
   set('statut',             'En attente');
   set('reponse',            '');
   set('datereponse',       '');
@@ -904,7 +907,9 @@ function handleSaveDemandeVallee(data) {
     const typeLabels = { demande: "Demande d'explication", avertissement: 'Avertissement', notification: 'Notification de sanction' };
     const subject = '[' + ref + '] ' + (typeLabels[type] || typeLabels.demande) + ' — ' + (data.motif || '');
     try {
-      GmailApp.sendEmail(data.destinataireEmail, subject, data.emailBody);
+      const options = {};
+      if (data.cc) options.cc = data.cc;
+      GmailApp.sendEmail(data.destinataireEmail, subject, data.emailBody, options);
     } catch (err) {
       return jsonResponse({ success: true, ref: ref, horodatage: ts, emailError: err.toString() });
     }
@@ -921,12 +926,12 @@ function _getOrCreateDemandesVallee(ss) {
   if (!sheet) {
     sheet = ss.insertSheet('DemandesVallee');
     const headers = ['Ref', 'Type', 'Date', 'DestinataireNom', 'DestinataireEmail', 'DestinataireType',
-      'Motif', 'Contexte', 'Message', 'Decision', 'DateEffet', 'DateLimite', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
+      'Motif', 'Contexte', 'Message', 'Decision', 'DateEffet', 'DateLimite', 'Cc', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
     sheet.appendRow(headers);
     const hdr = sheet.getRange(1, 1, 1, headers.length);
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
-    [80, 110, 90, 160, 180, 110, 180, 260, 260, 220, 100, 90, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    [80, 110, 90, 160, 180, 110, 180, 260, 260, 220, 100, 90, 180, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
   }
   return sheet;
 }

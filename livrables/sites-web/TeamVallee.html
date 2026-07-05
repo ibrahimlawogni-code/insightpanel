@@ -705,6 +705,10 @@
                 <label>Email du destinataire</label>
                 <input type="email" id="dem-dest-email" placeholder="Ex: jean.dupont@mail.com">
               </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label>En copie (CC) — optionnel</label>
+                <input type="text" id="dem-cc" placeholder="Séparer plusieurs adresses par une virgule : ex@mail.com, autre@mail.com">
+              </div>
               <div class="form-group">
                 <label>Lié à (optionnel)</label>
                 <select id="dem-lien-type" onchange="_onDemLienTypeChange()">
@@ -3004,6 +3008,7 @@ async function sendDemandeEmail() {
   const message   = document.getElementById('dem-message').value.trim();
   const decision  = document.getElementById('dem-decision').value.trim();
   const dateLimite = document.getElementById('dem-date-limite').value;
+  const ccRaw     = document.getElementById('dem-cc').value.trim();
 
   if (!destNom)   { showToast('Champ requis', 'Veuillez indiquer le nom du destinataire.', true); return; }
   if (!destEmail) { showToast('Champ requis', 'Veuillez indiquer l\'email du destinataire.', true); return; }
@@ -3011,12 +3016,18 @@ async function sendDemandeEmail() {
   if (type === 'demande' && !message)   { showToast('Champ requis', 'Veuillez rédiger le message.', true); return; }
   if (type === 'notification' && !decision) { showToast('Champ requis', 'Veuillez préciser la décision notifiée.', true); return; }
 
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const ccList  = ccRaw.split(',').map(a => a.trim()).filter(Boolean);
+  const ccInvalides = ccList.filter(a => !emailRe.test(a));
+  if (ccInvalides.length) { showToast('Adresse invalide', `En copie : ${ccInvalides.join(', ')}`, true); return; }
+  const cc = ccList.join(',');
+
   try {
     const emailBody = _demBuildEmailText(type, destNom, motif, contexte, message, decision, dateLimite);
     const payload = {
       action: 'saveDemandeVallee', type, date: todayISO, destinataireNom: destNom, destinataireEmail: destEmail,
       destinataireType: destType, motif, contexte, message, decision, dateEffet: dateLimite, dateLimite, auteurId: currentUser.id,
-      emailBody
+      emailBody, cc
     };
     const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
     const json = await res.json();
@@ -3032,6 +3043,7 @@ async function sendDemandeEmail() {
     await loadDemandesVallee();
     document.getElementById('dem-dest-nom').value    = '';
     document.getElementById('dem-dest-email').value  = '';
+    document.getElementById('dem-cc').value          = '';
     document.getElementById('dem-motif').value       = '';
     document.getElementById('dem-contexte').value    = '';
     document.getElementById('dem-message').value     = '';
@@ -3063,7 +3075,7 @@ function renderDemandesList() {
       <td style="font-family:monospace;font-size:12px">${d.ref}</td>
       <td><span class="badge ${typeBadgeCls}">${DEM_TYPE_LABELS[d.type] || d.type}</span></td>
       <td>${isoToFR(d.date) || d.date}</td>
-      <td>${d.destinataireNom}</td>
+      <td>${d.destinataireNom}${d.cc ? ` <span title="En copie : ${d.cc.replace(/"/g, '&quot;')}" style="color:var(--text-muted);cursor:help">(+cc)</span>` : ''}</td>
       <td>${d.motif}</td>
       <td style="text-align:center">${badge}</td>
       <td>${isoToFR(d.dateLimite) || d.dateLimite || '—'}</td>
