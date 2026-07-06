@@ -909,6 +909,11 @@ function handleSaveDemandeVallee(data) {
     try {
       const options = {};
       if (data.cc) options.cc = data.cc;
+      if (data.attachments && data.attachments.length) {
+        options.attachments = data.attachments.map(a =>
+          Utilities.newBlob(Utilities.base64Decode(a.base64), a.mimeType || 'application/octet-stream', a.filename || 'piece-jointe')
+        );
+      }
       GmailApp.sendEmail(data.destinataireEmail, subject, data.emailBody, options);
     } catch (err) {
       return jsonResponse({ success: true, ref: ref, horodatage: ts, emailError: err.toString() });
