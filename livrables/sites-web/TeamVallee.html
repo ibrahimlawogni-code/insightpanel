@@ -3008,7 +3008,7 @@ function _demBuildEmailText(type, destNom, motif, contexte, message, decision, d
   const sign = `${currentUser?.nom || ''}\nResponsable Acquisition\nZEPHIR GROUP — Distributeur agréé MTN Bénin`;
 
   if (type === 'avertissement') {
-    return `${destNom},
+    return `Monsieur ${destNom},
 
 Par la présente, ZEPHIR GROUP, distributeur agréé MTN Bénin, vous notifie
 un avertissement officiel concernant les faits suivants :
@@ -3031,7 +3031,7 @@ ${sign}`;
   }
 
   if (type === 'notification') {
-    return `${destNom},
+    return `Monsieur ${destNom},
 
 ZEPHIR GROUP, distributeur agréé MTN Bénin, vous notifie par la présente
 la décision suivante :
@@ -3047,7 +3047,7 @@ demeurés sans justification recevable ni correction de votre part.
 ${sign}`;
   }
 
-  return `${destNom},
+  return `Monsieur ${destNom},
 
 Dans le cadre du contrôle de conformité et de performance opérationnelle
 de ZEPHIR GROUP, distributeur agréé MTN Bénin, la présente constitue une
