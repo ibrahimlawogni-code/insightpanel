@@ -22,6 +22,14 @@ const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← R
 // POINT D'ENTRÉE
 // ─────────────────────────────────────────────────────────────
 function doPost(e) {
+  /* Verrou global : les upserts (KPI réel, objectifs) et la génération de référence
+     de courrier lisent puis réécrivent. Sans verrou, deux appels simultanés se marchent
+     dessus (doublon de référence, écrasement d'un mois). 20 s d'attente maximum. */
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (_) {
+    return jsonResponse({ success: false, error: 'Serveur occupé, réessayez dans un instant.' });
+  }
+
   try {
     const data = JSON.parse(e.postData.contents);
     if (data.action === 'getSaisiesVallee')    return handleGetSaisiesVallee(data);
@@ -42,9 +50,13 @@ function doPost(e) {
     if (data.action === 'saveUtilisateurVallee')  return handleSaveUtilisateurVallee(data);
     if (data.action === 'getDemandesVallee')      return handleGetDemandesVallee(data);
     if (data.action === 'saveDemandeVallee')      return handleSaveDemandeVallee(data);
+    if (data.action === 'getObjectifsVallee')     return handleGetObjectifsVallee(data);
+    if (data.action === 'saveObjectifVallee')     return handleSaveObjectifVallee(data);
     return jsonResponse({ success: false, error: 'Action inconnue : ' + data.action });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -93,7 +105,7 @@ function handleGetSaisiesVallee(data) {
       totalDfa:    COL.totalDfa >= 0 ? (Number(row[COL.totalDfa]) || 0) : null,
       dfaActif:    COL.dfaActif >= 0 ? (Number(row[COL.dfaActif]) || 0) : null,
       observation: _cellStr(row[COL.observation]),
-      horodatage:  _cellStr(row[COL.horodatage]),
+      horodatage:  _tsStr(row[COL.horodatage]),
       _row:        i + 1
     });
   }
@@ -107,11 +119,37 @@ function handleGetSaisiesVallee(data) {
 function handleSaveSaisieVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateSaisiesVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   /* Lire les en-têtes réels pour insérer dans les bonnes colonnes */
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
+
+  /* Doublon date + superviseur : une seconde saisie du même jour doublait le Gross Add
+     dans tous les cumuls sans que rien ne le signale. On refuse, sauf demande explicite
+     (data.force), et on renvoie l'horodatage existant pour que le client propose la
+     modification de la ligne déjà en place. */
+  if (!data.force) {
+    const cDate = headers.indexOf('date');
+    const cSup  = headers.indexOf('supid');
+    const cTs   = headers.indexOf('horodatage');
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1 && cDate >= 0 && cSup >= 0) {
+      const existants = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+      const cleDate   = _dateKey(data.date);
+      const cleSup    = _cellStr(data.supId).toLowerCase();
+      for (let i = 0; i < existants.length; i++) {
+        if (_cellStr(existants[i][cSup]).toLowerCase() !== cleSup) continue;
+        if (_dateKey(existants[i][cDate]) !== cleDate) continue;
+        return jsonResponse({
+          success: false,
+          code: 'DOUBLON',
+          horodatage: cTs >= 0 ? _tsStr(existants[i][cTs]) : '',
+          error: 'Une saisie existe déjà pour ce superviseur à cette date.'
+        });
+      }
+    }
+  }
 
   const row = new Array(headers.length).fill('');
   const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
@@ -150,21 +188,28 @@ function handleUpdateSaisieVallee(data) {
     observation: headers.indexOf('observation')
   };
 
+  /* Comparaison insensible à la casse sur l'identifiant : les saisies enregistrées
+     avec une casse différente restaient introuvables. */
+  const idIn = _cellStr(data.supId).toLowerCase();
+
   for (let i = 1; i < rows.length; i++) {
-    const rowId = _cellStr(rows[i][COL.supId]);
-    const rowTs = _cellStr(rows[i][COL.horodatage]);
-    if (rowId === data.supId && rowTs === data.horodatage) {
+    const rowId = _cellStr(rows[i][COL.supId]).toLowerCase();
+    const rowTs = _tsStr(rows[i][COL.horodatage]);
+    if (rowId === idIn && rowTs === data.horodatage) {
       const rowNum = i + 1;
-      sheet.getRange(rowNum, COL.grossAdd + 1).setValue(Number(data.grossAdd) || 0);
-      sheet.getRange(rowNum, COL.momoUser + 1).setValue(Number(data.momoUser) || 0);
-      if (COL.totalDfa >= 0) sheet.getRange(rowNum, COL.totalDfa + 1).setValue(Number(data.totalDfa) || 0);
-      if (COL.dfaActif >= 0) sheet.getRange(rowNum, COL.dfaActif + 1).setValue(Number(data.dfaActif) || 0);
-      sheet.getRange(rowNum, COL.observation + 1).setValue(data.observation || '');
+      /* Toutes les colonnes sont testées avant écriture : un en-tête renommé
+         produisait un getRange(ligne, 0) et une erreur brute côté client. */
+      const set = (colIdx, val) => { if (colIdx >= 0) sheet.getRange(rowNum, colIdx + 1).setValue(val); };
+      set(COL.grossAdd,    Number(data.grossAdd) || 0);
+      set(COL.momoUser,    Number(data.momoUser) || 0);
+      set(COL.totalDfa,    Number(data.totalDfa) || 0);
+      set(COL.dfaActif,    Number(data.dfaActif) || 0);
+      set(COL.observation, data.observation || '');
       return jsonResponse({ success: true, message: 'Saisie mise à jour.' });
     }
   }
 
-  return jsonResponse({ success: false, error: 'Saisie introuvable.' });
+  return jsonResponse({ success: false, error: 'Saisie introuvable (horodatage ' + data.horodatage + ').' });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -186,7 +231,7 @@ function handleGetStockVallee(data) {
     quantite:   headers.indexOf('quantite'),
     auteurId:   headers.indexOf('auteurid'),
     auteurNom:  headers.indexOf('auteurnom'),
-    auteurRole: headers.indexOf('auteurRole') !== -1 ? headers.indexOf('auteurRole') : headers.indexOf('auteurRole'.toLowerCase()),
+    auteurRole: headers.indexOf('auteurrole'),
     horodatage: headers.indexOf('horodatage'),
     type:       headers.indexOf('type')
   };
@@ -203,7 +248,7 @@ function handleGetStockVallee(data) {
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
       auteurRole: _cellStr(row[COL.auteurRole]),
-      horodatage: _cellStr(row[COL.horodatage]),
+      horodatage: _tsStr(row[COL.horodatage]),
       type:       _cellStr(row[COL.type]) || 'p100'
     });
   }
@@ -217,20 +262,26 @@ function handleGetStockVallee(data) {
 function handleSaveStockVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateStockVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
-  sheet.appendRow([
-    data.date        || _todayFR(),
-    data.simDebut    || '',
-    data.simFin      || '',
-    Number(data.quantite) || 0,
-    data.auteurId    || '',
-    data.auteurNom   || '',
-    data.auteurRole  || 'superviseur',
-    ts,
-    data.type        || 'p100'
-  ]);
+  /* Écriture par nom d'en-tête, comme tous les autres handlers : le tableau positionnel
+     précédent aurait décalé silencieusement les valeurs à la première insertion de colonne. */
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
 
+  set('date',       data.date       || _todayFR());
+  set('simdebut',   data.simDebut   || '');
+  set('simfin',     data.simFin     || '');
+  set('quantite',   Number(data.quantite) || 0);
+  set('auteurid',   data.auteurId   || '');
+  set('auteurnom',  data.auteurNom  || '');
+  set('auteurrole', data.auteurRole || 'superviseur');
+  set('horodatage', ts);
+  set('type',       data.type       || 'p100');
+
+  sheet.appendRow(row);
   return jsonResponse({ success: true, message: 'Stock enregistré.', horodatage: ts });
 }
 
@@ -330,14 +381,14 @@ function handleGetDysfVallee(data) {
       date:       _cellStr(row[COL.date]),
       localite:   _cellStr(row[COL.localite]),
       nature:     _cellStr(row[COL.nature]),
-      heureDebut: _cellStr(row[COL.heureDebut]),
-      heureFin:   _cellStr(row[COL.heureFin]),
+      heureDebut: _timeStr(row[COL.heureDebut]),
+      heureFin:   _timeStr(row[COL.heureFin]),
       duree:      _cellStr(row[COL.duree]),
       impact:     _cellStr(row[COL.impact]),
       impactSims: COL.impactSims >= 0 ? _cellStr(row[COL.impactSims]) : '',
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
-      horodatage: _cellStr(row[COL.horodatage]),
+      horodatage: _tsStr(row[COL.horodatage]),
       _row: i + 1
     });
   }
@@ -351,7 +402,7 @@ function handleGetDysfVallee(data) {
 function handleSaveDysfVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateDysfVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
@@ -428,7 +479,7 @@ function handleGetKpiReelVallee(data) {
       kpiNewAdd:  Number(row[COL.kpiNewAdd]) || 0,
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
-      horodatage: _cellStr(row[COL.horodatage]),
+      horodatage: _tsStr(row[COL.horodatage]),
       _row: i + 1
     });
   }
@@ -442,7 +493,7 @@ function handleGetKpiReelVallee(data) {
 function handleSaveKpiReelVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateKpiReelVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
@@ -487,9 +538,11 @@ function _getOrCreateKpiReelVallee(ss) {
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
     [90, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    // Colonne Periode ('2026-06') en texte brut : sans ça, Sheets la convertit en date au format local.
+    // Appliqué à la création seulement : le format persiste, le réappliquer à chaque
+    // requête ajoutait une écriture sur la feuille à chaque simple lecture.
+    sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   }
-  // Colonne Periode ('2026-06') en texte brut : sans ça, Sheets la convertit en date au format local.
-  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   return sheet;
 }
 
@@ -535,7 +588,7 @@ function handleGetEnlevementsVallee(data) {
       type:       _cellStr(row[COL.type]),
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
-      horodatage: _cellStr(row[COL.horodatage]),
+      horodatage: _tsStr(row[COL.horodatage]),
       _row: i + 1
     });
   }
@@ -549,7 +602,7 @@ function handleGetEnlevementsVallee(data) {
 function handleSaveEnlevementVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateEnlevementsVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
@@ -616,7 +669,7 @@ function handleGetSwapVallee(data) {
       swaper:     _cellStr(row[COL.swaper]),
       auteurId:   _cellStr(row[COL.auteurId]),
       auteurNom:  _cellStr(row[COL.auteurNom]),
-      horodatage: _cellStr(row[COL.horodatage]),
+      horodatage: _tsStr(row[COL.horodatage]),
       _row: i + 1
     });
   }
@@ -630,7 +683,7 @@ function handleGetSwapVallee(data) {
 function handleSaveSwapVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateSwapVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
@@ -661,9 +714,9 @@ function _getOrCreateSwapVallee(ss) {
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
     [110, 150, 150, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    // Sim/Swaper en texte brut pour éviter toute conversion numérique par Sheets.
+    sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   }
-  // Sim/Swaper en texte brut pour éviter toute conversion numérique par Sheets.
-  sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   return sheet;
 }
 
@@ -736,7 +789,7 @@ function handleGetUtilisateursVallee(data) {
       role:       _cellStr(row[COL.role]),
       libelle:    _cellStr(row[COL.libelle]),
       initiales:  _cellStr(row[COL.initiales]),
-      horodatage: _cellStr(row[COL.horodatage])
+      horodatage: _tsStr(row[COL.horodatage])
     });
   }
   return jsonResponse({ success: true, data: entries });
@@ -745,7 +798,7 @@ function handleGetUtilisateursVallee(data) {
 function handleSaveUtilisateurVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateUtilisateursVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
@@ -789,9 +842,9 @@ function _getOrCreateUtilisateursVallee(ss) {
     hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
     sheet.setFrozenRows(1);
     [140, 100, 180, 110, 180, 90, 160, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    // Colonnes texte brut pour Id/Password : évite toute conversion numérique/date par Sheets.
+    sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   }
-  // Colonnes texte brut pour Id/Password : évite toute conversion numérique/date par Sheets.
-  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   return sheet;
 }
 
@@ -848,7 +901,7 @@ function handleGetDemandesVallee(data) {
       reponse:           _cellStr(row[COL.reponse]),
       dateReponse:       _cellStr(row[COL.datereponse]),
       auteurId:          _cellStr(row[COL.auteurid]),
-      horodatage:        _cellStr(row[COL.horodatage])
+      horodatage:        _tsStr(row[COL.horodatage])
     });
   }
   return jsonResponse({ success: true, data: entries });
@@ -860,23 +913,27 @@ function handleGetDemandesVallee(data) {
 function handleSaveDemandeVallee(data) {
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateDemandesVallee(ss);
-  const ts    = new Date().toLocaleString('fr-FR');
+  const ts    = _nowTs();
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(h => h.toString().toLowerCase().trim());
 
   const type   = data.type || 'demande';
   const prefix = type === 'avertissement' ? 'AVT' : type === 'notification' ? 'NOT' : 'DEM';
-  const typeCol = headers.indexOf('type') + 1;
-  const refCol  = headers.indexOf('ref') + 1;
-  let numero = 1;
+  const refCol = headers.indexOf('ref');
+  /* Numéro suivant = plus grand numéro déjà attribué + 1, et non le nombre de lignes + 1.
+     Compter les lignes redonnait une référence déjà utilisée dès qu'une ligne était
+     supprimée, alors que c'est cette référence qui sert de clé à l'archivage des réponses. */
+  let maxNum = 0;
   const lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    const existing = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
-    const count = existing.filter(r => _cellStr(r[refCol - 1]).indexOf(prefix + '-') === 0).length;
-    numero = count + 1;
+  if (lastRow > 1 && refCol >= 0) {
+    const refs = sheet.getRange(2, refCol + 1, lastRow - 1, 1).getValues();
+    refs.forEach(r => {
+      const m = _cellStr(r[0]).match(new RegExp('^' + prefix + '-(\\d+)$'));
+      if (m) maxNum = Math.max(maxNum, Number(m[1]));
+    });
   }
-  const ref = prefix + '-' + numero;
+  const ref = prefix + '-' + (maxNum + 1);
 
   const row = new Array(headers.length).fill('');
   const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
@@ -957,21 +1014,33 @@ function checkDemandesReponses() {
   if (rows.length <= 1) return;
 
   const headers = rows[0].map(h => h.toString().toLowerCase().trim());
-  const COL = { ref: headers.indexOf('ref'), statut: headers.indexOf('statut') };
+  const COL = {
+    ref:    headers.indexOf('ref'),
+    statut: headers.indexOf('statut'),
+    email:  headers.indexOf('destinataireemail')
+  };
+
+  /* Adresse du compte qui exécute le script : tout message parti de cette adresse est
+     un envoi ou une relance de notre côté, jamais une réponse du destinataire. */
+  const moi = (Session.getEffectiveUser().getEmail() || '').toLowerCase();
 
   for (let i = 1; i < rows.length; i++) {
     if (_cellStr(rows[i][COL.statut]) !== 'En attente') continue;
     const ref = _cellStr(rows[i][COL.ref]);
     if (!ref) continue;
+    const destEmail = COL.email >= 0 ? _cellStr(rows[i][COL.email]).toLowerCase() : '';
 
     const threads = GmailApp.search('subject:"[' + ref + ']"', 0, 5);
     let latestReply = null;
     threads.forEach(thread => {
-      const messages = thread.getMessages();
-      if (messages.length > 1) {
-        const last = messages[messages.length - 1];
-        if (!latestReply || last.getDate() > latestReply.getDate()) latestReply = last;
-      }
+      thread.getMessages().forEach(msg => {
+        const from = (msg.getFrom() || '').toLowerCase();
+        /* On écarte nos propres messages, et si le destinataire est connu on exige
+           que la réponse vienne bien de lui. */
+        if (moi && from.indexOf(moi) !== -1) return;
+        if (destEmail && from.indexOf(destEmail) === -1) return;
+        if (!latestReply || msg.getDate() > latestReply.getDate()) latestReply = msg;
+      });
     });
 
     if (latestReply) {
@@ -985,6 +1054,106 @@ function checkDemandesReponses() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// OBJECTIFS MENSUELS — lecture
+// Les cibles vivaient dans le localStorage du navigateur qui les avait saisies : chaque
+// utilisateur calculait donc ses pourcentages contre une cible différente. Elles sont
+// désormais partagées par tout le monde.
+// ─────────────────────────────────────────────────────────────
+function handleGetObjectifsVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateObjectifsVallee(ss);
+  const rows  = sheet.getDataRange().getValues();
+
+  if (rows.length <= 1) return jsonResponse({ success: true, data: [] });
+
+  const headers = rows[0].map(h => h.toString().toLowerCase().trim());
+  const COL = {
+    periode:    headers.indexOf('periode'),
+    ga:         headers.indexOf('ga'),
+    momo:       headers.indexOf('momo'),
+    auteurId:   headers.indexOf('auteurid'),
+    auteurNom:  headers.indexOf('auteurnom'),
+    horodatage: headers.indexOf('horodatage')
+  };
+
+  const entries = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[COL.periode]) continue;
+    entries.push({
+      periode:    _periodeStr(row[COL.periode]),
+      ga:         Number(row[COL.ga])   || 0,
+      momo:       Number(row[COL.momo]) || 0,
+      auteurId:   _cellStr(row[COL.auteurId]),
+      auteurNom:  _cellStr(row[COL.auteurNom]),
+      horodatage: _tsStr(row[COL.horodatage])
+    });
+  }
+
+  return jsonResponse({ success: true, data: entries });
+}
+
+// ─────────────────────────────────────────────────────────────
+// OBJECTIFS MENSUELS — écriture (upsert par période, suppression si ga = 0)
+// ─────────────────────────────────────────────────────────────
+function handleSaveObjectifVallee(data) {
+  const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
+  const sheet = _getOrCreateObjectifsVallee(ss);
+  const ts    = _nowTs();
+
+  if (!data.periode) return jsonResponse({ success: false, error: 'Période requise.' });
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(h => h.toString().toLowerCase().trim());
+  const periodeCol = headers.indexOf('periode') + 1;
+
+  let targetRow = -1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    const periodes = sheet.getRange(2, periodeCol, lastRow - 1, 1).getValues();
+    for (let i = 0; i < periodes.length; i++) {
+      if (_periodeStr(periodes[i][0]) === data.periode) { targetRow = i + 2; break; }
+    }
+  }
+
+  /* Cible vidée dans le formulaire : on retire la ligne pour revenir à la valeur par défaut. */
+  if (!Number(data.ga)) {
+    if (targetRow > 0) sheet.deleteRow(targetRow);
+    return jsonResponse({ success: true, message: 'Objectif supprimé.' });
+  }
+
+  const row = new Array(headers.length).fill('');
+  const set = (key, val) => { const i = headers.indexOf(key); if (i >= 0) row[i] = val; };
+  set('periode',    data.periode);
+  set('ga',         Number(data.ga)   || 0);
+  set('momo',       Number(data.momo) || 0);
+  set('auteurid',   data.auteurId  || '');
+  set('auteurnom',  data.auteurNom || '');
+  set('horodatage', ts);
+
+  if (targetRow > 0) sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  else               sheet.appendRow(row);
+
+  return jsonResponse({ success: true, message: 'Objectif enregistré.', horodatage: ts });
+}
+
+function _getOrCreateObjectifsVallee(ss) {
+  let sheet = ss.getSheetByName('ObjectifsVallee');
+  if (!sheet) {
+    sheet = ss.insertSheet('ObjectifsVallee');
+    const headers = ['Periode', 'Ga', 'Momo', 'AuteurId', 'AuteurNom', 'Horodatage'];
+    sheet.appendRow(headers);
+    const hdr = sheet.getRange(1, 1, 1, headers.length);
+    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    [90, 110, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    // Periode ('2026-08') en texte brut, sinon Sheets la convertit en date.
+    sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
+  }
+  return sheet;
+}
+
+// ─────────────────────────────────────────────────────────────
 // UTILITAIRES
 // ─────────────────────────────────────────────────────────────
 function _cellStr(val) {
@@ -993,8 +1162,43 @@ function _cellStr(val) {
   return val.toString().trim();
 }
 
+/* Horodatage. Sheets reconnaît "24/08/2026 14:23:45" comme une date et heure et la
+   stocke comme telle : _cellStr la reformatait en jour seul, ce qui rendait deux saisies
+   du même jour indistinguables et faisait porter les corrections sur la mauvaise ligne.
+   On reformate donc avec l'heure. Tolère aussi la valeur déjà stockée en texte. */
+function _tsStr(val) {
+  if (val === null || val === undefined) return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  return val.toString().trim();
+}
+
+/* Heure seule ("08:30"). Sheets la stocke comme une date au 30/12/1899 : _cellStr
+   affichait cette date au lieu de l'heure. */
+function _timeStr(val) {
+  if (val === null || val === undefined) return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm');
+  return val.toString().trim();
+}
+
 function _todayFR() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
+}
+
+/* Horodatage courant. Même format que celui rendu par _tsStr : le round-trip reste
+   exact que Sheets stocke la valeur en texte ou la reconvertisse en date et heure. */
+function _nowTs() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+}
+
+/* Ramène une date à 'yyyy-MM-dd' quelle que soit sa forme : objet Date rendu par
+   Sheets, texte ISO envoyé par le client, ou texte 'dd/MM/yyyy'. Sert aux comparaisons. */
+function _dateKey(val) {
+  if (val === null || val === undefined || val === '') return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = val.toString().trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? m[3] + '-' + m[2] + '-' + m[1] : s;
 }
 
 function jsonResponse(obj) {

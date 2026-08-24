@@ -955,13 +955,15 @@ const VALLEE_SUPS_BASE = [
 // Liste effective des superviseurs : de base + créés depuis Paramètres (voir _rebuildSupsList()).
 let VALLEE_SUPS = [...VALLEE_SUPS_BASE];
 
-let VALLEE_TEAM_TARGET    = { ga: 18660, momo: 16794 }; // fallback par défaut
+let VALLEE_TEAM_TARGET    = { ga: 18660, momo: 16794 }; // valeur de repli
 let VALLEE_MONTHLY_TARGETS = {};                          // { 'YYYY-MM': { ga, momo } }
 
-(function loadTargets() {
+/* Les cibles sont désormais stockées côté serveur (feuille ObjectifsVallee) pour que
+   tout le monde calcule ses pourcentages contre les mêmes valeurs. Le localStorage ne
+   sert plus que de miroir : il évite un dashboard faux pendant le chargement, et prend
+   le relais si le serveur est injoignable. */
+(function loadTargetsCache() {
   try {
-    const saved = localStorage.getItem('tv_targets');
-    if (saved) { const p = JSON.parse(saved); if (p && p.ga > 0 && p.momo > 0) VALLEE_TEAM_TARGET = p; }
     const savedM = localStorage.getItem('tv_monthly_targets');
     if (savedM) { VALLEE_MONTHLY_TARGETS = JSON.parse(savedM) || {}; }
   } catch (_) {}
@@ -973,19 +975,96 @@ function getMonthTarget(year, month0) {
   return VALLEE_MONTHLY_TARGETS[key] || VALLEE_TEAM_TARGET;
 }
 
+/* Nombre de jours ouvrés par semaine. Le tableau de bord comptait 6 jours et le module
+   Rapport 7, ce qui donnait deux cibles hebdomadaires différentes pour la même semaine,
+   soit 17 % d'écart entre l'écran et le rapport envoyé. Valeur unique désormais. */
+const JOURS_SEMAINE_OUVRES = 6;
+
+/* Cible équipe pour une période. Fonction unique, utilisée par le tableau de bord et
+   par le module Rapport : les deux implémentations parallèles avaient déjà divergé. */
+function teamPeriodTarget(metric, period, refDate, rangeDebut, rangeFin) {
+  const yy  = refDate.getFullYear();
+  const mm  = refDate.getMonth();
+  const dim = new Date(yy, mm + 1, 0).getDate();
+  const monthly = getMonthTarget(yy, mm)[metric];
+
+  if (period === 'jour')    return Math.round(monthly / dim);
+  if (period === 'semaine') return Math.round(monthly / dim * JOURS_SEMAINE_OUVRES);
+  if (period === 'mois')    return monthly;
+  if (period === 'trimestre') {
+    const qStart = Math.floor(mm / 3) * 3;
+    return [0, 1, 2].reduce((s, i) => s + getMonthTarget(yy, qStart + i)[metric], 0);
+  }
+  if (period === 'annee') {
+    return [0,1,2,3,4,5,6,7,8,9,10,11].reduce((s, i) => s + getMonthTarget(yy, i)[metric], 0);
+  }
+  if (period === 'periode' && rangeDebut && rangeFin) {
+    const jours = Math.round((new Date(rangeFin + 'T00:00:00') - new Date(rangeDebut + 'T00:00:00')) / 86400000) + 1;
+    return Math.round(monthly / dim * jours);
+  }
+  return monthly;
+}
+
+/* Photo des DFA Actifs du mois de référence : dernière valeur déclarée par superviseur.
+   Sert à répartir la cible équipe proportionnellement au parc réellement actif. */
+function _dfaSnapshot(refDate) {
+  const yy = refDate.getFullYear(), mm = refDate.getMonth();
+  const rows = VALLEE_SAISIES.filter(r => {
+    const d = parseSaisieDate(r.date);
+    return d && d.getFullYear() === yy && d.getMonth() === mm;
+  });
+  const map = {};
+  [...rows].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+    .forEach(r => {
+      const cle = String(r.supId || '').trim().toLowerCase();
+      if (cle && map[cle] === undefined) map[cle] = Number(r.dfaActif) || 0;
+    });
+  const total = Object.values(map).reduce((s, v) => s + v, 0);
+  return { map, total };
+}
+
+/* Cible individuelle d'un superviseur, pondérée par sa part de DFA Actifs.
+   Répartition égale si aucun DFA n'a encore été déclaré sur le mois. */
+function supPropTarget(teamTarget, supId, refDate, snapshot) {
+  if (!teamTarget) return 0;
+  const snap = snapshot || _dfaSnapshot(refDate);
+  if (snap.total === 0) return Math.round(teamTarget / Math.max(VALLEE_SUPS.length, 1));
+  return Math.round(teamTarget * (snap.map[String(supId || '').trim().toLowerCase()] || 0) / snap.total);
+}
+
+/* Comptes de secours, utilisés quand les deux services d'authentification sont
+   injoignables. Les mots de passe ne figurent plus ici : seule leur empreinte SHA-256
+   est stockée, car ce fichier est servi publiquement par GitHub Pages et son code
+   source était lisible par n'importe qui. Pour changer un mot de passe, remplacer
+   l'empreinte (console du navigateur : await sha256Hex('NouveauMotDePasse')). */
 const USERS_SEED = [
-  { id: 'Ibrahim.Lawogni',     pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
-  { id: 'Admin.Zephir',        pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin',       zone: 'Toutes zones', initiales: 'ADM' },
-  { id: 'Dg.Zephir',           pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',          zone: 'Toutes zones', initiales: 'DG'  },
-  { id: 'Dga.Zephir',          pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga',         zone: 'Toutes zones', initiales: 'DGA' },
-  { id: 'Marcel.Tchikpe',      pwd: 'Zephir@2026', nom: 'Marcel TCHIKPE',            role: 'dc',          zone: 'Toutes zones', initiales: 'MT'  },
-  { id: 'Didier.Fadegnon',     pwd: 'Zephir@2026', nom: 'Didier FADEGNON',           role: 'dcc',         zone: 'Toutes zones', initiales: 'DF'  },
-  { id: 'Alphonse.Djokpe',     pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',           role: 'superviseur', zone: 'Bonou - Adjohoun',  initiales: 'AD' },
-  { id: 'Missimahou.Honkou',   pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',         role: 'superviseur', zone: 'Aguégués - Dangbo', initiales: 'MH' },
-  { id: 'Ghislain.Bah',        pwd: 'Zephir@2026', nom: 'Ghislain BAH',              role: 'superviseur', zone: 'Akpro - Missérété', initiales: 'GB' },
-  { id: 'Loukmane.Yessoufou',  pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',       role: 'superviseur', zone: 'Adjarra',           initiales: 'LY' },
-  { id: 'François.Dansou',     pwd: 'Zephir@2026', nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
+  { id: 'Ibrahim.Lawogni',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
+  { id: 'Admin.Zephir',        pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Administrateur',            role: 'admin',       zone: 'Toutes zones', initiales: 'ADM' },
+  { id: 'Dg.Zephir',           pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Directeur Général',         role: 'dg',          zone: 'Toutes zones', initiales: 'DG'  },
+  { id: 'Dga.Zephir',          pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Directeur Général Adjoint', role: 'dga',         zone: 'Toutes zones', initiales: 'DGA' },
+  { id: 'Marcel.Tchikpe',      pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Marcel TCHIKPE',            role: 'dc',          zone: 'Toutes zones', initiales: 'MT'  },
+  { id: 'Didier.Fadegnon',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Didier FADEGNON',           role: 'dcc',         zone: 'Toutes zones', initiales: 'DF'  },
+  { id: 'Alphonse.Djokpe',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Alphonse DJOKPE',           role: 'superviseur', zone: 'Bonou - Adjohoun',  initiales: 'AD' },
+  { id: 'Missimahou.Honkou',   pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Missimahou HONKOU',         role: 'superviseur', zone: 'Aguégués - Dangbo', initiales: 'MH' },
+  { id: 'Ghislain.Bah',        pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Ghislain BAH',              role: 'superviseur', zone: 'Akpro - Missérété', initiales: 'GB' },
+  { id: 'Loukmane.Yessoufou',  pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Loukmane YESSOUFOU',        role: 'superviseur', zone: 'Adjarra',           initiales: 'LY' },
+  { id: 'François.Dansou',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
 ];
+
+/* Correspondances connues entre un identifiant renvoyé par InsightPanel et un compte
+   de cette liste. Table explicite : l'ancien rapprochement automatique par nom de
+   famille fusionnait tout nouveau compte homonyme avec le superviseur existant,
+   rôle compris. Ajouter une ligne ici si un nouvel écart d'identifiant apparaît. */
+const ID_ALIASES = {
+  'dbah': 'Ghislain.Bah'
+};
+
+/* SHA-256 en hexadécimal. Disponible uniquement en contexte sécurisé (HTTPS),
+   ce qui est le cas sur GitHub Pages. */
+async function sha256Hex(txt) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 const ALLOWED_ROLES = ['superviseur', 'ra', 'admin', 'dg', 'dga', 'dc', 'dcc', 'agence', 'care'];
 
@@ -1032,6 +1111,8 @@ let _swapInFlight    = null;
 let VALLEE_USERS_DYNAMIC = []; // [{ id, nom, role, libelle, initiales, horodatage }] — comptes créés depuis Paramètres
 let _usersDynLoaded      = false;
 let _usersDynInFlight    = null;
+let _objectifsLoaded     = false;
+let _objectifsInFlight   = null;
 let _rapPeriod  = 'jour';
 let _rapRefDate = new Date(today);
 let _dysfKpiPeriod  = 'jour';
@@ -1046,7 +1127,7 @@ function showToast(title, sub, isError) {
   const t = document.createElement('div');
   t.className = 'toast' + (isError ? ' error' : '');
   t.innerHTML = `<i class="fa ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'} toast-icon"></i>
-    <div class="toast-body"><div class="toast-title">${title}</div>${sub ? `<div class="toast-sub">${sub}</div>` : ''}</div>`;
+    <div class="toast-body"><div class="toast-title">${esc(title)}</div>${sub ? `<div class="toast-sub">${esc(sub)}</div>` : ''}</div>`;
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
 }
@@ -1068,18 +1149,31 @@ function normalizeId(raw) {
   return raw.split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join('.');
 }
 
-/* Recherche d'un utilisateur dans USERS_SEED avec fallback par nom de famille */
+/* Recherche d'un utilisateur dans USERS_SEED : correspondance exacte, puis table
+   d'alias explicite. Le rapprochement automatique par suffixe de nom de famille a été
+   retiré : il fusionnait un compte nouvellement créé avec un superviseur existant dès
+   que les noms de famille coïncidaient, en écrasant son identifiant et son rôle. */
 function _findSeed(gasId) {
   if (!gasId) return null;
-  /* Correspondance exacte (insensible à la casse) */
-  let s = USERS_SEED.find(u => u.id.toLowerCase() === gasId.toLowerCase());
-  if (s) return s;
-  /* Fallback : l'ID GAS se termine par le nom de famille d'un seed (ex. "Dbah" → "Ghislain.Bah") */
   const lower = gasId.toLowerCase();
-  return USERS_SEED.find(u => {
-    const lastName = u.id.split('.').pop().toLowerCase();
-    return lower.endsWith(lastName);
-  }) || null;
+  const exact = USERS_SEED.find(u => u.id.toLowerCase() === lower);
+  if (exact) return exact;
+  const alias = ID_ALIASES[lower];
+  return alias ? (USERS_SEED.find(u => u.id === alias) || null) : null;
+}
+
+/* Comparaison d'identifiants insensible à la casse, utilisée partout où on rapproche
+   une saisie d'un utilisateur. Les écarts de casse entre Sheets et l'application ont
+   déjà vidé plusieurs vues par le passé. */
+function sameId(a, b) {
+  return !!a && !!b && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
+/* Échappement HTML. Les valeurs saisies par les utilisateurs (observations, motifs,
+   noms) partent dans innerHTML : une apostrophe ou un chevron cassait l'affichage. */
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 async function doLogin() {
@@ -1108,7 +1202,10 @@ async function doLogin() {
   } catch (_) {}
 
   if (!user) {
-    user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password) || null;
+    try {
+      const hash = await sha256Hex(password);
+      user = USERS_SEED.find(u => sameId(u.id, identifiant) && u.pwdHash === hash) || null;
+    } catch (_) { /* crypto.subtle indisponible : on laisse loginVallee prendre le relais */ }
   }
 
   if (!user) {
@@ -1140,7 +1237,7 @@ async function doLogin() {
 }
 
 function _applySupOpts() {
-  const supOpts = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — ${s.zone}</option>`).join('');
+  const supOpts = VALLEE_SUPS.map(s => `<option value="${esc(s.id)}">${esc(s.nom)} — ${esc(s.zone)}</option>`).join('');
   const saisieSel = document.getElementById('saisie-sup-select');
   if (saisieSel) saisieSel.innerHTML = supOpts;
 }
@@ -1154,6 +1251,65 @@ function _rebuildSupsList() {
   _applySupOpts();
 }
 
+/* Modules dont le chargement a échoué. Sert à distinguer « zéro » de « pas chargé » :
+   sept des huit chargements se contentaient d'un console.error, si bien qu'une panne
+   réseau se lisait à l'écran comme un chiffre légitime. */
+const MODULES_EN_ECHEC = new Set();
+
+function _echecChargement(libelle, detail) {
+  MODULES_EN_ECHEC.add(libelle);
+  console.error('[' + libelle + ']', detail);
+  showToast('Chargement incomplet', libelle + " n'a pas pu être chargé. Les chiffres affichés sont incomplets.", true);
+  const el = document.getElementById('dash-no-data');
+  if (el) {
+    el.style.display = 'flex';
+    el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i>
+      Données incomplètes : ${esc([...MODULES_EN_ECHEC].join(', '))} indisponible(s).
+      <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="location.reload()">Recharger</button>`;
+  }
+}
+
+/* Vrai tant que le script Apps Script déployé ne connaît pas encore les objectifs
+   partagés. Le front continue alors de fonctionner sur le cache local, sans alarmer
+   l'équipe : c'est la fenêtre entre la mise en ligne de la page et le redéploiement
+   manuel du backend. */
+let _objectifsNonDeployes = false;
+
+function _actionInconnue(err) {
+  return String(err || '').indexOf('Action inconnue') !== -1;
+}
+
+async function loadObjectifs() {
+  if (_objectifsLoaded) return;
+  if (_objectifsInFlight) return _objectifsInFlight;
+  _objectifsInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getObjectifsVallee' }) })
+    .then(r => r.json())
+    .then(json => {
+      if (!json.success) {
+        if (_actionInconnue(json.error)) {
+          _objectifsNonDeployes = true;
+          console.warn('[loadObjectifs] backend pas encore redéployé, cibles lues depuis le cache local.');
+          return;
+        }
+        _echecChargement('Objectifs mensuels', json.error);
+        return;
+      }
+      const map = {};
+      (json.data || []).forEach(o => {
+        if (o.periode && o.ga > 0) map[o.periode] = { ga: Number(o.ga), momo: Number(o.momo) || Math.round(o.ga * 0.9) };
+      });
+      VALLEE_MONTHLY_TARGETS = map;
+      _objectifsLoaded = true;
+      try { localStorage.setItem('tv_monthly_targets', JSON.stringify(map)); } catch (_) {}
+      renderDashboard();
+      if (document.getElementById('view-parametres')?.style.display !== 'none') renderParametres();
+      _refreshRapportIfActive();
+    })
+    .catch(err => { _echecChargement('Objectifs mensuels', err); })
+    .finally(() => { _objectifsInFlight = null; });
+  return _objectifsInFlight;
+}
+
 async function loadUtilisateursDynamiques() {
   if (_usersDynLoaded) return;
   if (_usersDynInFlight) return _usersDynInFlight;
@@ -1163,15 +1319,16 @@ async function loadUtilisateursDynamiques() {
       if (json.success) {
         VALLEE_USERS_DYNAMIC = json.data || [];
         _usersDynLoaded = true;
+        _revaliderRole();
         _rebuildSupsList();
         renderUtilisateursList();
         renderDashboard();
         _renderDfaWeights();
         _refreshRapportIfActive();
         _refreshDemandesIfActive();
-      } else { console.error('[loadUtilisateursDynamiques] erreur GAS:', json.error); }
+      } else { _echecChargement('Comptes utilisateurs', json.error); }
     })
-    .catch(err => { console.error('[loadUtilisateursDynamiques] erreur réseau:', err); })
+    .catch(err => { _echecChargement('Comptes utilisateurs', err); })
     .finally(() => { _usersDynInFlight = null; });
   return _usersDynInFlight;
 }
@@ -1251,8 +1408,22 @@ function startSession(user) {
   loadKpiReel();
   loadEnlevements();
   loadSwap();
+  loadObjectifs();
   loadUtilisateursDynamiques();
   loadDemandesVallee();
+}
+
+/* Le rôle restauré depuis sessionStorage n'est pas digne de confiance : il suffisait de
+   le modifier dans les outils du navigateur pour ouvrir Paramètres et Courriers. Pour un
+   compte de la liste de secours, startSession le redérive déjà. Pour un compte créé
+   depuis Paramètres, on le confronte à la liste du serveur dès qu'elle arrive. */
+function _revaliderRole() {
+  if (!currentUser || _findSeed(currentUser.id)) return;
+  const serveur = VALLEE_USERS_DYNAMIC.find(u => sameId(u.id, currentUser.id));
+  if (!serveur) return;
+  if (serveur.role === currentUser.role) return;
+  showToast('Session réinitialisée', 'Le rôle enregistré ne correspond plus à ton compte.', true);
+  doLogout();
 }
 
 /* ── PARAMÈTRES ── */
@@ -1261,7 +1432,12 @@ const FR_MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','A
 function renderParametres() {
   const now = new Date(_dashRefDate);
   const hint = document.getElementById('param-default-hint');
-  if (hint) hint.textContent = `GA : ${VALLEE_TEAM_TARGET.ga.toLocaleString('fr-FR')} · MoMo : ${VALLEE_TEAM_TARGET.momo.toLocaleString('fr-FR')}`;
+  if (hint) {
+    hint.innerHTML = `GA : ${VALLEE_TEAM_TARGET.ga.toLocaleString('fr-FR')} · MoMo : ${VALLEE_TEAM_TARGET.momo.toLocaleString('fr-FR')}`
+      + (_objectifsNonDeployes
+        ? `</span><br><span style="color:var(--danger);font-weight:600">⚠ Script Apps Script pas encore redéployé : les cibles saisies ici restent sur ce navigateur et ne sont pas partagées avec l'équipe.<span>`
+        : '');
+  }
 
   const tbody = document.getElementById('param-months-tbody');
   if (!tbody) return;
@@ -1308,14 +1484,10 @@ function _renderDfaWeights() {
   const tgt  = getMonthTarget(yy, mm);
   const nSup = VALLEE_SUPS.length;
 
-  const monthRows = VALLEE_SAISIES.filter(r => {
-    const d = parseSaisieDate(r.date);
-    return d && d.getFullYear() === yy && d.getMonth() === mm;
-  });
-  const dfaMap = {};
-  [...monthRows].sort((a, b) => parseSaisieDate(b.date) - parseSaisieDate(a.date))
-    .forEach(r => { if (r.supId && dfaMap[r.supId] === undefined) dfaMap[r.supId] = Number(r.dfaActif) || 0; });
-  const totalDfa = Object.values(dfaMap).reduce((s, v) => s + v, 0);
+  const snap     = _dfaSnapshot(now);
+  const dfaMap   = snap.map;
+  const totalDfa = snap.total;
+  const cle      = id => String(id || '').trim().toLowerCase();
 
   if (!VALLEE_SAISIES.length) {
     el.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Chargez les données d\'abord pour voir la répartition DFA.</p>';
@@ -1338,12 +1510,12 @@ function _renderDfaWeights() {
       </thead>
       <tbody>
         ${VALLEE_SUPS.map(sup => {
-          const dfa  = totalDfa > 0 ? (dfaMap[sup.id] ?? 0) : null;
-          const part = totalDfa > 0 ? (dfaMap[sup.id] ?? 0) / totalDfa : 1 / nSup;
+          const dfa  = totalDfa > 0 ? (dfaMap[cle(sup.id)] ?? 0) : null;
+          const part = totalDfa > 0 ? (dfaMap[cle(sup.id)] ?? 0) / totalDfa : 1 / nSup;
           const cGa   = Math.round(tgt.ga   * part);
           const cMomo = Math.round(tgt.momo * part);
           return `<tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:7px 8px 7px 0">${sup.nom}</td>
+            <td style="padding:7px 8px 7px 0">${esc(sup.nom)}</td>
             <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger,#e74c3c)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
             <td style="text-align:right;padding:7px 6px;color:var(--text-muted)">${(part * 100).toFixed(1)}%</td>
             <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cGa.toLocaleString('fr-FR')}</td>
@@ -1363,26 +1535,60 @@ function _renderDfaWeights() {
     </table>`;
 }
 
-function saveParametres() {
+async function saveParametres() {
+  if (!currentUser) return;
   const gaInputs = document.querySelectorAll('.param-month-ga');
-  let changed = 0;
+  const aEnvoyer = [];
+
   gaInputs.forEach(inp => {
     const key     = inp.dataset.key;
     const gaV     = Number(inp.value) || 0;
     const momoInp = document.querySelector(`.param-month-momo[data-key="${key}"]`);
     const momoV   = Number(momoInp?.value) || 0;
+    const actuel  = VALLEE_MONTHLY_TARGETS[key];
+
     if (gaV > 0 && momoV > 0) {
-      VALLEE_MONTHLY_TARGETS[key] = { ga: gaV, momo: momoV };
-      changed++;
-    } else if (!gaV && !momoV && VALLEE_MONTHLY_TARGETS[key]) {
-      delete VALLEE_MONTHLY_TARGETS[key];
-      changed++;
+      if (!actuel || actuel.ga !== gaV || actuel.momo !== momoV) aEnvoyer.push({ periode: key, ga: gaV, momo: momoV });
+    } else if (!gaV && !momoV && actuel) {
+      aEnvoyer.push({ periode: key, ga: 0, momo: 0 }); // ga à 0 : le serveur supprime la ligne
     }
   });
-  try { localStorage.setItem('tv_monthly_targets', JSON.stringify(VALLEE_MONTHLY_TARGETS)); } catch (_) {}
-  showToast('Sauvegardé', `${changed} mois mis à jour.`, false);
-  renderDashboard();
-  _renderDfaWeights();
+
+  if (!aEnvoyer.length) { showToast('Aucun changement', '', false); return; }
+
+  /* Les cibles partent sur le serveur : elles doivent être les mêmes pour toute
+     l'équipe, pas propres au navigateur qui les a saisies. */
+  try {
+    for (const o of aEnvoyer) {
+      const res = await fetch(VALLEE_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'saveObjectifVallee', periode: o.periode, ga: o.ga, momo: o.momo, auteurId: currentUser.id, auteurNom: currentUser.nom })
+      });
+      const json = await res.json();
+      if (!json.success) {
+        if (_actionInconnue(json.error)) {
+          /* Repli : on garde la saisie en local pour ne pas la perdre, et on dit
+             clairement pourquoi elle n'est pas encore partagée. */
+          aEnvoyer.forEach(x => {
+            if (x.ga > 0) VALLEE_MONTHLY_TARGETS[x.periode] = { ga: x.ga, momo: x.momo };
+            else delete VALLEE_MONTHLY_TARGETS[x.periode];
+          });
+          try { localStorage.setItem('tv_monthly_targets', JSON.stringify(VALLEE_MONTHLY_TARGETS)); } catch (_) {}
+          renderDashboard(); _renderDfaWeights();
+          showToast('Enregistré localement seulement',
+            "Le script Apps Script n'a pas encore été redéployé : ces cibles ne sont pas encore partagées avec l'équipe.", true);
+          return;
+        }
+        throw new Error(json.error || 'Erreur inconnue.');
+      }
+    }
+    showToast('Objectifs enregistrés', `${aEnvoyer.length} mois mis à jour pour toute l'équipe.`, false);
+    _objectifsLoaded = false; _objectifsInFlight = null;
+    await loadObjectifs();
+    _renderDfaWeights();
+  } catch (e) {
+    showToast('Erreur', e.message, true);
+  }
 }
 
 function doLogout() {
@@ -1438,7 +1644,7 @@ async function loadSaisies() {
       if (json.success) {
         VALLEE_SAISIES = json.data || [];
         _saisiesLoaded = true;
-        const myRecs = VALLEE_SAISIES.filter(r => r.supId === currentUser?.id);
+        const myRecs = VALLEE_SAISIES.filter(r => sameId(r.supId, currentUser?.id));
         console.log('[loadSaisies] enregistrements pour cet utilisateur:', myRecs.length);
         renderDashboard();
         renderSaisieHist();
@@ -1446,13 +1652,11 @@ async function loadSaisies() {
         if (document.getElementById('view-parametres')?.style.display !== 'none') renderParametres();
         _refreshRapportIfActive();
       } else {
-        console.error('[loadSaisies] erreur GAS:', json.error);
-        showToast('Erreur chargement', json.error || 'Impossible de charger les saisies.', true);
+        _echecChargement('Saisies', json.error);
       }
     })
     .catch(err => {
-      console.error('[loadSaisies] erreur réseau:', err);
-      showToast('Erreur réseau', 'Impossible de contacter le serveur. Vérifiez votre connexion.', true);
+      _echecChargement('Saisies', err);
     })
     .finally(() => { _saisiesInFlight = null; });
   return _saisiesInFlight;
@@ -1465,9 +1669,9 @@ async function loadStock() {
     .then(r => r.json())
     .then(json => {
       if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); _refreshRapportIfActive(); }
-      else { console.error('[loadStock] erreur GAS:', json.error); }
+      else { _echecChargement('Stocks SIM', json.error); }
     })
-    .catch(err => { console.error('[loadStock] erreur réseau:', err); })
+    .catch(err => { _echecChargement('Stocks SIM', err); })
     .finally(() => { _stockInFlight = null; });
   return _stockInFlight;
 }
@@ -1489,6 +1693,16 @@ function parseSaisieDate(str) {
     return new Date(`${y}-${m}-${d}T00:00:00`);
   }
   const d = new Date(str); return isNaN(d) ? null : d;
+}
+
+/* Horodatage "dd/MM/yyyy HH:mm:ss" vers un temps comparable. Les listes triées avec
+   localeCompare sur ce texte plaçaient le 02/01 avant le 15/12 de l'année précédente. */
+function tsToTime(ts) {
+  if (!ts) return 0;
+  const m = String(ts).match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+  const d = parseSaisieDate(ts);
+  return d ? d.getTime() : 0;
 }
 
 function isoToFR(iso) {
@@ -1521,7 +1735,11 @@ function filterByPeriod(data, period) {
     const q = Math.floor(mm / 3);
     return data.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && Math.floor(d.getMonth() / 3) === q; });
   }
-  if (period === 'periode' && _dashRangeDebut && _dashRangeFin) {
+  if (period === 'periode') {
+    /* Tant que les bornes ne sont pas validées par « Appliquer », on ne renvoie rien
+       plutôt que tout : l'ancien comportement confrontait le cumul depuis le premier
+       jour à la cible d'un seul mois, donc des pourcentages faux et spectaculaires. */
+    if (!_dashRangeDebut || !_dashRangeFin) return [];
     const deb = new Date(_dashRangeDebut + 'T00:00:00');
     const fin = new Date(_dashRangeFin   + 'T23:59:59');
     return data.filter(r => { const d = parseSaisieDate(r.date); return d && d >= deb && d <= fin; });
@@ -1695,6 +1913,14 @@ function _filterPreviousPeriod(data) {
   return [];
 }
 
+/* Stock SWAP alloué à un compte : enlèvements globaux plus réceptions de type SWAP.
+   Passer auteurId à null donne le total tous comptes confondus. */
+function _stockSwapAlloue(auteurId) {
+  const retenir = r => r.type === 'swap' && (!auteurId || sameId(r.auteurId, auteurId));
+  const somme = arr => arr.filter(retenir).reduce((s, r) => s + (Number(r.quantite) || 0), 0);
+  return somme(VALLEE_ENLEVEMENTS) + somme(VALLEE_STOCK);
+}
+
 function renderDashboardSwap() {
   document.getElementById('card-dash-objectifs').style.display = 'none';
   document.getElementById('card-dash-kpireel').style.display   = 'none';
@@ -1705,8 +1931,11 @@ function renderDashboardSwap() {
   const effectuesPeriode = filtered.length;
   const prevEffectues    = prevFiltered.length;
 
-  const stockSwapMoi     = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap' && e.auteurId === currentUser.id).reduce((s, e) => s + (Number(e.quantite) || 0), 0);
-  const mesSwaps         = VALLEE_SWAP.filter(s => s.auteurId === currentUser.id);
+  /* Le stock alloué additionne les enlèvements globaux ET les réceptions de type SWAP :
+     ces dernières n'entraient dans aucun calcul, si bien qu'un compte qui déclarait sa
+     réception par le formulaire « Enregistrer une réception » restait à zéro. */
+  const stockSwapMoi     = _stockSwapAlloue(currentUser.id);
+  const mesSwaps         = VALLEE_SWAP.filter(s => sameId(s.auteurId, currentUser.id));
   const swapEffectuesMoi = mesSwaps.length;
   const restantMoi       = stockSwapMoi - swapEffectuesMoi;
 
@@ -1769,8 +1998,8 @@ function renderDashboard() {
   let filtered     = filterByPeriod(VALLEE_SAISIES, _dashPeriod);
   let prevFiltered = _filterPreviousPeriod(VALLEE_SAISIES);
   if (!isRa) {
-    filtered     = filtered.filter(r => r.supId === myId);
-    prevFiltered = prevFiltered.filter(r => r.supId === myId);
+    filtered     = filtered.filter(r => sameId(r.supId, myId));
+    prevFiltered = prevFiltered.filter(r => sameId(r.supId, myId));
   }
 
   console.log('[renderDashboard] VALLEE_SAISIES:', VALLEE_SAISIES.length, '| filtered:', filtered.length, '| myId:', myId, '| isRa:', isRa, '| period:', _dashPeriod);
@@ -1780,33 +2009,13 @@ function renderDashboard() {
   const yy          = refDate.getFullYear();
   const mm          = refDate.getMonth();
   const dim         = new Date(yy, mm + 1, 0).getDate();
-  const weekDays    = 6;
+  const weekDays    = JOURS_SEMAINE_OUVRES;
   const monthTgt    = getMonthTarget(yy, mm);
   const teamMonthGA = monthTgt.ga;
   const teamMonthMo = monthTgt.momo;
 
-  /* Cible équipe pour la période sélectionnée (somme des cibles mensuelles réelles pour Q/A) */
-  function periodTarget(metric) {
-    const monthly = getMonthTarget(yy, mm)[metric];
-    if (_dashPeriod === 'jour')    return Math.round(monthly / dim);
-    if (_dashPeriod === 'semaine') return Math.round(monthly / dim * weekDays);
-    if (_dashPeriod === 'mois')    return monthly;
-    if (_dashPeriod === 'trimestre') {
-      const qStart = Math.floor(mm / 3) * 3;
-      return [0, 1, 2].reduce((s, i) => s + getMonthTarget(yy, qStart + i)[metric], 0);
-    }
-    if (_dashPeriod === 'annee') {
-      return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].reduce((s, i) => s + getMonthTarget(yy, i)[metric], 0);
-    }
-    if (_dashPeriod === 'periode' && _dashRangeDebut && _dashRangeFin) {
-      const days = Math.round((new Date(_dashRangeFin + 'T00:00:00') - new Date(_dashRangeDebut + 'T00:00:00')) / 86400000) + 1;
-      return Math.round(monthly / dim * days);
-    }
-    return monthly;
-  }
-
-  const teamTargetGA   = periodTarget('ga');
-  const teamTargetMomo = periodTarget('momo');
+  const teamTargetGA   = teamPeriodTarget('ga',   _dashPeriod, refDate, _dashRangeDebut, _dashRangeFin);
+  const teamTargetMomo = teamPeriodTarget('momo', _dashPeriod, refDate, _dashRangeDebut, _dashRangeFin);
 
   /* Agrégation courante */
   let curGA = 0, curMomo = 0;
@@ -1814,33 +2023,26 @@ function renderDashboard() {
   filtered.forEach(r => {
     curGA   += Number(r.grossAdd) || 0;
     curMomo += Number(r.momoUser) || 0;
-    if (r.supId) activeSups.add(r.supId);
+    if (r.supId) activeSups.add(String(r.supId).trim().toLowerCase());
   });
 
   /* DFA : snapshot période + snapshot mensuel pour pondération des cibles */
   const latestDfa = {};
   [...filtered]
     .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
-    .forEach(r => { if (r.supId && latestDfa[r.supId] === undefined) latestDfa[r.supId] = { totalDfa: Number(r.totalDfa)||0, dfaActif: Number(r.dfaActif)||0 }; });
+    .forEach(r => {
+      const k = String(r.supId || '').trim().toLowerCase();
+      if (k && latestDfa[k] === undefined) latestDfa[k] = { totalDfa: Number(r.totalDfa)||0, dfaActif: Number(r.dfaActif)||0 };
+    });
   const curTotalDfa = Object.values(latestDfa).reduce((s, v) => s + v.totalDfa, 0);
   const curDfaActif = Object.values(latestDfa).reduce((s, v) => s + v.dfaActif, 0);
 
   /* DFA Actifs du mois de référence (pour la pondération des cibles par superviseur) */
-  const monthRows = VALLEE_SAISIES.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
-  const monthDfaMap = {};
-  [...monthRows].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
-    .forEach(r => { if (r.supId && monthDfaMap[r.supId] === undefined) monthDfaMap[r.supId] = Number(r.dfaActif) || 0; });
-  const totalMonthDfa = Object.values(monthDfaMap).reduce((s, v) => s + v, 0);
+  const dfaSnap       = _dfaSnapshot(refDate);
+  const totalMonthDfa = dfaSnap.total;
 
-  /* Cible proportionnelle d'un superviseur (pondérée par DFA Actifs du mois) */
-  function supPropTarget(teamPeriodTarget, supId) {
-    if (!teamPeriodTarget) return 0;
-    if (totalMonthDfa === 0) return Math.round(teamPeriodTarget / VALLEE_SUPS.length);
-    return Math.round(teamPeriodTarget * (monthDfaMap[supId] || 0) / totalMonthDfa);
-  }
-
-  const targetGA   = isRa ? teamTargetGA   : supPropTarget(teamTargetGA,   myId);
-  const targetMomo = isRa ? teamTargetMomo : supPropTarget(teamTargetMomo, myId);
+  const targetGA   = isRa ? teamTargetGA   : supPropTarget(teamTargetGA,   myId, refDate, dfaSnap);
+  const targetMomo = isRa ? teamTargetMomo : supPropTarget(teamTargetMomo, myId, refDate, dfaSnap);
 
   /* Agrégation précédente pour delta */
   let prevGA = 0, prevMomo = 0;
@@ -1887,11 +2089,16 @@ function renderDashboard() {
 
   /* Avertissement si aucune donnée pour cette période */
   const noDataEl = document.getElementById('dash-no-data');
-  if (noDataEl) {
-    const totalMySaisies = VALLEE_SAISIES.filter(r => isRa || r.supId === myId).length;
+  /* Un module en échec garde la main sur le bandeau : sinon l'avertissement
+     « données incomplètes » disparaissait au premier rendu suivant. */
+  if (noDataEl && !MODULES_EN_ECHEC.size) {
+    const totalMySaisies = VALLEE_SAISIES.filter(r => isRa || sameId(r.supId, myId)).length;
     if (!_saisiesLoaded) {
       noDataEl.style.display = 'flex';
       noDataEl.innerHTML = `<i class="fa fa-circle-notch fa-spin"></i> Chargement des données…`;
+    } else if (_dashPeriod === 'periode' && (!_dashRangeDebut || !_dashRangeFin)) {
+      noDataEl.style.display = 'flex';
+      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Choisis les dates de début et de fin, puis clique sur Appliquer.`;
     } else if (filtered.length === 0 && totalMySaisies > 0 && _dashPeriod === 'jour') {
       noDataEl.style.display = 'flex';
       noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Aucune saisie pour aujourd'hui.
@@ -1908,7 +2115,7 @@ function renderDashboard() {
     <div class="kpi-stat">
       <div class="kpi-stat-icon" style="background:#fef9c3;color:#ca8a04"><i class="fa fa-users"></i></div>
       <div>
-        <div class="kpi-stat-val">${isRa ? activeSups.size + ' / 5' : (activeSups.size > 0 ? 'Actif' : 'En attente')}</div>
+        <div class="kpi-stat-val">${isRa ? activeSups.size + ' / ' + VALLEE_SUPS.length : (activeSups.size > 0 ? 'Actif' : 'En attente')}</div>
         <div class="kpi-stat-lbl">Superviseurs actifs</div>
       </div>
     </div>
@@ -1930,12 +2137,12 @@ function renderDashboard() {
   /* ── 3. Objectifs Journalier / Hebdo / Mensuel ── */
   const objRef  = new Date(_dashRefDate);
   const objDim  = new Date(objRef.getFullYear(), objRef.getMonth()+1, 0).getDate();
-  const baseGA  = isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId);
-  const baseMo  = isRa ? teamMonthMo : supPropTarget(teamMonthMo, myId);
+  const baseGA  = isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap);
+  const baseMo  = isRa ? teamMonthMo : supPropTarget(teamMonthMo, myId, refDate, dfaSnap);
 
   function filterByObjPeriod(p) {
     const oyy = objRef.getFullYear(), omm = objRef.getMonth(), odd = objRef.getDate();
-    const src = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => r.supId === myId);
+    const src = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
     if (p === 'jour') return src.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear()===oyy && d.getMonth()===omm && d.getDate()===odd; });
     if (p === 'semaine') {
       const dow = objRef.getDay() === 0 ? 6 : objRef.getDay() - 1;
@@ -1996,7 +2203,7 @@ function renderDashboard() {
 
   const lunPrev = new Date(lunObj); lunPrev.setDate(lunObj.getDate() - 7);
   const dimPrev = new Date(lunPrev); dimPrev.setDate(lunPrev.getDate() + 6); dimPrev.setHours(23,59,59,999);
-  const prevWeekSrc = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => r.supId === myId);
+  const prevWeekSrc = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
   const [prevHebdoGA, prevHebdoMo] = sumGA_Mo(prevWeekSrc.filter(r => { const d = parseSaisieDate(r.date); return d && d >= lunPrev && d <= dimPrev; }));
 
   document.getElementById('objectifs-body').innerHTML = `<div class="objectifs-grid">
@@ -2018,19 +2225,37 @@ function renderDashboard() {
   </div>`;
 
   /* ── 4. Table performance ── */
+  /* Cumuls par superviseur. Clés en minuscules et poste « Hors liste » pour les saisies
+     dont l'identifiant ne correspond à aucun superviseur connu : elles entraient dans le
+     total équipe sans apparaître dans aucune ligne, si bien que le tableau ne se
+     réconciliait pas avec son propre total. */
+  const cle        = id => String(id || '').trim().toLowerCase();
   const totals     = {};
   const prevTotals = {};
-  VALLEE_SUPS.forEach(s => { totals[s.id] = { ga: 0, momo: 0 }; prevTotals[s.id] = { ga: 0, momo: 0 }; });
+  VALLEE_SUPS.forEach(s => { totals[cle(s.id)] = { ga: 0, momo: 0 }; prevTotals[cle(s.id)] = { ga: 0, momo: 0 }; });
+
+  const orphelins     = { ga: 0, momo: 0, ids: new Set() };
+  const orphelinsPrev = { ga: 0, momo: 0 };
+
   filtered.forEach(r => {
-    if (totals[r.supId] !== undefined) {
-      totals[r.supId].ga   += Number(r.grossAdd) || 0;
-      totals[r.supId].momo += Number(r.momoUser) || 0;
+    const k = cle(r.supId);
+    if (totals[k] !== undefined) {
+      totals[k].ga   += Number(r.grossAdd) || 0;
+      totals[k].momo += Number(r.momoUser) || 0;
+    } else {
+      orphelins.ga   += Number(r.grossAdd) || 0;
+      orphelins.momo += Number(r.momoUser) || 0;
+      if (r.supId) orphelins.ids.add(r.supId);
     }
   });
   prevFiltered.forEach(r => {
-    if (prevTotals[r.supId] !== undefined) {
-      prevTotals[r.supId].ga   += Number(r.grossAdd) || 0;
-      prevTotals[r.supId].momo += Number(r.momoUser) || 0;
+    const k = cle(r.supId);
+    if (prevTotals[k] !== undefined) {
+      prevTotals[k].ga   += Number(r.grossAdd) || 0;
+      prevTotals[k].momo += Number(r.momoUser) || 0;
+    } else {
+      orphelinsPrev.ga   += Number(r.grossAdd) || 0;
+      orphelinsPrev.momo += Number(r.momoUser) || 0;
     }
   });
 
@@ -2047,16 +2272,16 @@ function renderDashboard() {
 
   if (isRa) {
     document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
-      const { ga, momo }           = totals[sup.id];
-      const { ga: pGa, momo: pMo } = prevTotals[sup.id];
+      const { ga, momo }           = totals[cle(sup.id)];
+      const { ga: pGa, momo: pMo } = prevTotals[cle(sup.id)];
       /* Cible individuelle pondérée par DFA Actifs */
-      const tGASup   = supPropTarget(teamTargetGA,   sup.id);
-      const tMomoSup = supPropTarget(teamTargetMomo, sup.id);
+      const tGASup   = supPropTarget(teamTargetGA,   sup.id, refDate, dfaSnap);
+      const tMomoSup = supPropTarget(teamTargetMomo, sup.id, refDate, dfaSnap);
       const pgaRaw = tGASup   > 0 ? Math.round(ga   / tGASup   * 100) : 0;
       const pmoRaw = tMomoSup > 0 ? Math.round(momo / tMomoSup * 100) : 0;
       return `<tr>
-        <td><strong>${sup.nom}</strong></td>
-        <td style="color:var(--text-muted);font-size:12px">${sup.zone}</td>
+        <td><strong>${esc(sup.nom)}</strong></td>
+        <td style="color:var(--text-muted);font-size:12px">${esc(sup.zone)}</td>
         <td style="text-align:right;font-weight:700">${ga.toLocaleString('fr-FR')}</td>
         <td style="text-align:center">${deltaBadge(ga, pGa)}</td>
         <td style="text-align:center"><span class="badge ${badgeCls(pgaRaw)}">${pgaRaw} %</span></td>
@@ -2064,7 +2289,19 @@ function renderDashboard() {
         <td style="text-align:center">${deltaBadge(momo, pMo)}</td>
         <td style="text-align:center"><span class="badge ${badgeCls(pmoRaw)}">${pmoRaw} %</span></td>
       </tr>`;
-    }).join('');
+    }).join('')
+    + ((orphelins.ga || orphelins.momo) ? `<tr>
+        <td><strong>Hors liste</strong></td>
+        <td style="color:var(--danger);font-size:12px" title="${esc([...orphelins.ids].join(', '))}">
+          ${orphelins.ids.size} identifiant(s) inconnu(s)
+        </td>
+        <td style="text-align:right;font-weight:700">${orphelins.ga.toLocaleString('fr-FR')}</td>
+        <td style="text-align:center">${deltaBadge(orphelins.ga, orphelinsPrev.ga)}</td>
+        <td style="text-align:center">—</td>
+        <td style="text-align:right;font-weight:700">${orphelins.momo.toLocaleString('fr-FR')}</td>
+        <td style="text-align:center">${deltaBadge(orphelins.momo, orphelinsPrev.momo)}</td>
+        <td style="text-align:center">—</td>
+      </tr>` : '');
     const pgaTeam = teamTargetGA   > 0 ? Math.round(curGA   / teamTargetGA   * 100) : 0;
     const pmoTeam = teamTargetMomo > 0 ? Math.round(curMomo / teamTargetMomo * 100) : 0;
     document.getElementById('dash-tfoot').innerHTML = `
@@ -2076,16 +2313,16 @@ function renderDashboard() {
       <td style="text-align:center">${deltaBadge(curMomo, prevMomo)}</td>
       <td style="text-align:center"><strong>${pmoTeam} %</strong> <span style="font-size:10px;color:var(--text-muted);font-weight:400">${totalMonthDfa > 0 ? '· DFA' : '· égal'}</span></td>`;
   } else {
-    const mySup    = VALLEE_SUPS.find(s => s.id === myId) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
-    const myGA     = totals[myId]?.ga     || 0;
-    const myMomo   = totals[myId]?.momo   || 0;
-    const myPrevGA = prevTotals[myId]?.ga   || 0;
-    const myPrevMo = prevTotals[myId]?.momo || 0;
+    const mySup    = VALLEE_SUPS.find(s => sameId(s.id, myId)) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
+    const myGA     = totals[cle(myId)]?.ga     || 0;
+    const myMomo   = totals[cle(myId)]?.momo   || 0;
+    const myPrevGA = prevTotals[cle(myId)]?.ga   || 0;
+    const myPrevMo = prevTotals[cle(myId)]?.momo || 0;
     const pgaRaw   = targetGA   > 0 ? Math.round(myGA   / targetGA   * 100) : 0;
     const pmoRaw   = targetMomo > 0 ? Math.round(myMomo / targetMomo * 100) : 0;
     document.getElementById('dash-tbody').innerHTML = `<tr>
-      <td><strong>${mySup.nom}</strong></td>
-      <td style="color:var(--text-muted);font-size:12px">${mySup.zone}</td>
+      <td><strong>${esc(mySup.nom)}</strong></td>
+      <td style="color:var(--text-muted);font-size:12px">${esc(mySup.zone)}</td>
       <td style="text-align:right;font-weight:700">${myGA.toLocaleString('fr-FR')}</td>
       <td style="text-align:center">${deltaBadge(myGA, myPrevGA)}</td>
       <td style="text-align:center"><span class="badge ${badgeCls(pgaRaw)}">${pgaRaw} %</span></td>
@@ -2122,10 +2359,11 @@ function resetSaisieForm() {
 }
 
 function editSaisie(horodatage, supId) {
-  const entry = VALLEE_SAISIES.find(r => r.horodatage === horodatage && r.supId === supId);
-  if (!entry) return;
+  const entry = VALLEE_SAISIES.find(r => r.horodatage === horodatage && sameId(r.supId, supId));
+  if (!entry) { showToast('Saisie introuvable', 'Recharge la page si le problème persiste.', true); return; }
   _editingTs = horodatage;
-  document.getElementById('saisie-date').value  = entry.date ? (parseSaisieDate(entry.date) ? entry.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1') : entry.date) : todayISO;
+  const dEntry = parseSaisieDate(entry.date);
+  document.getElementById('saisie-date').value  = dEntry ? _dateToISO(dEntry) : todayISO;
   document.getElementById('saisie-ga').value        = entry.grossAdd  || '';
   document.getElementById('saisie-momo').value      = entry.momoUser  || '';
   document.getElementById('saisie-total-dfa').value = entry.totalDfa  || '';
@@ -2176,8 +2414,27 @@ async function saveSaisie() {
       payload = { action, date, supId: sup.id, supNom: sup.nom, zone: sup.zone, grossAdd: ga, momoUser: momo, totalDfa, dfaActif, observation: obs };
     }
 
-    const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
-    const json = await res.json();
+    let res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+    let json = await res.json();
+
+    /* Le serveur refuse une seconde saisie pour le même superviseur à la même date :
+       une double soumission doublait le Gross Add dans tous les cumuls. On propose de
+       modifier la ligne existante, ou d'ajouter quand même si c'est volontaire. */
+    if (!json.success && json.code === 'DOUBLON') {
+      const choix = confirm(
+        `Une saisie existe déjà pour ${sup.nom} au ${isoToFR(date)}.\n\n` +
+        `OK : modifier la saisie existante.\n` +
+        `Annuler : ajouter quand même une seconde ligne.`);
+      if (choix) {
+        editSaisie(json.horodatage, sup.id);
+        showToast('Saisie existante chargée', 'Ajuste les valeurs puis clique sur Modifier.', false);
+        btn.disabled = false;
+        return;
+      }
+      payload.force = true;
+      res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify(payload) });
+      json = await res.json();
+    }
 
     if (json.success) {
       showToast(_editingTs ? 'Saisie modifiée' : 'Saisie enregistrée', json.message || '', false);
@@ -2203,7 +2460,7 @@ function renderSaisieHist() {
   const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
   const data  = isRa
     ? [...VALLEE_SAISIES]
-    : VALLEE_SAISIES.filter(r => r.supId === currentUser?.id);
+    : VALLEE_SAISIES.filter(r => sameId(r.supId, currentUser?.id));
 
   const sorted = data.sort((a, b) => {
     const da = parseSaisieDate(a.date), db = parseSaisieDate(b.date);
@@ -2216,18 +2473,18 @@ function renderSaisieHist() {
   }
 
   tbody.innerHTML = sorted.map(r => {
-    const canEdit = isRa || r.supId === currentUser?.id;
-    const editBtn = canEdit ? `<button class="btn btn-sm btn-secondary" onclick="editSaisie('${r.horodatage}','${r.supId}')"><i class="fa fa-pen"></i></button>` : '—';
+    const canEdit = isRa || sameId(r.supId, currentUser?.id);
+    const editBtn = canEdit ? `<button class="btn btn-sm btn-secondary" onclick="editSaisie(&quot;${esc(r.horodatage)}&quot;,&quot;${esc(r.supId)}&quot;)"><i class="fa fa-pen"></i></button>` : '—';
     return `<tr>
-      <td>${isoToFR(r.date) || r.date}</td>
-      <td>${r.supNom || r.supId}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${r.zone || '—'}</td>
+      <td>${esc(isoToFR(r.date) || r.date)}</td>
+      <td>${esc(r.supNom || r.supId)}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${esc(r.zone || '—')}</td>
       <td style="text-align:right;font-weight:700">${(r.grossAdd || 0).toLocaleString('fr-FR')}</td>
       <td style="text-align:right;font-weight:700">${(r.momoUser || 0).toLocaleString('fr-FR')}</td>
       <td style="text-align:right">${r.totalDfa != null && r.totalDfa !== '' ? Number(r.totalDfa).toLocaleString('fr-FR') : '—'}</td>
       <td style="text-align:right">${r.dfaActif != null && r.dfaActif !== '' ? Number(r.dfaActif).toLocaleString('fr-FR') : '—'}</td>
-      <td style="max-width:200px;font-size:12px">${r.observation || '—'}</td>
-      <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
+      <td style="max-width:200px;font-size:12px">${esc(r.observation || '—')}</td>
+      <td style="font-size:11px;color:var(--text-muted)">${esc(r.horodatage || '—')}</td>
       <td>${editBtn}</td>
     </tr>`;
   }).join('');
@@ -2320,7 +2577,7 @@ function renderStockTable() {
   const isRa = ['ra','admin','dg','dga','dc','dcc'].includes(currentUser?.role);
   const data  = isRa
     ? [...VALLEE_STOCK]
-    : VALLEE_STOCK.filter(r => r.auteurId === currentUser?.id);
+    : VALLEE_STOCK.filter(r => sameId(r.auteurId, currentUser?.id));
 
   const sorted = data.sort((a, b) => {
     const da = parseSaisieDate(a.date), db = parseSaisieDate(b.date);
@@ -2343,9 +2600,9 @@ function renderStockTable() {
       : `<span class="badge badge-red" title="Aucun enlèvement global ne couvre cette plage"><i class="fa fa-triangle-exclamation"></i> Hors plage</span>`;
     return `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
-      <td>${supNom}</td>
-      <td style="font-family:monospace;font-size:12px">${r.simDebut || '—'}</td>
-      <td style="font-family:monospace;font-size:12px">${r.simFin   || '—'}</td>
+      <td>${esc(supNom)}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(r.simDebut || '—')}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(r.simFin   || '—')}</td>
       <td style="text-align:right;font-weight:700">${(r.quantite || 0).toLocaleString('fr-FR')}</td>
       <td>${typeLabel}</td>
       <td style="text-align:center">${couvBadge}</td>
@@ -2370,9 +2627,9 @@ async function loadEnlevements() {
         renderDashboard();
         renderSwapStockGlobal();
         _refreshRapportIfActive();
-      } else { console.error('[loadEnlevements] erreur GAS:', json.error); }
+      } else { _echecChargement('Enlèvements globaux', json.error); }
     })
-    .catch(err => { console.error('[loadEnlevements] erreur réseau:', err); })
+    .catch(err => { _echecChargement('Enlèvements globaux', err); })
     .finally(() => { _enlvInFlight = null; });
   return _enlvInFlight;
 }
@@ -2430,7 +2687,7 @@ function renderEnlevementsTable() {
   if (!tbody) return;
 
   const isRaAdmin = ['ra', 'admin'].includes(currentUser?.role);
-  const data = isRaAdmin ? [...VALLEE_ENLEVEMENTS] : VALLEE_ENLEVEMENTS.filter(r => r.auteurId === currentUser?.id);
+  const data = isRaAdmin ? [...VALLEE_ENLEVEMENTS] : VALLEE_ENLEVEMENTS.filter(r => sameId(r.auteurId, currentUser?.id));
   const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
 
   if (!sorted.length) {
@@ -2461,9 +2718,9 @@ async function loadSwap() {
     .then(r => r.json())
     .then(json => {
       if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); renderDashboard(); _refreshRapportIfActive(); }
-      else { console.error('[loadSwap] erreur GAS:', json.error); }
+      else { _echecChargement('SWAP', json.error); }
     })
-    .catch(err => { console.error('[loadSwap] erreur réseau:', err); })
+    .catch(err => { _echecChargement('SWAP', err); })
     .finally(() => { _swapInFlight = null; });
   return _swapInFlight;
 }
@@ -2506,7 +2763,7 @@ function renderSwapTable() {
   if (!tbody) return;
 
   const isRaAdmin = ['ra', 'admin'].includes(currentUser?.role);
-  const data = isRaAdmin ? [...VALLEE_SWAP] : VALLEE_SWAP.filter(r => r.auteurId === currentUser?.id);
+  const data = isRaAdmin ? [...VALLEE_SWAP] : VALLEE_SWAP.filter(r => sameId(r.auteurId, currentUser?.id));
   const sorted = data.sort((a, b) => (parseSaisieDate(b.date) || 0) - (parseSaisieDate(a.date) || 0));
 
   if (!sorted.length) {
@@ -2516,9 +2773,9 @@ function renderSwapTable() {
 
   tbody.innerHTML = sorted.map(r => `<tr>
       <td>${isoToFR(r.date) || r.date}</td>
-      <td style="font-family:monospace;font-size:12px">${r.sim    || '—'}</td>
-      <td style="font-family:monospace;font-size:12px">${r.swaper || '—'}</td>
-      <td>${r.auteurNom || r.auteurId || '—'}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(r.sim    || '—')}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(r.swaper || '—')}</td>
+      <td>${esc(r.auteurNom || r.auteurId || '—')}</td>
       <td style="font-size:11px;color:var(--text-muted)">${r.horodatage || '—'}</td>
     </tr>`).join('');
 }
@@ -2552,7 +2809,7 @@ function renderSwapCumulParAgent() {
   }
 
   tbody.innerHTML = sorted.map(c => `<tr>
-      <td>${c.nom}</td>
+      <td>${esc(c.nom)}</td>
       <td style="text-align:right;font-weight:700">${c.n}</td>
     </tr>`).join('');
 }
@@ -2562,7 +2819,7 @@ function renderSwapStockGlobal() {
   if (!el) return;
   if (!['ra', 'admin'].includes(currentUser?.role)) return;
 
-  const stockSwapTotal = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap').reduce((s, e) => s + (Number(e.quantite) || 0), 0);
+  const stockSwapTotal = _stockSwapAlloue(null);
   const swapEffectuesTotal = VALLEE_SWAP.length;
   const restantGlobal = stockSwapTotal - swapEffectuesTotal;
   const col = stockSwapTotal <= 0 ? 'inherit' : restantGlobal <= 0 ? 'var(--danger)' : restantGlobal < stockSwapTotal * 0.15 ? 'var(--warning)' : 'var(--success)';
@@ -2616,25 +2873,9 @@ function _minutesToDuree(total) {
   return `${h}h${String(m).padStart(2, '0')}`;
 }
 
-function _teamPeriodTarget(metric, period, refDate) {
-  const yy = refDate.getFullYear(), mm = refDate.getMonth();
-  const dim = new Date(yy, mm + 1, 0).getDate();
-  const monthly = getMonthTarget(yy, mm)[metric];
-  if (period === 'jour')    return Math.round(monthly / dim);
-  if (period === 'semaine') return Math.round(monthly / dim * 7);
-  return monthly;
-}
-
-function _supPropTarget(teamTarget, supId, refDate) {
-  const yy = refDate.getFullYear(), mm = refDate.getMonth();
-  const monthRows = VALLEE_SAISIES.filter(r => { const d = parseSaisieDate(r.date); return d && d.getFullYear() === yy && d.getMonth() === mm; });
-  const dfaMap = {};
-  [...monthRows].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
-    .forEach(r => { if (r.supId && dfaMap[r.supId] === undefined) dfaMap[r.supId] = Number(r.dfaActif) || 0; });
-  const total = Object.values(dfaMap).reduce((s, v) => s + v, 0);
-  if (total === 0) return Math.round(teamTarget / Math.max(VALLEE_SUPS.length, 1));
-  return Math.round(teamTarget * (dfaMap[supId] || 0) / total);
-}
+/* Le module Rapport utilise désormais teamPeriodTarget et supPropTarget, définis plus
+   haut et partagés avec le tableau de bord. Les deux copies locales qui vivaient ici
+   avaient divergé sur la longueur de la semaine. */
 
 function setRapPeriod(p, el) {
   _rapPeriod = p;
@@ -2698,21 +2939,22 @@ function _buildRapportSuperviseur(period, refDate) {
   const supId = currentUser.id;
   const zone  = currentUser.zone;
 
-  const filtered = _filterRapport(VALLEE_SAISIES.filter(r => r.supId === supId), period, refDate);
+  const filtered = _filterRapport(VALLEE_SAISIES.filter(r => sameId(r.supId, supId)), period, refDate);
   const ga   = filtered.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
   const momo = filtered.reduce((s, r) => s + (Number(r.momoUser) || 0), 0);
   const last = [...filtered].sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))[0];
   const dfaActif = last ? Number(last.dfaActif) || 0 : 0;
   const totalDfa = last ? Number(last.totalDfa) || 0 : 0;
 
-  const teamTargetGA   = _teamPeriodTarget('ga', period, refDate);
-  const teamTargetMomo = _teamPeriodTarget('momo', period, refDate);
-  const targetGA   = _supPropTarget(teamTargetGA, supId, refDate);
-  const targetMomo = _supPropTarget(teamTargetMomo, supId, refDate);
+  const teamTargetGA   = teamPeriodTarget('ga',   period, refDate);
+  const teamTargetMomo = teamPeriodTarget('momo', period, refDate);
+  const snap       = _dfaSnapshot(refDate);
+  const targetGA   = supPropTarget(teamTargetGA,   supId, refDate, snap);
+  const targetMomo = supPropTarget(teamTargetMomo, supId, refDate, snap);
   const pctGA   = targetGA   > 0 ? Math.round(ga   / targetGA   * 100) : 0;
   const pctMomo = targetMomo > 0 ? Math.round(momo / targetMomo * 100) : 0;
 
-  const stockRows  = _filterRapport(VALLEE_STOCK.filter(r => r.auteurId === supId), period, refDate);
+  const stockRows  = _filterRapport(VALLEE_STOCK.filter(r => sameId(r.auteurId, supId)), period, refDate);
   const stockRecu  = stockRows.reduce((s, r) => s + (Number(r.quantite) || 0), 0);
   const stockHors  = stockRows.filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type)).length;
 
@@ -2756,15 +2998,16 @@ function _buildRapportRA(period, refDate, condensed) {
   const filtered = _filterRapport(VALLEE_SAISIES, period, refDate);
   const ga   = filtered.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
   const momo = filtered.reduce((s, r) => s + (Number(r.momoUser) || 0), 0);
-  const targetGA   = _teamPeriodTarget('ga', period, refDate);
-  const targetMomo = _teamPeriodTarget('momo', period, refDate);
+  const targetGA   = teamPeriodTarget('ga',   period, refDate);
+  const targetMomo = teamPeriodTarget('momo', period, refDate);
+  const snapRA     = _dfaSnapshot(refDate);
   const pctGA   = targetGA   > 0 ? Math.round(ga   / targetGA   * 100) : 0;
   const pctMomo = targetMomo > 0 ? Math.round(momo / targetMomo * 100) : 0;
 
   const parSup = VALLEE_SUPS.map(sup => {
-    const supRows = filtered.filter(r => r.supId === sup.id);
+    const supRows = filtered.filter(r => sameId(r.supId, sup.id));
     const supGA   = supRows.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0);
-    const supTgt  = _supPropTarget(targetGA, sup.id, refDate);
+    const supTgt  = supPropTarget(targetGA, sup.id, refDate, snapRA);
     const supPct  = supTgt > 0 ? Math.round(supGA / supTgt * 100) : 0;
     const dysfN   = _filterRapport(VALLEE_DYSF.filter(d => d.localite === sup.zone), period, refDate).length;
     return { ...sup, ga: supGA, pct: supPct, dysfN };
@@ -2828,9 +3071,11 @@ Rapport généré le ${isoToFR(todayISO)} — TeamVallee`;
 }
 
 function _buildRapportSwap(period, refDate) {
-  const swapRows  = _filterRapport(VALLEE_SWAP, period, refDate)
+  /* Filtre par auteur : sans lui, le rapport d'une agence comptait les SWAP de tous les
+     comptes et détaillait leurs numéros SIM et SWAPER dans un texte destiné à WhatsApp. */
+  const swapRows  = _filterRapport(VALLEE_SWAP.filter(r => sameId(r.auteurId, currentUser.id)), period, refDate)
     .sort((a, b) => (parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0));
-  const stockRows = _filterRapport(VALLEE_STOCK.filter(r => r.auteurId === currentUser.id), period, refDate);
+  const stockRows = _filterRapport(VALLEE_STOCK.filter(r => sameId(r.auteurId, currentUser.id)), period, refDate);
   const stockRecu = stockRows.reduce((s, r) => s + (Number(r.quantite) || 0), 0);
   const stockHors = stockRows.filter(r => !_findCoveringEnlevement(r.simDebut, r.simFin, r.type)).length;
 
@@ -2877,11 +3122,31 @@ function sendRapportWhatsAppVallee() {
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
-function sendRapportEmailVallee() {
+/* Au-delà de cette longueur, le lien mailto: est tronqué ou purement ignoré par le
+   gestionnaire de messagerie du navigateur. C'est ce qui faisait échouer silencieusement
+   les demandes d'explication avant leur passage à l'envoi serveur. */
+const MAILTO_LONGUEUR_MAX = 1800;
+
+async function sendRapportEmailVallee() {
   const text = _rapText();
   if (!text) return;
   const subject = encodeURIComponent('Rapport TeamVallee — ' + (document.getElementById('rap-subtitle')?.textContent || ''));
-  window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(text);
+
+  if (encodeURIComponent(text).length <= MAILTO_LONGUEUR_MAX) {
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(text);
+    return;
+  }
+
+  /* Rapport trop long : on le met dans le presse-papiers et on n'ouvre que l'en-tête
+     du message, pour ne jamais envoyer un rapport amputé sans le signaler. */
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Rapport copié', 'Trop long pour être inséré automatiquement. Colle-le dans le message qui vient de s\'ouvrir.', false);
+  } catch (_) {
+    showToast('Rapport trop long', 'Utilise le bouton Copier, puis colle le texte dans ton message.', true);
+    return;
+  }
+  window.location.href = 'mailto:?subject=' + subject;
 }
 
 /* ── DEMANDES D'EXPLICATION ── */
@@ -2899,9 +3164,9 @@ async function loadDemandesVallee() {
     .then(r => r.json())
     .then(json => {
       if (json.success) { VALLEE_DEMANDES = json.data || []; _demandesLoaded = true; renderDemandesList(); }
-      else { console.error('[loadDemandesVallee] erreur GAS:', json.error); }
+      else { _echecChargement('Courriers', json.error); }
     })
-    .catch(err => { console.error('[loadDemandesVallee] erreur réseau:', err); })
+    .catch(err => { _echecChargement('Courriers', err); })
     .finally(() => { _demandesInFlight = null; });
   return _demandesInFlight;
 }
@@ -2933,9 +3198,9 @@ function _onDemDestTypeChange() {
 
 function _populateDemDestOptions() {
   const sel = document.getElementById('dem-dest-select');
-  const supOpts   = VALLEE_SUPS.map(s => `<option value="${s.id}">${s.nom} — Superviseur</option>`);
+  const supOpts   = VALLEE_SUPS.map(s => `<option value="${esc(s.id)}">${esc(s.nom)} — Superviseur</option>`);
   const autresOpts = VALLEE_USERS_DYNAMIC.filter(u => u.role !== 'superviseur')
-    .map(u => `<option value="${u.id}">${u.nom} — ${ROLE_LABELS[u.role] || u.role}</option>`);
+    .map(u => `<option value="${esc(u.id)}">${esc(u.nom)} — ${esc(ROLE_LABELS[u.role] || u.role)}</option>`);
   sel.innerHTML = [...supOpts, ...autresOpts].join('');
 }
 
@@ -2980,7 +3245,7 @@ function _populateDemLienOptions() {
       return `<option value="${i}">${FR_MONTHS[mm - 1]} ${yy} — écart ${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}</option>`;
     }).join('');
   } else if (type === 'courrier') {
-    _demLienItems = [...VALLEE_DEMANDES].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+    _demLienItems = [...VALLEE_DEMANDES].sort((a, b) => tsToTime(b.horodatage) - tsToTime(a.horodatage));
     sel.innerHTML = _demLienItems.map((c, i) =>
       `<option value="${i}">[${c.ref}] ${DEM_TYPE_LABELS[c.type] || c.type} — ${c.destinataireNom} — ${c.motif}</option>`).join('');
   }
@@ -3152,7 +3417,7 @@ async function sendDemandeEmail() {
 function renderDemandesList() {
   const tbody = document.getElementById('dem-tbody');
   if (!tbody) return;
-  const sorted = [...VALLEE_DEMANDES].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+  const sorted = [...VALLEE_DEMANDES].sort((a, b) => tsToTime(b.horodatage) - tsToTime(a.horodatage));
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun courrier enregistré</td></tr>';
     return;
@@ -3163,14 +3428,14 @@ function renderDemandesList() {
       : '<span class="badge badge-yellow">En attente</span>';
     const typeBadgeCls = d.type === 'notification' ? 'badge-red' : d.type === 'avertissement' ? 'badge-yellow' : 'badge-gray';
     const reponseApercu = d.reponse
-      ? `<span title="${d.reponse.replace(/"/g, '&quot;')}" style="cursor:help">${d.reponse.slice(0, 60)}${d.reponse.length > 60 ? '…' : ''}</span>`
+      ? `<span title="${esc(d.reponse)}" style="cursor:help">${esc(d.reponse.slice(0, 60))}${d.reponse.length > 60 ? '…' : ''}</span>`
       : '<span style="color:var(--text-muted)">—</span>';
     return `<tr>
-      <td style="font-family:monospace;font-size:12px">${d.ref}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(d.ref)}</td>
       <td><span class="badge ${typeBadgeCls}">${DEM_TYPE_LABELS[d.type] || d.type}</span></td>
       <td>${isoToFR(d.date) || d.date}</td>
-      <td>${d.destinataireNom}${d.cc ? ` <span title="En copie : ${d.cc.replace(/"/g, '&quot;')}" style="color:var(--text-muted);cursor:help">(+cc)</span>` : ''}</td>
-      <td>${d.motif}</td>
+      <td>${esc(d.destinataireNom)}${d.cc ? ` <span title="En copie : ${esc(d.cc)}" style="color:var(--text-muted);cursor:help">(+cc)</span>` : ''}</td>
+      <td>${esc(d.motif)}</td>
       <td style="text-align:center">${badge}</td>
       <td>${isoToFR(d.dateLimite) || d.dateLimite || '—'}</td>
       <td style="max-width:220px">${reponseApercu}</td>
@@ -3187,30 +3452,47 @@ const IMPACT_SEUILS = [
   { max: Infinity, label: 'Critique' }
 ];
 
+/* Minutes entre les deux heures saisies, ou null si la saisie est inexploitable.
+   L'ancien calcul ajoutait 24 h dès que l'écart était négatif pour gérer le passage de
+   minuit : une simple inversion (10:00 puis 08:00) donnait alors 22 h, et l'impact
+   estimé explosait jusqu'au badge « Critique ». On refuse désormais l'inversion, un
+   dysfonctionnement à cheval sur minuit se saisit en deux lignes. */
+function _dysfDureeMinutes() {
+  const debut = document.getElementById('dysf-heure-debut').value;
+  const fin   = document.getElementById('dysf-heure-fin').value;
+  if (!debut || !fin) return null;
+  const [dh, dm] = debut.split(':').map(Number);
+  const [fh, fm] = fin.split(':').map(Number);
+  const diffMin = (fh * 60 + fm) - (dh * 60 + dm);
+  return diffMin > 0 ? diffMin : null;
+}
+
 function calcDureeDysf() {
   const debut   = document.getElementById('dysf-heure-debut').value;
   const fin     = document.getElementById('dysf-heure-fin').value;
   const dureeEl = document.getElementById('dysf-duree');
+  const diffMin = _dysfDureeMinutes();
+
   if (!debut || !fin) { dureeEl.value = ''; updateImpactEstime(); return; }
-  const [dh, dm] = debut.split(':').map(Number);
-  const [fh, fm] = fin.split(':').map(Number);
-  let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
-  if (diffMin < 0) diffMin += 24 * 60;
+  if (diffMin === null) {
+    dureeEl.value = '';
+    showToast('Heures incohérentes', "L'heure de fin doit être après l'heure de début.", true);
+    updateImpactEstime();
+    return;
+  }
+
   const h = Math.floor(diffMin / 60);
   const m = diffMin % 60;
   dureeEl.value = `${String(h).padStart(2,'0')}h${String(m).padStart(2,'0')}`;
   updateImpactEstime();
 }
 
+/* Durée retenue pour l'impact, plafonnée à l'amplitude de travail : au-delà, plus
+   personne ne vend, donc facturer davantage d'heures surestimerait la perte. */
 function _dureeHeuresDecimal() {
-  const debut = document.getElementById('dysf-heure-debut').value;
-  const fin   = document.getElementById('dysf-heure-fin').value;
-  if (!debut || !fin) return null;
-  const [dh, dm] = debut.split(':').map(Number);
-  const [fh, fm] = fin.split(':').map(Number);
-  let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
-  if (diffMin < 0) diffMin += 24 * 60;
-  return diffMin / 60;
+  const diffMin = _dysfDureeMinutes();
+  if (diffMin === null) return null;
+  return Math.min(diffMin / 60, HORAIRE_AMPLITUDE_H);
 }
 
 // Taux horaire "normal" de la zone : moyenne des 7 derniers jours de GA
@@ -3280,9 +3562,9 @@ async function loadDysf() {
     .then(r => r.json())
     .then(json => {
       if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); updateImpactEstime(); _refreshRapportIfActive(); }
-      else { console.error('[loadDysf] erreur GAS:', json.error); }
+      else { _echecChargement('Dysfonctionnements', json.error); }
     })
-    .catch(err => { console.error('[loadDysf] erreur réseau:', err); })
+    .catch(err => { _echecChargement('Dysfonctionnements', err); })
     .finally(() => { _dysfInFlight = null; });
   return _dysfInFlight;
 }
@@ -3300,9 +3582,9 @@ async function loadKpiReel() {
         renderKpiReelCard();
         if (document.getElementById('param-kpireel-tbody')) _renderKpiReelTable();
         _refreshRapportIfActive();
-      } else { console.error('[loadKpiReel] erreur GAS:', json.error); }
+      } else { _echecChargement('KPI NEW ADD réel', json.error); }
     })
-    .catch(err => { console.error('[loadKpiReel] erreur réseau:', err); })
+    .catch(err => { _echecChargement('KPI NEW ADD réel', err); })
     .finally(() => { _kpiReelInFlight = null; });
   return _kpiReelInFlight;
 }
@@ -3485,7 +3767,7 @@ async function saveUtilisateur() {
     if (json.success) {
       const confirmEl = document.getElementById('user-new-confirm');
       confirmEl.style.display = '';
-      confirmEl.innerHTML = `<i class="fa fa-triangle-exclamation"></i> Compte créé : identifiant <strong>${id}</strong>, mot de passe <strong>${pwd}</strong>. Note-les, ils ne seront plus affichés.`;
+      confirmEl.innerHTML = `<i class="fa fa-triangle-exclamation"></i> Compte créé : identifiant <strong>${esc(id)}</strong>, mot de passe <strong>${esc(pwd)}</strong>. Note-les, ils ne seront plus affichés.`;
       showToast('Compte créé', '', false);
       _usersDynLoaded = false; _usersDynInFlight = null;
       await loadUtilisateursDynamiques();
@@ -3506,16 +3788,16 @@ async function saveUtilisateur() {
 function renderUtilisateursList() {
   const tbody = document.getElementById('users-tbody');
   if (!tbody) return;
-  const sorted = [...VALLEE_USERS_DYNAMIC].sort((a, b) => (b.horodatage || '').localeCompare(a.horodatage || ''));
+  const sorted = [...VALLEE_USERS_DYNAMIC].sort((a, b) => tsToTime(b.horodatage) - tsToTime(a.horodatage));
   if (!sorted.length) {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">Aucun compte créé</td></tr>';
     return;
   }
   tbody.innerHTML = sorted.map(u => `<tr>
-      <td>${u.nom || '—'}</td>
-      <td>${ROLE_LABELS[u.role] || u.role}</td>
-      <td>${u.libelle || '—'}</td>
-      <td style="font-family:monospace;font-size:12px">${u.id || '—'}</td>
+      <td>${esc(u.nom || '—')}</td>
+      <td>${esc(ROLE_LABELS[u.role] || u.role)}</td>
+      <td>${esc(u.libelle || '—')}</td>
+      <td style="font-family:monospace;font-size:12px">${esc(u.id || '—')}</td>
       <td style="font-size:11px;color:var(--text-muted)">${u.horodatage || '—'}</td>
     </tr>`).join('');
 }
@@ -3534,6 +3816,12 @@ async function saveDysf() {
   if (!date)     { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
   if (!localite) { showToast('Champ requis', 'Veuillez sélectionner une localité.', true); return; }
   if (!nature)   { showToast('Champ requis', 'Veuillez sélectionner une nature.', true); return; }
+  if (heureDebut && heureFin && !duree) {
+    showToast('Heures incohérentes', "L'heure de fin doit être après l'heure de début.", true); return;
+  }
+  if (!impactSims && duree && !confirm(
+      "L'impact n'a pas pu être estimé (historique de ventes insuffisant pour cette zone).\n\n" +
+      'Enregistrer quand même ce dysfonctionnement sans impact chiffré ?')) return;
 
   const btn = document.getElementById('btn-save-dysf');
   btn.disabled = true;
@@ -3604,8 +3892,9 @@ function renderDysfDashboardKpis(data) {
 function renderDysfHist() {
   const isRa  = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser?.role);
   const myId  = currentUser?.id;
-  let data    = isRa ? [...VALLEE_DYSF] : VALLEE_DYSF.filter(r => r.auteurId === myId);
-  data.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.heureDebut || '').localeCompare(a.heureDebut || ''));
+  let data    = isRa ? [...VALLEE_DYSF] : VALLEE_DYSF.filter(r => sameId(r.auteurId, myId));
+  data.sort((a, b) => ((parseSaisieDate(b.date)?.getTime() || 0) - (parseSaisieDate(a.date)?.getTime() || 0))
+            || (b.heureDebut || '').localeCompare(a.heureDebut || ''));
 
   renderDysfDashboardKpis(data);
 
@@ -3619,14 +3908,14 @@ function renderDysfHist() {
 
   document.getElementById('dysf-tbody').innerHTML = data.length
     ? data.map(r => `<tr>
-        <td>${r.date || '—'}</td>
-        <td>${r.localite || '—'}</td>
-        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.nature||'').replace(/"/g,'&quot;')}">${r.nature || '—'}</td>
-        <td style="text-align:center">${r.heureDebut || '—'}</td>
-        <td style="text-align:center">${r.heureFin   || '—'}</td>
-        <td style="text-align:center;font-weight:700">${r.duree || '—'}</td>
+        <td>${esc(isoToFR(r.date) || r.date || '—')}</td>
+        <td>${esc(r.localite || '—')}</td>
+        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(r.nature || '')}">${esc(r.nature || '—')}</td>
+        <td style="text-align:center">${esc(r.heureDebut || '—')}</td>
+        <td style="text-align:center">${esc(r.heureFin   || '—')}</td>
+        <td style="text-align:center;font-weight:700">${esc(r.duree || '—')}</td>
         <td style="text-align:center">${impactBadge(r.impact, r.impactSims)}</td>
-        <td style="color:var(--text-muted);font-size:12px">${r.auteurNom || '—'}</td>
+        <td style="color:var(--text-muted);font-size:12px">${esc(r.auteurNom || '—')}</td>
       </tr>`).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Aucun dysfonctionnement enregistré.</td></tr>';
 }
