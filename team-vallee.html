@@ -818,10 +818,14 @@
         <div id="view-parametres" style="display:none">
           <div class="card" style="margin-bottom:14px">
             <div class="card-title"><i class="fa fa-gear"></i> Objectifs mensuels — équipe</div>
-            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:18px">
+            <p style="color:var(--text-muted);font-size:13px;margin-top:4px;margin-bottom:8px">
               Renseignez les cibles équipe mois par mois. Laissez vide pour utiliser la valeur par défaut
               (<span id="param-default-hint"></span>).
             </p>
+            <!-- Bloc distinct : inséré dans le paragraphe ci-dessus, l'avertissement se
+                 retrouvait à l'intérieur de la parenthèse, qui se refermait après lui. -->
+            <p id="param-deploy-warning" style="display:none;font-size:13px;font-weight:600;color:var(--danger);margin-bottom:18px"></p>
+            <div id="param-spacer" style="height:10px"></div>
             <div style="overflow-x:auto">
               <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:340px">
                 <thead>
@@ -1197,6 +1201,14 @@ async function doLogin() {
     const json = await res.json();
     if (json.success && json.user) {
       const seed = _findSeed(json.user.id);
+      if (!seed) {
+        /* Le rapprochement automatique par nom de famille a été retiré (il fusionnait
+           les homonymes). Si un identifiant InsightPanel diverge de ceux de USERS_SEED,
+           l'utilisateur se connecte sous son identifiant brut et ne retrouve pas ses
+           saisies historiques. Ajouter alors une entrée dans ID_ALIASES. */
+        console.warn('[doLogin] identifiant InsightPanel sans correspondance : "' + json.user.id +
+          '". Ajouter une entrée dans ID_ALIASES si ses saisies historiques sont sous un autre identifiant.');
+      }
       user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role, zone: seed.zone || json.user.zone } : json.user;
     }
   } catch (_) {}
@@ -1237,9 +1249,16 @@ async function doLogin() {
 }
 
 function _applySupOpts() {
-  const supOpts = VALLEE_SUPS.map(s => `<option value="${esc(s.id)}">${esc(s.nom)} — ${esc(s.zone)}</option>`).join('');
   const saisieSel = document.getElementById('saisie-sup-select');
-  if (saisieSel) saisieSel.innerHTML = supOpts;
+  if (!saisieSel) return;
+  /* Le choix en cours est restauré ici, et non chez les appelants : cette fonction est
+     rejouée dès que la liste des comptes arrive du serveur, en pleine saisie. Sans ça,
+     le sélecteur retombait sur son premier élément et le RA classait les chiffres du
+     jour au nom du mauvais superviseur. */
+  const choisi = saisieSel.value;
+  saisieSel.innerHTML = VALLEE_SUPS
+    .map(s => `<option value="${esc(s.id)}">${esc(s.nom)} — ${esc(s.zone)}</option>`).join('');
+  if (choisi && VALLEE_SUPS.some(s => s.id === choisi)) saisieSel.value = choisi;
 }
 
 // Recompose VALLEE_SUPS = superviseurs codés en dur + superviseurs créés depuis Paramètres.
@@ -1256,17 +1275,35 @@ function _rebuildSupsList() {
    réseau se lisait à l'écran comme un chiffre légitime. */
 const MODULES_EN_ECHEC = new Set();
 
+function _majBandeauEchec() {
+  const el = document.getElementById('dash-no-data');
+  if (!el || !MODULES_EN_ECHEC.size) return;
+  el.style.display = 'flex';
+  el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i>
+    Données incomplètes : ${esc([...MODULES_EN_ECHEC].join(', '))} indisponible(s).
+    <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="location.reload()">Recharger</button>`;
+}
+
 function _echecChargement(libelle, detail) {
   MODULES_EN_ECHEC.add(libelle);
   console.error('[' + libelle + ']', detail);
   showToast('Chargement incomplet', libelle + " n'a pas pu être chargé. Les chiffres affichés sont incomplets.", true);
+  _majBandeauEchec();
+}
+
+/* Un module qui finit par répondre lève son propre signalement. Sans ça, un incident
+   réseau passager figeait le bandeau « Données incomplètes » pour toute la session et
+   masquait les messages normaux du tableau de bord. */
+function _succesChargement(libelle) {
+  if (!MODULES_EN_ECHEC.delete(libelle)) return;
+  if (MODULES_EN_ECHEC.size) { _majBandeauEchec(); return; }
+
   const el = document.getElementById('dash-no-data');
-  if (el) {
-    el.style.display = 'flex';
-    el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i>
-      Données incomplètes : ${esc([...MODULES_EN_ECHEC].join(', '))} indisponible(s).
-      <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="location.reload()">Recharger</button>`;
-  }
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  /* Le bandeau est partagé avec les messages normaux du tableau de bord. Le vider ne
+     suffit pas : sans ce rendu, un message légitime (« Aucune saisie pour aujourd'hui »)
+     resterait masqué jusqu'à la prochaine navigation. */
+  if (currentUser) renderDashboard();
 }
 
 /* Vrai tant que le script Apps Script déployé ne connaît pas encore les objectifs
@@ -1300,6 +1337,8 @@ async function loadObjectifs() {
       });
       VALLEE_MONTHLY_TARGETS = map;
       _objectifsLoaded = true;
+      _objectifsNonDeployes = false;   // le backend répond : l'avertissement n'a plus lieu d'être
+      _succesChargement('Objectifs mensuels');
       try { localStorage.setItem('tv_monthly_targets', JSON.stringify(map)); } catch (_) {}
       renderDashboard();
       if (document.getElementById('view-parametres')?.style.display !== 'none') renderParametres();
@@ -1319,6 +1358,7 @@ async function loadUtilisateursDynamiques() {
       if (json.success) {
         VALLEE_USERS_DYNAMIC = json.data || [];
         _usersDynLoaded = true;
+        _succesChargement('Comptes utilisateurs');
         _revaliderRole();
         _rebuildSupsList();
         renderUtilisateursList();
@@ -1333,20 +1373,18 @@ async function loadUtilisateursDynamiques() {
   return _usersDynInFlight;
 }
 
-function startSession(user) {
-  const seed = _findSeed(user.id);
-  currentUser = { ...user, id: seed?.id || user.id, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role, zone: seed?.zone || user.zone };
-
-  try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
-
-  document.getElementById('screen-login').style.display = 'none';
-  document.getElementById('screen-app').style.display = 'block';
+/* Applique l'identité et les droits du compte courant à l'interface. Extrait de
+   startSession pour pouvoir corriger un rôle sans relancer tout le démarrage, ce qui
+   réinitialisait les sélecteurs de date et effaçait une saisie en cours. */
+function _appliquerDroits() {
+  if (!currentUser) return;
 
   document.getElementById('user-name').textContent    = currentUser.nom;
   document.getElementById('user-role').textContent    = ROLE_LABELS[currentUser.role] || currentUser.role;
   document.getElementById('user-avatar').textContent  = currentUser.initiales || '?';
 
-  const isRa = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser.role);
+  const isRa      = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser.role);
+  const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
 
   const navParam = document.getElementById('nav-parametres');
   if (navParam) navParam.style.display = isRa ? '' : 'none';
@@ -1356,22 +1394,53 @@ function startSession(user) {
   document.getElementById('nav-saisie').style.display = isFieldRestricted ? 'none' : '';
   document.getElementById('nav-dysf').style.display   = isFieldRestricted ? 'none' : '';
 
-  /* Pré-remplir sélecteurs superviseur */
+  /* Pré-remplir les sélecteurs. _applySupOpts conserve elle-même le choix en cours. */
   _applySupOpts();
   document.getElementById('saisie-sup-selector').style.display = isRa ? '' : 'none';
-  const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
-  const canSeeEnlv = isRaAdmin || currentUser.role === 'superviseur' || FIELD_RESTRICTED_ROLES.includes(currentUser.role);
+  const canSeeEnlv = isRaAdmin || currentUser.role === 'superviseur' || isFieldRestricted;
   document.getElementById('card-enlv-form').style.display  = canSeeEnlv ? '' : 'none';
   document.getElementById('card-enlv-hist').style.display  = canSeeEnlv ? '' : 'none';
-  const enlvTypeOpts = (isRaAdmin || currentUser.role === 'superviseur')
+
+  const enlvType    = document.getElementById('enlv-type');
+  const typeChoisi  = enlvType?.value;
+  const optionsType = (isRaAdmin || currentUser.role === 'superviseur')
     ? '<option value="p100">P100</option><option value="swap">SWAP</option>'
     : '<option value="swap">SWAP</option>';
-  document.getElementById('enlv-type').innerHTML = enlvTypeOpts;
+  if (enlvType && enlvType.innerHTML !== optionsType) {
+    enlvType.innerHTML = optionsType;
+    if (typeChoisi && [...enlvType.options].some(o => o.value === typeChoisi)) enlvType.value = typeChoisi;
+  }
   document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
   document.getElementById('card-swap-stock-global').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-swap-cumul').style.display        = isRaAdmin ? '' : 'none';
+
+  /* Masquer l'entrée de menu ne suffit pas : si la vue réservée est déjà ouverte au
+     moment où les droits sont revus à la baisse, elle reste affichée et utilisable.
+     On ramène alors l'utilisateur sur le tableau de bord. */
+  const vueOuverte = ['parametres', 'demandes', 'saisie', 'dysfonctionnement']
+    .find(v => document.getElementById('view-' + v)?.style.display !== 'none');
+  const interdite =
+    (vueOuverte === 'parametres' && !isRa) ||
+    (vueOuverte === 'demandes'   && !isRaAdmin) ||
+    ((vueOuverte === 'saisie' || vueOuverte === 'dysfonctionnement') && isFieldRestricted);
+  if (interdite) showView('dashboard', document.getElementById('nav-dashboard'));
+}
+
+function startSession(user) {
+  const seed = _findSeed(user.id);
+  currentUser = { ...user, id: seed?.id || user.id, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role, zone: seed?.zone || user.zone };
+
+  try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
+
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'block';
+
+  _appliquerDroits();
+
+  const isRa      = ['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(currentUser.role);
+  const isRaAdmin = ['ra', 'admin'].includes(currentUser.role);
   document.getElementById('swap-cumul-date').value = todayISO;
   document.getElementById('enlv-date').value = todayISO;
   const demLimite = new Date(today); demLimite.setDate(demLimite.getDate() + 3);
@@ -1398,7 +1467,12 @@ function startSession(user) {
   _dashRefDate = new Date(today);
   const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', rapport: 'nav-rapport', demandes: 'nav-demandes', parametres: 'nav-parametres' };
   const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
-  const _viewBlocked = (_lastView === 'parametres' && !isRa) || (_lastView === 'demandes' && !isRaAdmin);
+  /* Agence et Service CARE n'ont ni Saisie du jour ni Dysfonctionnements : sans ces deux
+     cas, une vue restaurée les rouvrait alors que le menu correspondant est masqué. */
+  const _isFieldRestricted = FIELD_RESTRICTED_ROLES.includes(currentUser.role);
+  const _viewBlocked = (_lastView === 'parametres' && !isRa)
+    || (_lastView === 'demandes' && !isRaAdmin)
+    || ((_lastView === 'saisie' || _lastView === 'dysfonctionnement') && _isFieldRestricted);
   const _view     = (_lastView && _navMap[_lastView] && !_viewBlocked) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
   _updateDashControls();
@@ -1417,13 +1491,72 @@ function startSession(user) {
    le modifier dans les outils du navigateur pour ouvrir Paramètres et Courriers. Pour un
    compte de la liste de secours, startSession le redérive déjà. Pour un compte créé
    depuis Paramètres, on le confronte à la liste du serveur dès qu'elle arrive. */
+/* Niveau de droits d'un rôle, du plus étendu au plus restreint. Sert uniquement à
+   vérifier qu'une correction de rôle va bien dans le sens d'une réduction. */
+const RANGS_ROLES = { admin: 0, ra: 1, dg: 2, dga: 2, dc: 2, dcc: 2, superviseur: 3, agence: 4, care: 4 };
+function _rangRole(role) {
+  const r = RANGS_ROLES[String(role || '').toLowerCase()];
+  return r === undefined ? 99 : r;   // rôle inconnu : considéré comme le moins doté
+}
+
 function _revaliderRole() {
+  /* S'applique aussi bien après une session restaurée qu'après une connexion : le
+     sessionStorage peut être falsifié, et l'authentification InsightPanel peut porter
+     un rôle devenu obsolète. Pour un compte présent dans UtilisateursVallee, c'est
+     cette feuille qui fait foi. Les comptes codés en dur ne sont jamais concernés. */
   if (!currentUser || _findSeed(currentUser.id)) return;
   const serveur = VALLEE_USERS_DYNAMIC.find(u => sameId(u.id, currentUser.id));
   if (!serveur) return;
-  if (serveur.role === currentUser.role) return;
-  showToast('Session réinitialisée', 'Le rôle enregistré ne correspond plus à ton compte.', true);
-  doLogout();
+
+  const roleSession = String(currentUser.role || '').toLowerCase();
+  const roleServeur = String(serveur.role || '').toLowerCase();
+
+  /* Rôle absent côté serveur : le compte est mal formé. On ne peut pas corriger vers
+     une valeur qu'on ignore, mais on refuse de laisser une session revendiquer des
+     droits élevés sur cette base. */
+  if (!roleServeur) {
+    if (['ra', 'admin', 'dg', 'dga', 'dc', 'dcc'].includes(roleSession)) {
+      showToast('Session refusée', "Ce compte n'a pas de rôle enregistré côté serveur.", true);
+      doLogout();
+    }
+    return;
+  }
+
+  if (roleServeur === roleSession) return;
+
+  /* Correction dans un seul sens : vers moins de droits. Adopter le rôle du serveur
+     quel qu'il soit permettrait de s'élever en modifiant l'identifiant stocké dans le
+     sessionStorage pour celui d'un compte mieux doté. Une promotion légitime, elle,
+     est appliquée par le serveur à la prochaine connexion. */
+  /* Rang faible = droits étendus. On n'applique donc que si le rang du serveur est
+     STRICTEMENT plus grand, c'est-à-dire si le compte a moins de droits que ne le
+     prétend la session. */
+  if (_rangRole(roleServeur) <= _rangRole(roleSession)) {
+    console.warn('[_revaliderRole] rôle serveur "' + roleServeur + '" ignoré : il n\'abaisse pas les droits de la session.');
+    return;
+  }
+
+  /* On corrige au lieu de déconnecter : une divergence légitime entre les deux
+     backends aurait enfermé l'utilisateur dans une boucle connexion puis déconnexion.
+     Et on réapplique les droits sans relancer startSession, qui réinitialiserait les
+     sélecteurs de date et effacerait une saisie en cours. */
+  /* On stocke la valeur normalisée, pas la valeur brute de la feuille : un « RA » saisi
+     en majuscules ne correspondrait à aucun test de rôle et ferait échouer le contrôle
+     ALLOWED_ROLES à la restauration de session suivante. */
+  currentUser.role = roleServeur;
+  try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
+  _appliquerDroits();
+  /* Les tableaux sont filtrés par rôle à la construction : masquer les menus ne suffit
+     pas, il faut les reconstruire, sinon l'historique complet et ses boutons de
+     modification survivent à une perte de droits. */
+  renderDashboard();
+  renderSaisieHist();
+  renderStockTable();
+  renderEnlevementsTable();
+  renderSwapTable();
+  renderDysfHist();
+  _refreshRapportIfActive();
+  showToast('Rôle mis à jour', `Ton compte est enregistré comme ${ROLE_LABELS[roleServeur] || roleServeur}.`, false);
 }
 
 /* ── PARAMÈTRES ── */
@@ -1432,12 +1565,17 @@ const FR_MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','A
 function renderParametres() {
   const now = new Date(_dashRefDate);
   const hint = document.getElementById('param-default-hint');
-  if (hint) {
-    hint.innerHTML = `GA : ${VALLEE_TEAM_TARGET.ga.toLocaleString('fr-FR')} · MoMo : ${VALLEE_TEAM_TARGET.momo.toLocaleString('fr-FR')}`
-      + (_objectifsNonDeployes
-        ? `</span><br><span style="color:var(--danger);font-weight:600">⚠ Script Apps Script pas encore redéployé : les cibles saisies ici restent sur ce navigateur et ne sont pas partagées avec l'équipe.<span>`
-        : '');
+  if (hint) hint.textContent = `GA : ${VALLEE_TEAM_TARGET.ga.toLocaleString('fr-FR')} · MoMo : ${VALLEE_TEAM_TARGET.momo.toLocaleString('fr-FR')}`;
+
+  const alerte = document.getElementById('param-deploy-warning');
+  if (alerte) {
+    alerte.style.display = _objectifsNonDeployes ? '' : 'none';
+    alerte.textContent = _objectifsNonDeployes
+      ? "⚠ Script Apps Script pas encore redéployé : les cibles saisies ici restent sur ce navigateur et ne sont pas partagées avec l'équipe."
+      : '';
   }
+  const espace = document.getElementById('param-spacer');
+  if (espace) espace.style.display = _objectifsNonDeployes ? 'none' : '';
 
   const tbody = document.getElementById('param-months-tbody');
   if (!tbody) return;
@@ -1583,7 +1721,7 @@ async function saveParametres() {
       }
     }
     showToast('Objectifs enregistrés', `${aEnvoyer.length} mois mis à jour pour toute l'équipe.`, false);
-    _objectifsLoaded = false; _objectifsInFlight = null;
+    _objectifsLoaded = false; _objectifsInFlight = null; _objectifsNonDeployes = false;
     await loadObjectifs();
     _renderDfaWeights();
   } catch (e) {
@@ -1593,6 +1731,8 @@ async function saveParametres() {
 
 function doLogout() {
   try { sessionStorage.removeItem('tv_session'); sessionStorage.removeItem('tv_last_view'); } catch (_) {}
+  MODULES_EN_ECHEC.clear();
+  _objectifsLoaded = false; _objectifsInFlight = null; _objectifsNonDeployes = false;
   currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = []; VALLEE_USERS_DYNAMIC = []; VALLEE_DEMANDES = [];
   _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false; _demandesLoaded = false;
   VALLEE_SUPS = [...VALLEE_SUPS_BASE];
@@ -1644,6 +1784,7 @@ async function loadSaisies() {
       if (json.success) {
         VALLEE_SAISIES = json.data || [];
         _saisiesLoaded = true;
+        _succesChargement('Saisies');
         const myRecs = VALLEE_SAISIES.filter(r => sameId(r.supId, currentUser?.id));
         console.log('[loadSaisies] enregistrements pour cet utilisateur:', myRecs.length);
         renderDashboard();
@@ -1668,7 +1809,7 @@ async function loadStock() {
   _stockInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; renderStockTable(); _refreshRapportIfActive(); }
+      if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; _succesChargement('Stocks SIM'); renderStockTable(); _refreshRapportIfActive(); }
       else { _echecChargement('Stocks SIM', json.error); }
     })
     .catch(err => { _echecChargement('Stocks SIM', err); })
@@ -1913,12 +2054,66 @@ function _filterPreviousPeriod(data) {
   return [];
 }
 
-/* Stock SWAP alloué à un compte : enlèvements globaux plus réceptions de type SWAP.
-   Passer auteurId à null donne le total tous comptes confondus. */
+/* Nombre de SIM distinctes couvertes par un ensemble de plages, chevauchements fusionnés.
+   Compter chaque plage séparément doublerait les SIM déclarées deux fois, par exemple une
+   réception saisie à l'intérieur d'un enlèvement déjà enregistré. BigInt plutôt que
+   Number : les numéros de SIM dépassent la précision exacte des flottants dès qu'ils
+   s'allongent, et une erreur d'arrondi ici fausserait un total de stock. */
+/* Une plage n'est retenue pour la déduplication que si elle est exploitable ET cohérente
+   avec la quantité enregistrée. Les bornes sont la seule façon de repérer deux
+   déclarations de la même série, mais elles sont moins fiables que la quantité : une
+   ligne ancienne dont Sheets a stocké les bornes en nombre a pu perdre en précision. En
+   cas de désaccord, on fait confiance à la quantité, via _sansPlage. */
+function _plageFiable(r) {
+  const taille = _taillePlage(r.simDebut, r.simFin);
+  if (taille === null) return false;
+  const qte = Number(r.quantite) || 0;
+  return qte === 0 || taille === qte;
+}
+
+function _tailleUnion(plages) {
+  const iv = plages
+    .filter(([a, b]) => _taillePlage(a, b) !== null)
+    .map(([a, b]) => [BigInt(String(a).trim()), BigInt(String(b).trim())])
+    .sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+
+  let total = 0n, debut = null, fin = null;
+  iv.forEach(([a, b]) => {
+    if (debut === null) { debut = a; fin = b; return; }
+    if (a <= fin + 1n) { if (b > fin) fin = b; return; }   // contiguë ou chevauchante
+    total += fin - debut + 1n;
+    debut = a; fin = b;
+  });
+  if (debut !== null) total += fin - debut + 1n;
+  return Number(total);
+}
+
+/* Somme des quantités des enregistrements dépourvus de plage exploitable : on ne peut
+   pas les dédoublonner, on les additionne tels quels. Le critère est exactement le
+   complément de celui de _tailleUnion, y compris pour une plage numérique mais inversée,
+   sinon sa quantité disparaîtrait des deux calculs à la fois. */
+function _sansPlage(rows) {
+  return rows
+    .filter(r => !_plageFiable(r))
+    .reduce((s, r) => s + (Number(r.quantite) || 0), 0);
+}
+
+/* Stock SWAP global : le parc physiquement enlevé chez MTN. Les réceptions déclarées par
+   les comptes en sont une redistribution, elles ne s'y ajoutent donc pas. */
+function _stockSwapGlobal() {
+  const enlv = VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap');
+  return _tailleUnion(enlv.filter(_plageFiable).map(e => [e.simDebut, e.simFin])) + _sansPlage(enlv);
+}
+
+/* Stock SWAP alloué à un compte : l'union de ses enlèvements et de ses réceptions.
+   Sans les réceptions, un compte déclarant par le formulaire « Enregistrer une
+   réception » restait à zéro ; sans l'union, il aurait vu son stock doublé. */
 function _stockSwapAlloue(auteurId) {
-  const retenir = r => r.type === 'swap' && (!auteurId || sameId(r.auteurId, auteurId));
-  const somme = arr => arr.filter(retenir).reduce((s, r) => s + (Number(r.quantite) || 0), 0);
-  return somme(VALLEE_ENLEVEMENTS) + somme(VALLEE_STOCK);
+  const miens = [
+    ...VALLEE_ENLEVEMENTS.filter(e => e.type === 'swap' && sameId(e.auteurId, auteurId)),
+    ...VALLEE_STOCK.filter(r => r.type === 'swap' && sameId(r.auteurId, auteurId))
+  ];
+  return _tailleUnion(miens.filter(_plageFiable).map(r => [r.simDebut, r.simFin])) + _sansPlage(miens);
 }
 
 function renderDashboardSwap() {
@@ -1931,9 +2126,10 @@ function renderDashboardSwap() {
   const effectuesPeriode = filtered.length;
   const prevEffectues    = prevFiltered.length;
 
-  /* Le stock alloué additionne les enlèvements globaux ET les réceptions de type SWAP :
-     ces dernières n'entraient dans aucun calcul, si bien qu'un compte qui déclarait sa
-     réception par le formulaire « Enregistrer une réception » restait à zéro. */
+  /* Stock alloué : les enlèvements de ce compte, plus ses réceptions qu'aucun de ses
+     enlèvements ne couvre. Les réceptions n'entraient auparavant dans aucun calcul, si
+     bien qu'un compte déclarant par le formulaire « Enregistrer une réception » restait
+     à zéro ; le test de couverture évite de compter deux fois la même plage. */
   const stockSwapMoi     = _stockSwapAlloue(currentUser.id);
   const mesSwaps         = VALLEE_SWAP.filter(s => sameId(s.auteurId, currentUser.id));
   const swapEffectuesMoi = mesSwaps.length;
@@ -2359,8 +2555,11 @@ function resetSaisieForm() {
 }
 
 function editSaisie(horodatage, supId) {
+  /* Renvoie true si le formulaire est bien passé en mode modification. Les appelants
+     doivent le tester : sans ça, on pouvait annoncer « clique sur Modifier » alors que
+     le bouton était resté sur Enregistrer, donc reboucler sur le même conflit. */
   const entry = VALLEE_SAISIES.find(r => r.horodatage === horodatage && sameId(r.supId, supId));
-  if (!entry) { showToast('Saisie introuvable', 'Recharge la page si le problème persiste.', true); return; }
+  if (!entry) { showToast('Saisie introuvable', 'Recharge la page si le problème persiste.', true); return false; }
   _editingTs = horodatage;
   const dEntry = parseSaisieDate(entry.date);
   document.getElementById('saisie-date').value  = dEntry ? _dateToISO(dEntry) : todayISO;
@@ -2377,6 +2576,7 @@ function editSaisie(horodatage, supId) {
   btn.innerHTML = '<i class="fa fa-pen"></i> Modifier';
   btn.classList.remove('btn-primary'); btn.classList.add('btn-danger');
   document.getElementById('view-saisie').scrollIntoView({ behavior: 'smooth' });
+  return true;
 }
 
 async function saveSaisie() {
@@ -2393,10 +2593,19 @@ async function saveSaisie() {
   if (!sup || !sup.id) { showToast('Erreur', 'Aucun superviseur identifié.', true); return; }
 
   const date = document.getElementById('saisie-date').value;
-  const ga       = Number(document.getElementById('saisie-ga').value)        || 0;
-  const momo     = Number(document.getElementById('saisie-momo').value)      || 0;
-  const totalDfa = Number(document.getElementById('saisie-total-dfa').value) || 0;
-  const dfaActif = Number(document.getElementById('saisie-dfa-actif').value) || 0;
+  /* Les valeurs brutes sont conservées à part : un champ laissé vide ne doit pas être
+     confondu avec un zéro saisi, sinon la reprise d'une saisie en conflit écraserait à
+     zéro des chiffres déjà enregistrés. */
+  const brut = {
+    ga:       document.getElementById('saisie-ga').value.trim(),
+    momo:     document.getElementById('saisie-momo').value.trim(),
+    totalDfa: document.getElementById('saisie-total-dfa').value.trim(),
+    dfaActif: document.getElementById('saisie-dfa-actif').value.trim()
+  };
+  const ga       = Number(brut.ga)       || 0;
+  const momo     = Number(brut.momo)     || 0;
+  const totalDfa = Number(brut.totalDfa) || 0;
+  const dfaActif = Number(brut.dfaActif) || 0;
   const obs      = document.getElementById('saisie-obs').value.trim();
 
   if (!date) { showToast('Champ requis', 'Veuillez sélectionner une date.', true); return; }
@@ -2426,8 +2635,30 @@ async function saveSaisie() {
         `OK : modifier la saisie existante.\n` +
         `Annuler : ajouter quand même une seconde ligne.`);
       if (choix) {
-        editSaisie(json.horodatage, sup.id);
-        showToast('Saisie existante chargée', 'Ajuste les valeurs puis clique sur Modifier.', false);
+        /* La ligne en conflit peut avoir été créée après le dernier chargement, par un
+           autre poste ou un autre onglet : sans ce rafraîchissement, editSaisie ne la
+           trouve pas dans le cache et la saisie en cours est perdue. */
+        _saisiesLoaded = false; _saisiesInFlight = null;
+        await loadSaisies();
+
+        if (!editSaisie(json.horodatage, sup.id)) {
+          /* La ligne en conflit reste introuvable (horodatage vide, rechargement en
+             échec). On ne prétend pas être passé en modification : sans _editingTs, un
+             nouvel envoi rebouclerait indéfiniment sur le même conflit. */
+          showToast('Modification impossible',
+            "La saisie en conflit n'a pas pu être chargée. Réessaie, ou ajoute quand même une seconde ligne.", true);
+          btn.disabled = false;
+          return;
+        }
+
+        /* On ne réinjecte que les champs réellement remplis, par-dessus les valeurs de
+           la ligne existante. Un champ laissé vide conserve la valeur enregistrée au
+           lieu d'être remis à zéro. */
+        const reinjecte = { 'saisie-ga': brut.ga, 'saisie-momo': brut.momo,
+                            'saisie-total-dfa': brut.totalDfa, 'saisie-dfa-actif': brut.dfaActif };
+        Object.entries(reinjecte).forEach(([id, v]) => { if (v !== '') document.getElementById(id).value = v; });
+        if (obs) document.getElementById('saisie-obs').value = obs;
+        showToast('Saisie existante chargée', 'Vérifie les valeurs puis clique sur Modifier.', false);
         btn.disabled = false;
         return;
       }
@@ -2474,7 +2705,12 @@ function renderSaisieHist() {
 
   tbody.innerHTML = sorted.map(r => {
     const canEdit = isRa || sameId(r.supId, currentUser?.id);
-    const editBtn = canEdit ? `<button class="btn btn-sm btn-secondary" onclick="editSaisie(&quot;${esc(r.horodatage)}&quot;,&quot;${esc(r.supId)}&quot;)"><i class="fa fa-pen"></i></button>` : '—';
+    /* Les valeurs passent par des attributs de données, pas par un argument JS inséré
+       dans le HTML : esc() produit &quot;, que l'analyseur redécode en guillemet avant
+       que le script ne soit lu, ce qui refermait la chaîne sur une donnée mal formée. */
+    const editBtn = canEdit
+      ? `<button class="btn btn-sm btn-secondary" data-ts="${esc(r.horodatage)}" data-sup="${esc(r.supId)}" onclick="editSaisie(this.dataset.ts, this.dataset.sup)"><i class="fa fa-pen"></i></button>`
+      : '—';
     return `<tr>
       <td>${esc(isoToFR(r.date) || r.date)}</td>
       <td>${esc(r.supNom || r.supId)}</td>
@@ -2496,24 +2732,44 @@ function calcStockQte() {
   const f = document.getElementById('stock-sim-fin')?.value.trim();
   const q = document.getElementById('stock-quantite');
   if (!q) return;
-  if (d && f && d.length >= 11 && f.length >= 11) {
-    const n = Number(f) - Number(d) + 1;
-    q.value = n > 0 ? n : '—';
-  } else {
-    q.value = '—';
-  }
+  const n = (d && f && d.length >= 11 && f.length >= 11) ? _taillePlage(d, f) : null;
+  q.value = n !== null ? n : '—';
   _updateStockCoverageHint();
+}
+
+/* Nombre de SIM d'une plage, bornes comprises. Exact quelle que soit la longueur des
+   numéros, contrairement à une soustraction sur des flottants. Rend null si la plage
+   est invalide. */
+function _taillePlage(debut, fin) {
+  const d = String(debut ?? '').trim(), f = String(fin ?? '').trim();
+  if (!/^\d+$/.test(d) || !/^\d+$/.test(f)) return null;
+  const n = BigInt(f) - BigInt(d) + 1n;
+  return n > 0n ? Number(n) : null;
+}
+
+/* Compare deux numéros de SIM sans passer par Number : au-delà de 15 chiffres, la
+   conversion en flottant rend égaux des numéros voisins, ce qui fausserait aussi bien
+   le badge de couverture que les totaux de stock. Comparaison en chaînes complétées
+   à gauche par des zéros, exacte quelle que soit la longueur. */
+function _cmpSim(a, b) {
+  const x = String(a ?? '').trim(), y = String(b ?? '').trim();
+  if (!/^\d+$/.test(x) || !/^\d+$/.test(y)) return NaN;
+  const n = Math.max(x.length, y.length);
+  return x.padStart(n, '0').localeCompare(y.padStart(n, '0'));
+}
+
+/* Vrai si la plage [debut, fin] est entièrement contenue dans [eDebut, eFin]. */
+function _plageCouverte(debut, fin, eDebut, eFin) {
+  const a = _cmpSim(eDebut, debut), b = _cmpSim(fin, eFin);
+  return !isNaN(a) && !isNaN(b) && a <= 0 && b <= 0;
 }
 
 // Cherche un enlèvement global de même type qui couvre entièrement [debut, fin]
 function _findCoveringEnlevement(debut, fin, type) {
-  const d = Number(debut), f = Number(fin);
-  if (!d || !f) return null;
-  return VALLEE_ENLEVEMENTS.find(e => {
-    if (e.type !== type) return false;
-    const ed = Number(e.simDebut), ef = Number(e.simFin);
-    return ed > 0 && ef > 0 && ed <= d && f <= ef;
-  }) || null;
+  if (!String(debut ?? '').trim() || !String(fin ?? '').trim()) return null;
+  return VALLEE_ENLEVEMENTS.find(e =>
+    e.type === type && _plageCouverte(debut, fin, e.simDebut, e.simFin)
+  ) || null;
 }
 
 function _updateStockCoverageHint() {
@@ -2541,8 +2797,8 @@ async function saveStock() {
   if (debut.length < 8) { showToast('Champ requis', 'N° SIM Début invalide.', true); return; }
   if (fin.length < 8)   { showToast('Champ requis', 'N° SIM Fin invalide.', true); return; }
 
-  const quantite = Number(fin) - Number(debut) + 1;
-  if (quantite <= 0) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
+  const quantite = _taillePlage(debut, fin);
+  if (quantite === null) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
 
   const btn = document.getElementById('btn-save-stock');
   btn.disabled = true;
@@ -2621,6 +2877,7 @@ async function loadEnlevements() {
       if (json.success) {
         VALLEE_ENLEVEMENTS = json.data || [];
         _enlvLoaded = true;
+        _succesChargement('Enlèvements globaux');
         renderEnlevementsTable();
         renderStockTable();
         _updateStockCoverageHint();
@@ -2639,12 +2896,8 @@ function calcEnlvQte() {
   const f = document.getElementById('enlv-sim-fin')?.value.trim();
   const q = document.getElementById('enlv-quantite');
   if (!q) return;
-  if (d && f && d.length >= 11 && f.length >= 11) {
-    const n = Number(f) - Number(d) + 1;
-    q.value = n > 0 ? n : '—';
-  } else {
-    q.value = '—';
-  }
+  const n = (d && f && d.length >= 11 && f.length >= 11) ? _taillePlage(d, f) : null;
+  q.value = n !== null ? n : '—';
 }
 
 async function saveEnlevement() {
@@ -2658,8 +2911,8 @@ async function saveEnlevement() {
   if (debut.length < 8) { showToast('Champ requis', 'N° SIM Début invalide.', true); return; }
   if (fin.length < 8)   { showToast('Champ requis', 'N° SIM Fin invalide.', true); return; }
 
-  const quantite = Number(fin) - Number(debut) + 1;
-  if (quantite <= 0) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
+  const quantite = _taillePlage(debut, fin);
+  if (quantite === null) { showToast('Erreur', 'Le N° SIM Fin doit être supérieur au N° SIM Début.', true); return; }
 
   const btn = document.getElementById('btn-save-enlv');
   btn.disabled = true;
@@ -2717,7 +2970,7 @@ async function loadSwap() {
   _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); renderDashboard(); _refreshRapportIfActive(); }
+      if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; _succesChargement('SWAP'); renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); renderDashboard(); _refreshRapportIfActive(); }
       else { _echecChargement('SWAP', json.error); }
     })
     .catch(err => { _echecChargement('SWAP', err); })
@@ -2819,17 +3072,51 @@ function renderSwapStockGlobal() {
   if (!el) return;
   if (!['ra', 'admin'].includes(currentUser?.role)) return;
 
-  const stockSwapTotal = _stockSwapAlloue(null);
+  const stockSwapTotal = _stockSwapGlobal();
   const swapEffectuesTotal = VALLEE_SWAP.length;
   const restantGlobal = stockSwapTotal - swapEffectuesTotal;
   const col = stockSwapTotal <= 0 ? 'inherit' : restantGlobal <= 0 ? 'var(--danger)' : restantGlobal < stockSwapTotal * 0.15 ? 'var(--warning)' : 'var(--success)';
 
+  /* Le stock global est le parc physiquement enlevé chez MTN. Les réceptions déclarées
+     par les comptes en sont des redistributions, donc elles ne s'y ajoutent pas. On
+     affiche la part déjà répartie pour que la différence avec le « Stock Restant » de
+     chaque compte se lise, au lieu de ressembler à une contradiction. */
+  const receptions  = VALLEE_STOCK.filter(r => r.type === 'swap');
+  const dejaReparti = _tailleUnion(receptions.filter(_plageFiable).map(r => [r.simDebut, r.simFin])) + _sansPlage(receptions);
+  /* Trois situations à ne pas confondre : aucun enlèvement enregistré du tout, un parc
+     enregistré mais dépassé par les SWAP, et le cas normal. Sans cette distinction, une
+     équipe qui déclare uniquement par le formulaire de réception voyait une alerte rouge
+     permanente à côté d'un stock global à zéro. */
+  const sansPool = stockSwapTotal <= 0;
+  const horsPool = !sansPool && restantGlobal < 0;
+
+  let note;
+  if (sansPool) {
+    note = `<p style="font-size:12px;color:var(--warning);margin-top:12px">
+      <i class="fa fa-circle-info"></i> Aucun enlèvement global SWAP enregistré : le stock
+      restant ne peut pas être calculé. ${dejaReparti > 0
+        ? `${dejaReparti.toLocaleString('fr-FR')} SIM ont pourtant été déclarées en réception.
+           Enregistre les plages retirées chez MTN dans « Enlèvements globaux » pour suivre le parc.`
+        : ''}
+    </p>`;
+  } else {
+    note = `<p style="font-size:12px;color:var(--text-muted);margin-top:12px">
+        Enlevé chez MTN : ${stockSwapTotal.toLocaleString('fr-FR')} · réparti entre les comptes : ${dejaReparti.toLocaleString('fr-FR')}.
+        Le stock global compte les enlèvements, pas les réceptions, qui n'en sont que la redistribution.
+      </p>
+      ${horsPool ? `<p style="font-size:12px;color:var(--danger);margin-top:6px">
+        <i class="fa fa-triangle-exclamation"></i> Plus de SWAP effectués que de SIM enlevées :
+        des enlèvements manquent, ou des SWAP portent sur des SIM hors du parc enregistré.
+      </p>` : ''}`;
+  }
+
   el.innerHTML = `
     <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:baseline">
-      <div><div style="font-size:12px;color:var(--text-muted)">Stock global SWAP</div><div style="font-size:20px;font-weight:700">${stockSwapTotal.toLocaleString('fr-FR')}</div></div>
+      <div><div style="font-size:12px;color:var(--text-muted)">Stock global SWAP</div><div style="font-size:20px;font-weight:700">${sansPool ? '—' : stockSwapTotal.toLocaleString('fr-FR')}</div></div>
       <div><div style="font-size:12px;color:var(--text-muted)">SWAP effectués (tous comptes)</div><div style="font-size:20px;font-weight:700">${swapEffectuesTotal.toLocaleString('fr-FR')}</div></div>
-      <div><div style="font-size:12px;color:var(--text-muted)">Restant global</div><div style="font-size:20px;font-weight:700;color:${col}">${stockSwapTotal > 0 ? restantGlobal.toLocaleString('fr-FR') : '—'}</div></div>
-    </div>`;
+      <div><div style="font-size:12px;color:var(--text-muted)">Restant global</div><div style="font-size:20px;font-weight:700;color:${col}">${sansPool ? '—' : restantGlobal.toLocaleString('fr-FR')}</div></div>
+    </div>
+    ${note}`;
 }
 
 /* ── RAPPORT ── */
@@ -3163,7 +3450,7 @@ async function loadDemandesVallee() {
   _demandesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDemandesVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_DEMANDES = json.data || []; _demandesLoaded = true; renderDemandesList(); }
+      if (json.success) { VALLEE_DEMANDES = json.data || []; _demandesLoaded = true; _succesChargement('Courriers'); renderDemandesList(); }
       else { _echecChargement('Courriers', json.error); }
     })
     .catch(err => { _echecChargement('Courriers', err); })
@@ -3561,7 +3848,7 @@ async function loadDysf() {
   _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
     .then(r => r.json())
     .then(json => {
-      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; renderDysfHist(); updateImpactEstime(); _refreshRapportIfActive(); }
+      if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; _succesChargement('Dysfonctionnements'); renderDysfHist(); updateImpactEstime(); _refreshRapportIfActive(); }
       else { _echecChargement('Dysfonctionnements', json.error); }
     })
     .catch(err => { _echecChargement('Dysfonctionnements', err); })
@@ -3579,6 +3866,7 @@ async function loadKpiReel() {
       if (json.success) {
         VALLEE_KPI_REEL = json.data || [];
         _kpiReelLoaded = true;
+        _succesChargement('KPI NEW ADD réel');
         renderKpiReelCard();
         if (document.getElementById('param-kpireel-tbody')) _renderKpiReelTable();
         _refreshRapportIfActive();

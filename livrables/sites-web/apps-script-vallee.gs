@@ -22,16 +22,26 @@ const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← R
 // POINT D'ENTRÉE
 // ─────────────────────────────────────────────────────────────
 function doPost(e) {
-  /* Verrou global : les upserts (KPI réel, objectifs) et la génération de référence
-     de courrier lisent puis réécrivent. Sans verrou, deux appels simultanés se marchent
-     dessus (doublon de référence, écrasement d'un mois). 20 s d'attente maximum. */
-  const lock = LockService.getScriptLock();
-  try { lock.waitLock(20000); } catch (_) {
-    return jsonResponse({ success: false, error: 'Serveur occupé, réessayez dans un instant.' });
+  let data;
+  try { data = JSON.parse(e.postData.contents); }
+  catch (err) { return jsonResponse({ success: false, error: 'Requête illisible : ' + err.toString() }); }
+
+  /* Verrou sur les écritures seulement. Les upserts (KPI réel, objectifs) et la
+     génération de référence de courrier lisent puis réécrivent, donc deux appels
+     simultanés s'y marcheraient dessus. Les lectures, elles, ne doivent pas être
+     sérialisées : l'ouverture de l'application en lance huit en parallèle, et les
+     mettre en file d'attente ferait expirer le verrou dès que deux personnes se
+     connectent en même temps. */
+  const enEcriture = /^(save|update)/.test(String(data.action || ''));
+  const lock = enEcriture ? LockService.getScriptLock() : null;
+  if (lock) {
+    try { lock.waitLock(20000); } catch (_) {
+      return jsonResponse({ success: false, error: 'Serveur occupé, réessayez dans un instant.' });
+    }
+    _verrouGlobalTenu = true;
   }
 
   try {
-    const data = JSON.parse(e.postData.contents);
     if (data.action === 'getSaisiesVallee')    return handleGetSaisiesVallee(data);
     if (data.action === 'saveSaisieVallee')    return handleSaveSaisieVallee(data);
     if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data);
@@ -56,7 +66,67 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   } finally {
-    lock.releaseLock();
+    if (lock) { _verrouGlobalTenu = false; lock.releaseLock(); }
+  }
+}
+
+/* Vrai pendant qu'une écriture détient le verrou global. Les opérations structurelles
+   déclenchées plus bas s'y réfèrent pour ne pas reprendre le même verrou : leur
+   releaseLock() libérerait celui de doPost au milieu du traitement, et rouvrirait la
+   course que ce verrou est justement là pour fermer. */
+let _verrouGlobalTenu = false;
+
+/* Crée une feuille en tolérant qu'une exécution concurrente l'ait déjà créée. Les
+   lectures ne prennent pas le verrou global, donc deux premières ouvertures
+   simultanées appelleraient insertSheet en même temps et l'une des deux échouerait. */
+function _insererFeuille(ss, nom) {
+  try {
+    return ss.insertSheet(nom);
+  } catch (err) {
+    /* Seul le conflit de nom est rattrapé : si la feuille n'existe toujours pas, la
+       cause est ailleurs (quota, droits, incident passager) et l'erreur d'origine doit
+       remonter telle quelle plutôt que d'être masquée par un message générique.
+       Le flush force la relecture depuis le serveur : sans lui, la recherche porterait
+       sur l'instantané pris avant la création concurrente et échouerait à tort. */
+    SpreadsheetApp.flush();
+    const existante = ss.getSheetByName(nom);
+    if (existante) return existante;
+    throw err;
+  }
+}
+
+/* Pose la ligne d'en-têtes et sa mise en forme, sauf si la feuille en a déjà une :
+   dans la course décrite ci-dessus, l'exécution perdante ajouterait sinon une seconde
+   ligne d'en-têtes au milieu des données. */
+function _poserEntetes(sheet, headers, largeurs) {
+  if (sheet.getLastRow() > 0) return;
+
+  /* Le test ci-dessus ne suffit pas seul : deux premières lectures simultanées voient
+     toutes deux la feuille encore vide et écriraient chacune leur ligne d'en-têtes, la
+     seconde devenant une fausse donnée renvoyée par les handlers de lecture. On relit
+     donc sous verrou. Ce chemin ne s'exécute qu'à la création d'une feuille, le coût du
+     verrou est nul en régime normal. */
+  const lock = _verrouGlobalTenu ? null : LockService.getScriptLock();
+  if (lock) {
+    try { lock.waitLock(30000); } catch (_) {
+      /* Ne pas rendre une feuille sans en-têtes : tous les handlers lisent ensuite
+         getRange(1, 1, 1, getLastColumn()), qui échouerait sur une feuille à zéro
+         colonne avec un message incompréhensible. Mieux vaut une erreur explicite. */
+      throw new Error('Initialisation de la feuille ' + sheet.getName() + ' impossible : serveur occupé. Réessayez.');
+    }
+  }
+  try {
+    /* Même raison que pour la migration : sans flush, la relecture sous verrou peut
+       encore renvoyer l'état d'avant, et une seconde ligne d'en-têtes serait écrite. */
+    SpreadsheetApp.flush();
+    if (sheet.getLastRow() > 0) return;
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length)
+      .setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+    sheet.setFrozenRows(1);
+    (largeurs || []).forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -281,7 +351,9 @@ function handleSaveStockVallee(data) {
   set('horodatage', ts);
   set('type',       data.type       || 'p100');
 
-  sheet.appendRow(row);
+  /* Plages de SIM en texte : elles restent lisibles telles quelles dans la feuille et
+     ne perdent pas de précision si un numéro plus long est saisi un jour. */
+  _appendRowTexte(sheet, row, [_colNum(headers, 'simdebut'), _colNum(headers, 'simfin')]);
   return jsonResponse({ success: true, message: 'Stock enregistré.', horodatage: ts });
 }
 
@@ -290,14 +362,13 @@ function handleSaveStockVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateSaisiesVallee(ss) {
   let sheet = ss.getSheetByName('SaisiesVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('SaisiesVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'SaisiesVallee');
     const headers = ['Date', 'SupID', 'SupNom', 'Zone', 'GrossAdd', 'MoMoUser', 'TotalDFA', 'DFAActif', 'Observation', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [110, 160, 180, 150, 100, 110, 100, 100, 250, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [110, 160, 180, 150, 100, 110, 100, 100, 250, 160]);
   } else {
     /* Migration : ajouter TotalDFA et DFAActif si absents */
     const lastCol = sheet.getLastColumn();
@@ -308,41 +379,60 @@ function _getOrCreateSaisiesVallee(ss) {
       { name: 'TotalDFA', key: 'totaldfa' },
       { name: 'DFAActif', key: 'dfaactif' }
     ];
-    toAdd.forEach(col => {
-      if (headers.indexOf(col.key) < 0) {
-        /* Insérer avant "observation" */
-        const obsIdx = headers.indexOf('observation');
-        const pos    = obsIdx >= 0 ? obsIdx + 1 : headers.length + 1;
-        sheet.insertColumnBefore(pos);
-        const cell = sheet.getRange(1, pos);
-        cell.setValue(col.name);
-        cell.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-        sheet.setColumnWidth(pos, 100);
-        headers.splice(pos - 1, 0, col.key);
+
+    /* Cette migration insère des colonnes, donc décale les données existantes. Elle
+       tourne aussi sur le chemin des lectures, qui ne prennent pas le verrou global :
+       deux ouvertures simultanées de l'application l'exécuteraient deux fois et
+       créeraient des colonnes en double. On prend donc un verrou dédié, et on relit
+       les en-têtes sous ce verrou avant de décider d'insérer quoi que ce soit. */
+    if (toAdd.some(col => headers.indexOf(col.key) < 0)) {
+      /* Ne pas reprendre le verrou si doPost le détient déjà : ce sont deux objets Lock
+         pour un même verrou de script, et le releaseLock() interne relâcherait celui de
+         l'appelant au milieu de son traitement. */
+      const lock = _verrouGlobalTenu ? null : LockService.getScriptLock();
+      if (lock) {
+        try { lock.waitLock(30000); } catch (_) {
+          /* Rendre la feuille non migrée ferait répondre success:true avec des colonnes
+             TotalDFA et DFAActif absentes, donc un DFA à zéro partout sans le moindre
+             signal. Une erreur explicite vaut mieux qu'un chiffre faux silencieux. */
+          throw new Error('Mise à jour de la feuille SaisiesVallee impossible : serveur occupé. Réessayez.');
+        }
       }
-    });
+      try {
+        /* Relire depuis le serveur et non depuis l'instantané pris avant le verrou :
+           sinon l'exécution perdante insérerait une seconde fois les mêmes colonnes. */
+        SpreadsheetApp.flush();
+        let entetes = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+          .map(h => h.toString().toLowerCase().trim());
+        toAdd.forEach(col => {
+          if (entetes.indexOf(col.key) >= 0) return;
+          /* Insérer avant "observation" */
+          const obsIdx = entetes.indexOf('observation');
+          const pos    = obsIdx >= 0 ? obsIdx + 1 : entetes.length + 1;
+          sheet.insertColumnBefore(pos);
+          const cell = sheet.getRange(1, pos);
+          cell.setValue(col.name);
+          cell.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
+          sheet.setColumnWidth(pos, 100);
+          entetes.splice(pos - 1, 0, col.key);
+        });
+      } finally {
+        if (lock) lock.releaseLock();
+      }
+    }
   }
   return sheet;
 }
 
 function _getOrCreateStockVallee(ss) {
   let sheet = ss.getSheetByName('StockVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('StockVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'StockVallee');
     const headers = ['Date', 'SimDebut', 'SimFin', 'Quantite', 'AuteurId', 'AuteurNom', 'AuteurRole', 'Horodatage', 'Type'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1, 110);
-    sheet.setColumnWidth(2, 130);
-    sheet.setColumnWidth(3, 130);
-    sheet.setColumnWidth(4, 100);
-    sheet.setColumnWidth(5, 160);
-    sheet.setColumnWidth(6, 180);
-    sheet.setColumnWidth(7, 130);
-    sheet.setColumnWidth(8, 160);
-    sheet.setColumnWidth(9, 100);
+    _poserEntetes(sheet, headers, [110, 130, 130, 100, 160, 180, 130, 160, 100]);
   }
   return sheet;
 }
@@ -430,7 +520,9 @@ function handleSaveDysfVallee(data) {
   set('auteurnom',  data.auteurNom   || '');
   set('horodatage', ts);
 
-  sheet.appendRow(row);
+  /* Heures en texte : sans ça Sheets les stocke comme des dates au 30/12/1899, que la
+     feuille affiche alors à la place de l'heure. */
+  _appendRowTexte(sheet, row, [_colNum(headers, 'heuredebut'), _colNum(headers, 'heurefin')]);
   return jsonResponse({ success: true, message: 'Dysfonctionnement enregistré.', horodatage: ts });
 }
 
@@ -439,14 +531,13 @@ function handleSaveDysfVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateDysfVallee(ss) {
   let sheet = ss.getSheetByName('DysfVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('DysfVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'DysfVallee');
     const headers = ['Date', 'Localite', 'Nature', 'HeureDebut', 'HeureFin', 'Duree', 'Impact', 'ImpactSims', 'AuteurId', 'AuteurNom', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [110, 150, 300, 90, 90, 80, 90, 100, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [110, 150, 300, 90, 90, 80, 90, 100, 160, 180, 160]);
   }
   return sheet;
 }
@@ -517,9 +608,11 @@ function handleSaveKpiReelVallee(data) {
   set('horodatage', ts);
 
   if (targetRow > 0) {
+    sheet.getRange(targetRow, periodeCol).setNumberFormat('@');
     sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
   } else {
-    sheet.appendRow(row);
+    // Periode ('2026-08') en texte, sinon Sheets la convertit en date au format local.
+    _appendRowTexte(sheet, row, [periodeCol]);
   }
 
   return jsonResponse({ success: true, message: 'KPI NEW ADD réel enregistré.', horodatage: ts });
@@ -530,14 +623,13 @@ function handleSaveKpiReelVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateKpiReelVallee(ss) {
   let sheet = ss.getSheetByName('KpiReelVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('KpiReelVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'KpiReelVallee');
     const headers = ['Periode', 'KpiNewAdd', 'AuteurId', 'AuteurNom', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [90, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [90, 110, 160, 180, 160]);
     // Colonne Periode ('2026-06') en texte brut : sans ça, Sheets la convertit en date au format local.
     // Appliqué à la création seulement : le format persiste, le réappliquer à chaque
     // requête ajoutait une écriture sur la feuille à chaque simple lecture.
@@ -618,7 +710,7 @@ function handleSaveEnlevementVallee(data) {
   set('auteurnom',  data.auteurNom  || '');
   set('horodatage', ts);
 
-  sheet.appendRow(row);
+  _appendRowTexte(sheet, row, [_colNum(headers, 'simdebut'), _colNum(headers, 'simfin')]);
   return jsonResponse({ success: true, message: 'Enlèvement enregistré.', horodatage: ts });
 }
 
@@ -627,14 +719,13 @@ function handleSaveEnlevementVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateEnlevementsVallee(ss) {
   let sheet = ss.getSheetByName('EnlevementsVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('EnlevementsVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'EnlevementsVallee');
     const headers = ['Date', 'SimDebut', 'SimFin', 'Quantite', 'Type', 'AuteurId', 'AuteurNom', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [110, 150, 150, 90, 90, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [110, 150, 150, 90, 90, 160, 180, 160]);
   }
   return sheet;
 }
@@ -697,7 +788,9 @@ function handleSaveSwapVallee(data) {
   set('auteurnom',  data.auteurNom  || '');
   set('horodatage', ts);
 
-  sheet.appendRow(row);
+  /* Sim et Swaper en texte : ce sont des numéros de 10 et 11 chiffres, que Sheets
+     stockerait sinon comme des nombres. */
+  _appendRowTexte(sheet, row, [_colNum(headers, 'sim'), _colNum(headers, 'swaper')]);
   return jsonResponse({ success: true, message: 'SWAP enregistré.', horodatage: ts });
 }
 
@@ -706,14 +799,13 @@ function handleSaveSwapVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateSwapVallee(ss) {
   let sheet = ss.getSheetByName('SwapVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('SwapVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'SwapVallee');
     const headers = ['Date', 'Sim', 'Swaper', 'AuteurId', 'AuteurNom', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [110, 150, 150, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [110, 150, 150, 160, 180, 160]);
     // Sim/Swaper en texte brut pour éviter toute conversion numérique par Sheets.
     sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   }
@@ -828,20 +920,20 @@ function handleSaveUtilisateurVallee(data) {
   set('creepar',    data.auteurId   || '');
   set('horodatage', ts);
 
-  sheet.appendRow(row);
+  /* Id et Password en texte : évite toute conversion numérique ou en date. */
+  _appendRowTexte(sheet, row, [_colNum(headers, 'id'), _colNum(headers, 'password')]);
   return jsonResponse({ success: true, message: 'Compte créé.', horodatage: ts });
 }
 
 function _getOrCreateUtilisateursVallee(ss) {
   let sheet = ss.getSheetByName('UtilisateursVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('UtilisateursVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'UtilisateursVallee');
     const headers = ['Id', 'Password', 'Nom', 'Role', 'Libelle', 'Initiales', 'CreePar', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [140, 100, 180, 110, 180, 90, 160, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [140, 100, 180, 110, 180, 90, 160, 160]);
     // Colonnes texte brut pour Id/Password : évite toute conversion numérique/date par Sheets.
     sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
   }
@@ -985,15 +1077,14 @@ function handleSaveDemandeVallee(data) {
 // ─────────────────────────────────────────────────────────────
 function _getOrCreateDemandesVallee(ss) {
   let sheet = ss.getSheetByName('DemandesVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('DemandesVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'DemandesVallee');
     const headers = ['Ref', 'Type', 'Date', 'DestinataireNom', 'DestinataireEmail', 'DestinataireType',
       'Motif', 'Contexte', 'Message', 'Decision', 'DateEffet', 'DateLimite', 'Cc', 'Statut', 'Reponse', 'DateReponse', 'AuteurId', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [80, 110, 90, 160, 180, 110, 180, 260, 260, 220, 100, 90, 180, 90, 300, 130, 140, 140].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [80, 110, 90, 160, 180, 110, 180, 260, 260, 220, 100, 90, 180, 90, 300, 130, 140, 140]);
   }
   return sheet;
 }
@@ -1030,17 +1121,25 @@ function checkDemandesReponses() {
     if (!ref) continue;
     const destEmail = COL.email >= 0 ? _cellStr(rows[i][COL.email]).toLowerCase() : '';
 
+    /* Si au moins une adresse est exploitable, on identifie la réponse par son
+       expéditeur, ce qui détecte aussi les réponses arrivées dans un fil séparé.
+       Sinon seulement, on retombe sur la garde de dernier recours : ignorer le
+       premier message de chaque fil, qui est notre propre envoi. */
+    const parExpediteur = !!(moi || destEmail);
+
     const threads = GmailApp.search('subject:"[' + ref + ']"', 0, 5);
     let latestReply = null;
     threads.forEach(thread => {
-      thread.getMessages().forEach(msg => {
+      const messages = thread.getMessages();
+      for (let k = parExpediteur ? 0 : 1; k < messages.length; k++) {
+        const msg  = messages[k];
         const from = (msg.getFrom() || '').toLowerCase();
-        /* On écarte nos propres messages, et si le destinataire est connu on exige
+        /* On écarte nos propres relances, et si le destinataire est connu on exige
            que la réponse vienne bien de lui. */
-        if (moi && from.indexOf(moi) !== -1) return;
-        if (destEmail && from.indexOf(destEmail) === -1) return;
+        if (moi && from.indexOf(moi) !== -1) continue;
+        if (destEmail && from.indexOf(destEmail) === -1) continue;
         if (!latestReply || msg.getDate() > latestReply.getDate()) latestReply = msg;
-      });
+      }
     });
 
     if (latestReply) {
@@ -1131,22 +1230,25 @@ function handleSaveObjectifVallee(data) {
   set('auteurnom',  data.auteurNom || '');
   set('horodatage', ts);
 
-  if (targetRow > 0) sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
-  else               sheet.appendRow(row);
+  if (targetRow > 0) {
+    sheet.getRange(targetRow, periodeCol).setNumberFormat('@');
+    sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  } else {
+    _appendRowTexte(sheet, row, [periodeCol]);
+  }
 
   return jsonResponse({ success: true, message: 'Objectif enregistré.', horodatage: ts });
 }
 
 function _getOrCreateObjectifsVallee(ss) {
   let sheet = ss.getSheetByName('ObjectifsVallee');
-  if (!sheet) {
-    sheet = ss.insertSheet('ObjectifsVallee');
+  /* getLastRow() === 0 : feuille créée mais dont la pose des en-têtes a échoué
+     (verrou expiré). Sans ce second cas, elle resterait sans en-têtes pour
+     toujours et chaque écriture ultérieure planterait sur getRange(1,1,1,0). */
+  if (!sheet || sheet.getLastRow() === 0) {
+    if (!sheet) sheet = _insererFeuille(ss, 'ObjectifsVallee');
     const headers = ['Periode', 'Ga', 'Momo', 'AuteurId', 'AuteurNom', 'Horodatage'];
-    sheet.appendRow(headers);
-    const hdr = sheet.getRange(1, 1, 1, headers.length);
-    hdr.setFontWeight('bold').setBackground('#f8c200').setFontColor('#000000');
-    sheet.setFrozenRows(1);
-    [90, 110, 110, 160, 180, 160].forEach((w, i) => sheet.setColumnWidth(i + 1, w));
+    _poserEntetes(sheet, headers, [90, 110, 110, 160, 180, 160]);
     // Periode ('2026-08') en texte brut, sinon Sheets la convertit en date.
     sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat('@');
   }
@@ -1182,6 +1284,31 @@ function _timeStr(val) {
 
 function _todayFR() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
+}
+
+/* Ajoute une ligne en forçant d'abord certaines colonnes en texte brut, puis en
+   écrivant les valeurs. L'ordre compte : appliquer le format après l'écriture
+   n'annulerait pas la conversion déjà faite par Sheets. Appliquer le format à la
+   création de la feuille ne suffisait pas non plus, car il ne couvre que la grille
+   initiale (1 000 lignes) et pas les lignes ajoutées au-delà. */
+function _appendRowTexte(sheet, row, colsTexte) {
+  const ligne = sheet.getLastRow() + 1;
+
+  /* getRange n'agrandit pas la grille, contrairement à appendRow : sans cette
+     extension, toute écriture échouerait le jour où la feuille atteint ses 1 000
+     lignes par défaut. On ajoute une marge pour ne pas le refaire à chaque ligne. */
+  const maxLignes = sheet.getMaxRows();
+  if (ligne > maxLignes) sheet.insertRowsAfter(maxLignes, (ligne - maxLignes) + 200);
+
+  (colsTexte || []).forEach(c => { if (c >= 1) sheet.getRange(ligne, c).setNumberFormat('@'); });
+  sheet.getRange(ligne, 1, 1, row.length).setValues([row]);
+  return ligne;
+}
+
+/* Numéro de colonne (base 1) d'un en-tête, ou -1. */
+function _colNum(headers, cle) {
+  const i = headers.indexOf(cle);
+  return i >= 0 ? i + 1 : -1;
 }
 
 /* Horodatage courant. Même format que celui rendu par _tsStr : le round-trip reste
