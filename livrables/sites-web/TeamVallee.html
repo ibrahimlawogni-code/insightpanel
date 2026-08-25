@@ -1100,6 +1100,7 @@ let _dashRefDate     = new Date(today);
 let _dashRangeDebut  = null;
 let _dashRangeFin    = null;
 let _editingTs       = null;
+let _editingRow      = null;   // numéro de ligne dans la feuille, seul repère des saisies sans horodatage
 let VALLEE_DYSF      = [];
 let _dysfLoaded      = false;
 let _dysfInFlight    = null;
@@ -2542,6 +2543,7 @@ function renderDashboard() {
 /* ── SAISIE ── */
 function resetSaisieForm() {
   _editingTs = null;
+  _editingRow = null;
   document.getElementById('saisie-date').value       = todayISO;
   document.getElementById('saisie-ga').value         = '';
   document.getElementById('saisie-momo').value       = '';
@@ -2554,13 +2556,17 @@ function resetSaisieForm() {
   btn.classList.remove('btn-danger'); btn.classList.add('btn-primary');
 }
 
-function editSaisie(horodatage, supId) {
+function editSaisie(horodatage, supId, row) {
   /* Renvoie true si le formulaire est bien passé en mode modification. Les appelants
      doivent le tester : sans ça, on pouvait annoncer « clique sur Modifier » alors que
      le bouton était resté sur Enregistrer, donc reboucler sur le même conflit. */
-  const entry = VALLEE_SAISIES.find(r => r.horodatage === horodatage && sameId(r.supId, supId));
+  /* Priorité au numéro de ligne : les saisies faites directement dans le Sheets n'ont
+     pas d'horodatage, et se ressembleraient toutes sans lui. */
+  const entry = (row && VALLEE_SAISIES.find(r => r._row === Number(row)))
+    || VALLEE_SAISIES.find(r => r.horodatage === horodatage && sameId(r.supId, supId));
   if (!entry) { showToast('Saisie introuvable', 'Recharge la page si le problème persiste.', true); return false; }
-  _editingTs = horodatage;
+  _editingTs  = horodatage;
+  _editingRow = entry._row || null;
   const dEntry = parseSaisieDate(entry.date);
   document.getElementById('saisie-date').value  = dEntry ? _dateToISO(dEntry) : todayISO;
   document.getElementById('saisie-ga').value        = entry.grossAdd  || '';
@@ -2617,7 +2623,7 @@ async function saveSaisie() {
     let payload, action;
     if (_editingTs) {
       action  = 'updateSaisieVallee';
-      payload = { action, supId: sup.id, horodatage: _editingTs, grossAdd: ga, momoUser: momo, totalDfa, dfaActif, observation: obs };
+      payload = { action, supId: sup.id, horodatage: _editingTs, row: _editingRow, date, grossAdd: ga, momoUser: momo, totalDfa, dfaActif, observation: obs };
     } else {
       action  = 'saveSaisieVallee';
       payload = { action, date, supId: sup.id, supNom: sup.nom, zone: sup.zone, grossAdd: ga, momoUser: momo, totalDfa, dfaActif, observation: obs };
@@ -2709,7 +2715,7 @@ function renderSaisieHist() {
        dans le HTML : esc() produit &quot;, que l'analyseur redécode en guillemet avant
        que le script ne soit lu, ce qui refermait la chaîne sur une donnée mal formée. */
     const editBtn = canEdit
-      ? `<button class="btn btn-sm btn-secondary" data-ts="${esc(r.horodatage)}" data-sup="${esc(r.supId)}" onclick="editSaisie(this.dataset.ts, this.dataset.sup)"><i class="fa fa-pen"></i></button>`
+      ? `<button class="btn btn-sm btn-secondary" data-ts="${esc(r.horodatage)}" data-sup="${esc(r.supId)}" data-row="${esc(r._row || '')}" onclick="editSaisie(this.dataset.ts, this.dataset.sup, this.dataset.row)"><i class="fa fa-pen"></i></button>`
       : '—';
     return `<tr>
       <td>${esc(isoToFR(r.date) || r.date)}</td>
@@ -3739,34 +3745,45 @@ const IMPACT_SEUILS = [
   { max: Infinity, label: 'Critique' }
 ];
 
-/* Minutes entre les deux heures saisies, ou null si la saisie est inexploitable.
-   L'ancien calcul ajoutait 24 h dès que l'écart était négatif pour gérer le passage de
-   minuit : une simple inversion (10:00 puis 08:00) donnait alors 22 h, et l'impact
-   estimé explosait jusqu'au badge « Critique ». On refuse désormais l'inversion, un
-   dysfonctionnement à cheval sur minuit se saisit en deux lignes. */
+/* Un dysfonctionnement peut légitimement franchir minuit : la base en contient
+   (20:00 → 02:45 le 25/07/2026). L'ancien calcul ajoutait donc 24 h dès que l'écart
+   était négatif, mais sans distinguer ce cas d'une simple inversion de saisie, si bien
+   que 10:00 → 08:00 donnait 22 h et un impact estimé « Critique ». On demande désormais
+   confirmation, et ce choix est mémorisé le temps de la saisie. */
+let _dysfNuit = false;
+
 function _dysfDureeMinutes() {
   const debut = document.getElementById('dysf-heure-debut').value;
   const fin   = document.getElementById('dysf-heure-fin').value;
   if (!debut || !fin) return null;
   const [dh, dm] = debut.split(':').map(Number);
   const [fh, fm] = fin.split(':').map(Number);
-  const diffMin = (fh * 60 + fm) - (dh * 60 + dm);
-  return diffMin > 0 ? diffMin : null;
+  let diffMin = (fh * 60 + fm) - (dh * 60 + dm);
+  if (diffMin > 0) return diffMin;
+  return _dysfNuit ? diffMin + 24 * 60 : null;
 }
 
 function calcDureeDysf() {
   const debut   = document.getElementById('dysf-heure-debut').value;
   const fin     = document.getElementById('dysf-heure-fin').value;
   const dureeEl = document.getElementById('dysf-duree');
-  const diffMin = _dysfDureeMinutes();
 
-  if (!debut || !fin) { dureeEl.value = ''; updateImpactEstime(); return; }
-  if (diffMin === null) {
-    dureeEl.value = '';
-    showToast('Heures incohérentes', "L'heure de fin doit être après l'heure de début.", true);
-    updateImpactEstime();
-    return;
+  if (!debut || !fin) { _dysfNuit = false; dureeEl.value = ''; updateImpactEstime(); return; }
+
+  const [dh, dm] = debut.split(':').map(Number);
+  const [fh, fm] = fin.split(':').map(Number);
+  if ((fh * 60 + fm) - (dh * 60 + dm) <= 0) {
+    _dysfNuit = confirm(
+      `L'heure de fin (${fin}) est antérieure à l'heure de début (${debut}).\n\n` +
+      `OK : le dysfonctionnement a franchi minuit.\n` +
+      `Annuler : c'est une erreur de saisie, je corrige les heures.`);
+    if (!_dysfNuit) { dureeEl.value = ''; updateImpactEstime(); return; }
+  } else {
+    _dysfNuit = false;
   }
+
+  const diffMin = _dysfDureeMinutes();
+  if (diffMin === null) { dureeEl.value = ''; updateImpactEstime(); return; }
 
   const h = Math.floor(diffMin / 60);
   const m = diffMin % 60;

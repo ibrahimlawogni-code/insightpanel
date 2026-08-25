@@ -47,5 +47,36 @@ t('casse indifferente', editSaisie('24/08/2026 09:10:00', 'ghislain.bah'), true)
 t('horodatage inconnu : refus signale', editSaisie('24/08/2026 17:45:00', 'Ghislain.Bah'), false);
 t('horodatage vide : refus signale', editSaisie('', 'Ghislain.Bah'), false);
 
+
+console.log('--- Dysfonctionnement a cheval sur minuit ---');
+// Cas reel en base : 25/07/2026, 20:00 -> 02:45.
+const champs = {};
+const vraiGet = document.getElementById;
+document.getElementById = id => ({
+  get value() { return champs[id] !== undefined ? champs[id] : ''; },
+  set value(v) { champs[id] = v; },
+  style: {}, classList: { add(){}, remove(){} }, innerHTML: '', textContent: ''
+});
+
+const duree = (debut, fin, repondreOui) => {
+  champs['dysf-heure-debut'] = debut;
+  champs['dysf-heure-fin']   = fin;
+  champs['dysf-duree']       = '';
+  champs['dysf-date']        = '';
+  champs['dysf-localite']    = '';
+  global.confirm = () => repondreOui;
+  calcDureeDysf();
+  return champs['dysf-duree'];
+};
+
+t('journee normale', duree('08:00', '10:30', false), '02h30');
+t('minuit confirme : duree correcte', duree('20:00', '02:45', true), '06h45');
+t('minuit refuse : duree videe', duree('20:00', '02:45', false), '');
+t('inversion refusee : duree videe', duree('10:00', '08:00', false), '');
+t('inversion confirmee comme nuit', duree('10:00', '08:00', true), '22h00');
+t('heure manquante', duree('08:00', '', false), '');
+
+document.getElementById = vraiGet;
+
 console.log(ko === 0 ? '\nTOUS LES TESTS PASSENT' : '\n' + ko + ' ECHEC(S)');
 process.exit(ko ? 1 : 0);

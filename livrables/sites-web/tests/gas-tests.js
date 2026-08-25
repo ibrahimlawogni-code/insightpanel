@@ -84,5 +84,44 @@ t('type au bon endroit', lu.type, 'swap');
 t('quantite au bon endroit', lu.quantite, 100);
 t('role au bon endroit', lu.auteurRole, 'agence');
 
+
+console.log('--- Lignes saisies directement dans Sheets (sans horodatage) ---');
+// Cas reel : 1048 des 1180 saisies de production ont ete tapees dans la feuille,
+// donc sans horodatage. Elles etaient indistinguables les unes des autres.
+const ENT2 = ['Date','SupID','SupNom','Zone','GrossAdd','MoMoUser','TotalDFA','DFAActif','Observation','Horodatage'];
+const feuilleSansTs = () => new FakeSheet('SaisiesVallee', [ENT2,
+  [D(2026,7,20),'Ghislain.Bah','Ghislain BAH','Akpro',10,9,40,30,'',''],
+  [D(2026,7,21),'Ghislain.Bah','Ghislain BAH','Akpro',20,18,40,30,'',''],
+  [D(2026,7,22),'Ghislain.Bah','Ghislain BAH','Akpro',30,27,40,30,'','']
+]);
+
+__SS = new FakeSS({ SaisiesVallee: feuilleSansTs() });
+const f = __SS.sheets.SaisiesVallee;
+t('mise a jour par numero de ligne', rep(G.handleUpdateSaisieVallee({
+  supId:'Ghislain.Bah', row:3, date:'2026-07-21', grossAdd:999, momoUser:888, totalDfa:40, dfaActif:30, observation:'corrige' })).success, true);
+t('ligne visee modifiee', f.rows[2][4], 999);
+t('ligne precedente intacte', f.rows[1][4], 10);
+t('ligne suivante intacte', f.rows[3][4], 30);
+
+// Garde-fou : si la feuille a bouge, la date ne concorde plus et on refuse.
+__SS = new FakeSS({ SaisiesVallee: feuilleSansTs() });
+const refus = rep(G.handleUpdateSaisieVallee({
+  supId:'Ghislain.Bah', row:3, date:'2026-07-22', grossAdd:1, momoUser:1 }));
+t('date discordante : ecriture refusee', refus.success, false);
+t('message explicite', refus.error.indexOf('changé de place') >= 0, true);
+t('aucune ligne touchee', __SS.sheets.SaisiesVallee.rows[2][4], 20);
+
+// Superviseur discordant : meme refus.
+__SS = new FakeSS({ SaisiesVallee: feuilleSansTs() });
+t('superviseur discordant : refus', rep(G.handleUpdateSaisieVallee({
+  supId:'Loukmane.Yessoufou', row:3, date:'2026-07-21', grossAdd:1, momoUser:1 })).success, false);
+
+// Sans numero de ligne, on retombe sur l horodatage comme avant.
+__SS = new FakeSS({ SaisiesVallee: nouvelleFeuille() });
+t('sans numero de ligne : recherche par horodatage', rep(G.handleUpdateSaisieVallee({
+  supId:'Ghislain.Bah', horodatage:'24/08/2026 17:45:00', grossAdd:5, momoUser:5, observation:'x' })).success, true);
+t('ligne hors bornes ignoree', rep(G.handleUpdateSaisieVallee({
+  supId:'Ghislain.Bah', row:9999, horodatage:'24/08/2026 09:10:00', grossAdd:7, momoUser:7, observation:'y' })).success, true);
+
 console.log(ko === 0 ? '\nTOUS LES TESTS BACKEND PASSENT' : '\n' + ko + ' ECHEC(S)');
 process.exit(ko ? 1 : 0);

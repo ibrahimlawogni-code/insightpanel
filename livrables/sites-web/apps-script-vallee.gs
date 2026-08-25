@@ -261,6 +261,29 @@ function handleUpdateSaisieVallee(data) {
   /* Comparaison insensible à la casse sur l'identifiant : les saisies enregistrées
      avec une casse différente restaient introuvables. */
   const idIn = _cellStr(data.supId).toLowerCase();
+  const cDate = headers.indexOf('date');
+
+  /* Les lignes saisies directement dans le Sheets n'ont pas d'horodatage, et sont donc
+     indistinguables les unes des autres. Le client renvoie alors le numéro de ligne lu.
+     On ne s'y fie pas aveuglément : superviseur et date doivent concorder, sinon la
+     feuille a bougé entre la lecture et l'écriture et on refuse plutôt que d'écraser
+     une ligne au hasard. */
+  const ligneVisee = Number(data.row) || 0;
+  if (ligneVisee > 1 && ligneVisee <= rows.length) {
+    const r = rows[ligneVisee - 1];
+    const memeSup  = _cellStr(r[COL.supId]).toLowerCase() === idIn;
+    const memeDate = cDate < 0 || !data.date || _dateKey(r[cDate]) === _dateKey(data.date);
+    if (!memeSup || !memeDate) {
+      return jsonResponse({ success: false, error: 'La ligne a changé de place entre-temps. Recharge la page et réessaie.' });
+    }
+    const set = (colIdx, val) => { if (colIdx >= 0) sheet.getRange(ligneVisee, colIdx + 1).setValue(val); };
+    set(COL.grossAdd,    Number(data.grossAdd) || 0);
+    set(COL.momoUser,    Number(data.momoUser) || 0);
+    set(COL.totalDfa,    Number(data.totalDfa) || 0);
+    set(COL.dfaActif,    Number(data.dfaActif) || 0);
+    set(COL.observation, data.observation || '');
+    return jsonResponse({ success: true, message: 'Saisie mise à jour.' });
+  }
 
   for (let i = 1; i < rows.length; i++) {
     const rowId = _cellStr(rows[i][COL.supId]).toLowerCase();
