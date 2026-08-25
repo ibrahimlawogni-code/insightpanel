@@ -2,8 +2,19 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Performance Team Vallée — ZEPHIR GROUP</title>
+
+<!-- Installation sur ordinateur et téléphone. Le manifeste, le service worker et les
+     icônes vivent à la racine du dépôt, là où GitHub Pages sert le site ; ils n'ont pas
+     de copie dans livrables/, contrairement à cette page. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="description" content="Suivi de performance de l'équipe Vallée — ZEPHIR GROUP, distributeur agréé MTN Bénin.">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Team Vallée">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231a1a1a'/%3E%3Cpath d='M24 74 L42 58 L60 42 L78 24' stroke='%23f8c200' stroke-width='9' stroke-linecap='round' stroke-linejoin='round' opacity='.85'/%3E%3Ccircle cx='24' cy='74' r='7' fill='%23f8c200' opacity='.55'/%3E%3Ccircle cx='42' cy='58' r='7.5' fill='%23f8c200' opacity='.75'/%3E%3Ccircle cx='60' cy='42' r='8' fill='%23f8c200' opacity='.9'/%3E%3Ccircle cx='78' cy='24' r='9.5' fill='%23f8c200'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -193,6 +204,43 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-row { text-align: center; padding: 30px; color: var(--text-muted); }
 
+  /* ── INSTALLATION ET HORS LIGNE ── */
+  .btn-installer {
+    display: none; width: 100%; align-items: center; gap: 10px;
+    padding: 10px 12px; margin-bottom: 6px;
+    background: rgba(248,194,0,.14); border: 1px solid rgba(248,194,0,.35);
+    border-radius: 8px; color: var(--mtn-yellow);
+    font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+    text-align: left; transition: background .15s;
+  }
+  .btn-installer:hover { background: rgba(248,194,0,.24); }
+  .btn-installer.visible { display: flex; }
+
+  #barre-hors-ligne {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9998;
+    background: var(--warning); color: #fff;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; text-align: center;
+    box-shadow: 0 -2px 12px rgba(0,0,0,.25);
+  }
+  #barre-hors-ligne.visible { display: block; }
+
+  #barre-maj {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9997;
+    background: var(--mtn-dark); color: #fff;
+    padding: 10px 16px; font-size: 13px; font-weight: 600;
+    align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+    box-shadow: 0 -2px 12px rgba(0,0,0,.35);
+  }
+  #barre-maj.visible { display: flex; }
+  /* Décalée quand les deux barres coexistent, pour ne pas se recouvrir. */
+  #barre-hors-ligne.visible ~ #barre-maj.visible { bottom: 40px; }
+
+  /* Encoche des téléphones récents : en mode installé, la page occupe tout l'écran. */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    #barre-hors-ligne { padding-bottom: calc(9px + env(safe-area-inset-bottom)); }
+    .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+  }
+
   /* ── MOBILE ── */
   .hamburger { display: none; background: none; border: none; cursor: pointer; font-size: 22px; padding: 4px; }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
@@ -213,6 +261,14 @@
 <body>
 
 <div id="toast-container"></div>
+<div id="barre-hors-ligne"><i class="fa fa-plug-circle-xmark"></i> Hors ligne — les chiffres affichés datent de la dernière connexion</div>
+<div id="barre-maj">
+  <span><i class="fa fa-arrows-rotate"></i> Une nouvelle version est disponible.</span>
+  <span style="display:flex;gap:8px">
+    <button onclick="appliquerMiseAJour()" style="background:#fff;color:var(--mtn-dark);border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Recharger</button>
+    <button onclick="document.getElementById('barre-maj').classList.remove('visible')" style="background:none;border:none;color:rgba(255,255,255,.75);font-size:12px;cursor:pointer;font-family:inherit">Plus tard</button>
+  </span>
+</div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- ══ LOGIN ══ -->
@@ -302,6 +358,9 @@
         </button>
       </nav>
       <div class="sidebar-footer">
+        <button class="btn-installer" id="btn-installer" onclick="installerApplication()">
+          <i class="fa fa-circle-down"></i> <span id="btn-installer-texte">Installer l'application</span>
+        </button>
         <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
           <i class="fa fa-right-from-bracket"></i> Déconnexion
         </button>
@@ -1467,7 +1526,14 @@ function startSession(user) {
 
   _dashRefDate = new Date(today);
   const _navMap   = { dashboard: 'nav-dashboard', saisie: 'nav-saisie', stocks: 'nav-stocks', dysfonctionnement: 'nav-dysf', swap: 'nav-swap', rapport: 'nav-rapport', demandes: 'nav-demandes', parametres: 'nav-parametres' };
-  const _lastView = (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
+  /* Raccourcis de l'application installée (appui long sur l'icône) : ?vue=saisie,
+     ?vue=swap, ?vue=rapport. Ils priment sur la dernière vue mémorisée, puisqu'ils
+     expriment une intention explicite. */
+  const _vueDemandee = (() => {
+    try { return new URLSearchParams(location.search).get('vue'); } catch (_) { return null; }
+  })();
+  const _lastView = _vueDemandee
+    || (() => { try { return sessionStorage.getItem('tv_last_view'); } catch(_) { return null; } })();
   /* Agence et Service CARE n'ont ni Saisie du jour ni Dysfonctionnements : sans ces deux
      cas, une vue restaurée les rouvrait alors que le menu correspondant est masqué. */
   const _isFieldRestricted = FIELD_RESTRICTED_ROLES.includes(currentUser.role);
@@ -4224,6 +4290,138 @@ function renderDysfHist() {
       </tr>`).join('')
     : '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Aucun dysfonctionnement enregistré.</td></tr>';
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INSTALLATION SUR ORDINATEUR ET TÉLÉPHONE
+   ══════════════════════════════════════════════════════════════════════════════
+   L'application s'installe comme une application native : icône sur le bureau ou
+   l'écran d'accueil, ouverture en plein écran sans barre d'adresse, et enveloppe
+   disponible hors connexion. Les données restent en ligne, voir sw.js.
+   ────────────────────────────────────────────────────────────────────────────── */
+
+let _invitationInstall = null;   // événement mémorisé, à rejouer au clic de l'utilisateur
+let _swEnAttente       = null;   // nouvelle version installée, prête à prendre la main
+
+const _estIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);   // iPad récent
+const _dejaInstallee = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+
+/* Le navigateur signale que l'application remplit les critères d'installation. On garde
+   l'événement : il ne peut être rejoué que sur un geste de l'utilisateur. */
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _invitationInstall = e;
+  _majBoutonInstaller();
+});
+
+window.addEventListener('appinstalled', () => {
+  _invitationInstall = null;
+  _majBoutonInstaller();
+  showToast('Application installée', 'Tu peux maintenant l\'ouvrir depuis ton écran d\'accueil.', false);
+});
+
+function _majBoutonInstaller() {
+  const btn = document.getElementById('btn-installer');
+  if (!btn) return;
+  const texte = document.getElementById('btn-installer-texte');
+
+  if (_dejaInstallee) { btn.classList.remove('visible'); return; }
+
+  if (_invitationInstall) {
+    texte.textContent = "Installer l'application";
+    btn.classList.add('visible');
+  } else if (_estIOS) {
+    /* Safari n'expose pas beforeinstallprompt : l'installation passe par le menu
+       Partager, donc on explique au lieu de proposer un bouton qui ne ferait rien. */
+    texte.textContent = "Ajouter à l'écran d'accueil";
+    btn.classList.add('visible');
+  } else {
+    btn.classList.remove('visible');
+  }
+}
+
+async function installerApplication() {
+  if (_invitationInstall) {
+    _invitationInstall.prompt();
+    const { outcome } = await _invitationInstall.userChoice;
+    _invitationInstall = null;
+    _majBoutonInstaller();
+    if (outcome !== 'accepted') showToast('Installation annulée', 'Tu pourras la relancer depuis ce bouton.', false);
+    return;
+  }
+  if (_estIOS) {
+    alert(
+      "Pour installer Team Vallée sur ton iPhone ou iPad :\n\n" +
+      "1. Appuie sur le bouton Partager, en bas de Safari (le carré avec une flèche vers le haut)\n" +
+      "2. Fais défiler et choisis « Sur l'écran d'accueil »\n" +
+      "3. Appuie sur « Ajouter »\n\n" +
+      "L'application apparaîtra sur ton écran d'accueil, avec son icône et sans barre d'adresse.");
+  }
+}
+
+/* ── ÉTAT DE LA CONNEXION ──
+   Le bandeau est plus qu'un confort : hors ligne, les données affichées sont celles du
+   dernier chargement réussi, et rien à l'écran ne le dirait autrement. */
+function _majEtatConnexion() {
+  const barre = document.getElementById('barre-hors-ligne');
+  if (barre) barre.classList.toggle('visible', !navigator.onLine);
+}
+window.addEventListener('online',  () => { _majEtatConnexion(); showToast('Connexion rétablie', 'Recharge la page pour actualiser les chiffres.', false); });
+window.addEventListener('offline', _majEtatConnexion);
+
+/* ── MISE À JOUR ──
+   Sans ça, un navigateur qui a déjà installé un service worker peut continuer à servir
+   l'ancienne version longtemps après une mise en ligne. */
+function appliquerMiseAJour() {
+  if (!_swEnAttente) { location.reload(); return; }
+  _swEnAttente.postMessage('activer-maintenant');
+  /* controllerchange se déclenche quand la nouvelle version prend la main. */
+}
+
+function _proposerMiseAJour(sw) {
+  _swEnAttente = sw;
+  const barre = document.getElementById('barre-maj');
+  if (barre) barre.classList.add('visible');
+}
+
+(function enregistrerServiceWorker() {
+  _majEtatConnexion();
+  _majBoutonInstaller();
+
+  if (!('serviceWorker' in navigator)) return;
+  /* Le service worker exige un contexte sécurisé. En ouverture directe du fichier
+     (file://) ou en HTTP simple, on n'essaie même pas : l'application fonctionne
+     normalement, elle n'est simplement pas installable. */
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    if (reg.waiting) _proposerMiseAJour(reg.waiting);
+
+    reg.addEventListener('updatefound', () => {
+      const nouveau = reg.installing;
+      if (!nouveau) return;
+      nouveau.addEventListener('statechange', () => {
+        /* controller non nul : ce n'est pas la première installation mais une mise à
+           jour, donc il y a bien quelque chose à proposer à l'utilisateur. */
+        if (nouveau.state === 'installed' && navigator.serviceWorker.controller) _proposerMiseAJour(nouveau);
+      });
+    });
+
+    /* Vérification à chaque retour sur l'application : sur un téléphone, l'onglet reste
+       ouvert des semaines et le contrôle automatique n'aurait jamais lieu. */
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) reg.update().catch(() => {});
+    });
+  }).catch(err => console.warn('[sw] enregistrement impossible :', err));
+
+  let rechargement = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (rechargement) return;      // garde : Chrome peut émettre l'événement deux fois
+    rechargement = true;
+    location.reload();
+  });
+})();
 </script>
 </body>
 </html>

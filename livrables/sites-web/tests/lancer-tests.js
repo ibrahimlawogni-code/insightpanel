@@ -12,7 +12,8 @@ const SUITES = [
   ['gas-tests.js',  'Backend : horodatage, heures, doublons, références'],
   ['gas-tests2.js', 'Backend : verrou, archivage des réponses'],
   ['gas-tests3.js', 'Backend : grille pleine, migration de colonnes'],
-  ['gas-tests4.js', 'Backend : verrou imbriqué, création concurrente']
+  ['gas-tests4.js', 'Backend : verrou imbriqué, création concurrente'],
+  ['pwa-tests.js',  'Installation : manifeste, icônes, service worker']
 ];
 
 let echecs = 0;

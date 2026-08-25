@@ -36,6 +36,12 @@ environnements absents en ligne de commande. Deux harnais les simulent :
 | `gas-tests2.js` | Verrou limité aux écritures, archivage qui ne prend pas nos propres envois pour des réponses |
 | `gas-tests3.js` | Écriture sur une feuille saturée, migration de colonnes sans duplication |
 | `gas-tests4.js` | Verrou non repris quand `doPost` le détient déjà, création de feuille concurrente, auto-réparation des en-têtes |
+| `pwa-tests.js` | Installation : manifeste valide, icônes présentes et aux dimensions annoncées, cibles des raccourcis existantes, service worker cohérent, copie racine synchronisée |
+
+`pwa-tests.js` ne s'appuie sur aucun harnais : il confronte les fichiers d'installation
+entre eux et au contenu réel du dépôt. Il lit par exemple l'en-tête d'un PNG pour vérifier
+que ses dimensions correspondent à celles annoncées dans le manifeste, et que la liste
+préchargée par le service worker ne cite aucun fichier absent.
 
 ## Ajouter un cas
 
