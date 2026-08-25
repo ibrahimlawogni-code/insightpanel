@@ -9,7 +9,7 @@
  * déclenche le nettoyage des anciens caches et la proposition de rechargement.
  */
 
-const VERSION = 'tv-2026-08-25-1';
+const VERSION = 'tv-2026-08-25-2';
 const CACHE_COQUE = VERSION + '-coque';
 
 /* Enveloppe de l'application : sans réseau, c'est ce qui permet quand même de l'ouvrir. */
@@ -91,7 +91,11 @@ async function reseauDabord(req) {
     if (rep && rep.ok) cache.put(req, rep.clone());
     return rep;
   } catch (_) {
-    const enCache = await cache.match(req) || await cache.match('./team-vallee.html');
+    /* ignoreSearch : les raccourcis de l'application ouvrent team-vallee.html?vue=saisie,
+       qui ne correspondrait sinon à aucune entrée du cache. On ne se rabat jamais sur une
+       autre page : ce service worker couvre aussi InsightPanel, servi depuis la même
+       portée, et lui répondre avec TeamVallée serait pire que de dire « hors ligne ». */
+    const enCache = await cache.match(req, { ignoreSearch: true });
     if (enCache) return enCache;
     return new Response(
       '<!doctype html><meta charset="utf-8"><title>Hors ligne</title>' +
