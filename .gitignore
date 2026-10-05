@@ -49,3 +49,14 @@ yarn-error.log*
 tmp/
 temp/
 .cache/
+
+# ============================================================
+# Assistant personnel Oscar — privé, jamais publié
+# Le dépôt est public (GitHub Pages) : tout fichier suivi est
+# lisible par n'importe qui. Ces fichiers restent sur le PC.
+# ============================================================
+context/
+CLAUDE.md
+.claude/
+.agents/
+skills-lock.json
