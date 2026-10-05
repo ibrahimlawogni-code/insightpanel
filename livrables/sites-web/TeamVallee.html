@@ -1388,14 +1388,17 @@ function _majBandeauEchec() {
 }
 
 /* ── LECTURE DES DONNÉES ──
-   Apps Script répond lentement (10 à 70 s observés) et refuse une partie des requêtes
-   quand trop arrivent en même temps : il renvoie alors une page d'erreur HTML au lieu du
-   JSON attendu. À la connexion, l'application lançait ses neuf lectures d'un coup et un
-   module refusé restait vide jusqu'au rechargement de la page.
-   _lireVallee étale les lectures (quelques-unes à la fois) et retente celles qui échouent.
+   Une réponse d'Apps Script se récupère en deux temps : le script s'exécute, puis
+   Google redirige le navigateur vers script.googleusercontent.com pour lire le résultat.
+   Cette seconde étape échoue au hasard chez Google, environ une fois sur trois mesurée
+   le 05/10/2026, même requêtes envoyées une par une : page « Impossible d'ouvrir le
+   fichier pour le moment » (404), ou redirection vers la page d'accueil du script.
+   Sans nouvel essai, un module sur trois restait vide jusqu'au rechargement de la page.
+   _lireVallee étale les lectures (quelques-unes à la fois) et retente celles qui échouent :
+   avec quatre nouveaux essais, un module ne reste vide qu'environ 2 fois sur 1 000.
    Réservé aux lectures : une écriture rejouée risquerait de créer un doublon. */
 const LECTURES_SIMULTANEES = 3;
-const DELAIS_NOUVEL_ESSAI  = [2000, 6000];   // deux nouvelles tentatives, de plus en plus espacées
+const DELAIS_NOUVEL_ESSAI  = [1000, 2000, 4000, 8000];   // quatre nouveaux essais, de plus en plus espacés
 let _lecturesEnCours = 0;
 const _fileLectures  = [];
 

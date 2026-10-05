@@ -9,7 +9,7 @@
  * déclenche le nettoyage des anciens caches et la proposition de rechargement.
  */
 
-const VERSION = 'tv-2026-10-05-1';
+const VERSION = 'tv-2026-10-05-2';
 const CACHE_COQUE = VERSION + '-coque';
 
 /* Enveloppe de l'application : sans réseau, c'est ce qui permet quand même de l'ouvrir. */
