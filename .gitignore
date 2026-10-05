@@ -63,3 +63,6 @@ skills-lock.json
 
 # Analyses de données (performances des superviseurs) : privées, jamais publiées
 livrables/analyses/
+
+# Diagnostics de design (outil impeccable) : internes
+.impeccable/
