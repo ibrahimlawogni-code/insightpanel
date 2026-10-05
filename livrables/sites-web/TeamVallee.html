@@ -1226,7 +1226,11 @@ let VALLEE_DEMANDES = []; // [{ ref, date, destinataireNom, destinataireEmail, d
 let _demandesLoaded   = false;
 let _demandesInFlight = null;
 let _chargementGlobal      = null;   // promesse du chargement de tous les modules en cours
-let _derniereActualisation = 0;      // horodatage (ms) du dernier chargement complet terminé
+let _derniereActualisation = 0;      // horodatage (ms) des chiffres affichés
+/* Copie locale des dernières données reçues (voir « COPIE LOCALE » plus bas). */
+const PREFIXE_CACHE  = 'tv_cache:';
+let _modeCache       = false;        // vrai pendant la restauration : _lireVallee lit la copie locale
+let _donneesDuCache  = {};           // action → horodatage (ms) de la copie affichée, tant que le serveur n'a pas répondu
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -1378,13 +1382,111 @@ function _rebuildSupsList() {
    réseau se lisait à l'écran comme un chiffre légitime. */
 const MODULES_EN_ECHEC = new Set();
 
+/* Deux cas d'échec à ne pas confondre à l'écran : un module sans aucune donnée (ses
+   chiffres sont faux, à zéro), et un module qui affiche sa copie locale (ses chiffres
+   sont justes, mais datés). */
 function _majBandeauEchec() {
   const el = document.getElementById('dash-no-data');
   if (!el || !MODULES_EN_ECHEC.size) return;
+  const echecs   = [...MODULES_EN_ECHEC];
+  const vides    = echecs.filter(l => !_heureCachePour(l));
+  const dates    = echecs.filter(l => _heureCachePour(l));
+  const phrases  = [];
+  if (vides.length) phrases.push(`Données incomplètes : ${esc(vides.join(', '))} indisponible(s).`);
+  if (dates.length) {
+    const plusAncienne = Math.min(...dates.map(_heureCachePour));
+    /* Panne générale : la liste des neuf modules n'apprendrait rien de plus. */
+    const quoi = dates.length >= 3 ? 'Serveur injoignable' : `Actualisation impossible pour ${esc(dates.join(', '))}`;
+    phrases.push(`${quoi} : derniers chiffres connus affichés (${esc(_formaterMoment(plusAncienne))}).`);
+  }
   el.style.display = 'flex';
-  el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i>
-    Données incomplètes : ${esc([...MODULES_EN_ECHEC].join(', '))} indisponible(s).
+  el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:${vides.length ? 'var(--danger)' : 'var(--warning)'}"></i>
+    <span>${phrases.join(' ')}</span>
     <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="actualiserDonnees()">Réessayer</button>`;
+}
+
+/* ── COPIE LOCALE ──
+   Chaque lecture réussie est gardée dans le navigateur. À l'ouverture, les modules sont
+   d'abord remplis depuis cette copie, puis relus sur le serveur : l'écran n'est jamais
+   vide, et si Google refuse la relecture, ce sont les derniers chiffres connus (datés)
+   qui restent affichés plutôt que des zéros.
+   La copie appartient au compte connecté : elle est ignorée pour un autre compte et
+   effacée à la déconnexion. */
+function _modulesDonnees() {
+  return [
+    { charger: loadSaisies,                action: 'getSaisiesVallee',      libelle: 'Saisies' },
+    { charger: loadStock,                  action: 'getStockVallee',        libelle: 'Stocks SIM' },
+    { charger: loadDysf,                   action: 'getDysfVallee',         libelle: 'Dysfonctionnements' },
+    { charger: loadKpiReel,                action: 'getKpiReelVallee',      libelle: 'KPI NEW ADD réel' },
+    { charger: loadEnlevements,            action: 'getEnlevementsVallee',  libelle: 'Enlèvements globaux' },
+    { charger: loadSwap,                   action: 'getSwapVallee',         libelle: 'SWAP' },
+    { charger: loadObjectifs,              action: 'getObjectifsVallee',    libelle: 'Objectifs mensuels' },
+    { charger: loadUtilisateursDynamiques, action: 'getUtilisateursVallee', libelle: 'Comptes utilisateurs' },
+    { charger: loadDemandesVallee,         action: 'getDemandesVallee',     libelle: 'Courriers' }
+  ];
+}
+
+function _lireCache(action) {
+  try {
+    const brut = localStorage.getItem(PREFIXE_CACHE + action);
+    if (!brut) return null;
+    const c = JSON.parse(brut);
+    if (!currentUser || !sameId(c.proprietaire, currentUser.id) || !c.json) return null;
+    return c;
+  } catch (_) { return null; }
+}
+
+function _ecrireCache(action, json) {
+  if (!currentUser) return;
+  try {
+    localStorage.setItem(PREFIXE_CACHE + action, JSON.stringify({ proprietaire: currentUser.id, ts: Date.now(), json }));
+  } catch (err) {
+    /* Mémoire du navigateur pleine : l'application fonctionne sans copie, comme avant. */
+    console.warn('[cache] copie locale impossible pour ' + action + ' :', err);
+  }
+}
+
+function _viderCache() {
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith(PREFIXE_CACHE)).forEach(k => localStorage.removeItem(k));
+  } catch (_) {}
+  _donneesDuCache = {};
+}
+
+/* Horodatage de la copie locale affichée pour un module, ou undefined s'il affiche des
+   données fraîches (ou rien). */
+function _heureCachePour(libelle) {
+  const m = _modulesDonnees().find(x => x.libelle === libelle);
+  return m ? _donneesDuCache[m.action] : undefined;
+}
+
+/* « de 16:42 » aujourd'hui, « du 04/10 à 18:05 » un autre jour. */
+function _formaterMoment(ms) {
+  const d = new Date(ms);
+  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (_dateToISO(d) === _dateToISO(new Date())) return 'de ' + heure;
+  return 'du ' + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' à ' + heure;
+}
+
+/* Remplit les modules depuis la copie locale. Les chargeurs sont appelés normalement :
+   en mode cache, _lireVallee leur rend la copie au lieu d'interroger le serveur, si bien
+   que tout ce qu'ils font à réception (rendus, contrôle du rôle) s'applique à l'identique.
+   _modeCache n'est lu qu'au tout début de _lireVallee, avant sa première attente : il
+   suffit donc qu'il soit vrai pendant les appels, qui sont synchrones jusque-là. */
+function _restaurerDepuisCache() {
+  const promesses = [];
+  _modeCache = true;
+  try {
+    _modulesDonnees().forEach(m => { if (_lireCache(m.action)) promesses.push(m.charger(true)); });
+  } finally {
+    _modeCache = false;
+  }
+  return Promise.allSettled(promesses).then(() => {
+    const horodatages = Object.values(_donneesDuCache);
+    if (!horodatages.length) return;
+    _derniereActualisation = Math.min(...horodatages);
+    _majBoutonActualiser();
+  });
 }
 
 /* ── LECTURE DES DONNÉES ──
@@ -1414,6 +1516,10 @@ function _libererCreneau() {
 }
 
 async function _lireVallee(action) {
+  if (_modeCache) {
+    const c = _lireCache(action);
+    if (c) { _donneesDuCache[action] = c.ts; return c.json; }
+  }
   for (let essai = 0; ; essai++) {
     await _prendreCreneau();
     try {
@@ -1421,8 +1527,13 @@ async function _lireVallee(action) {
       /* Lu en texte d'abord : la page d'erreur de Google fait échouer res.json() avec un
          message illisible, alors qu'il s'agit d'un refus passager à retenter. */
       const texte = await res.text();
-      try { return JSON.parse(texte); }
+      let json;
+      try { json = JSON.parse(texte); }
       catch (_) { throw new Error('Réponse illisible du serveur (HTTP ' + res.status + ')'); }
+      /* Seule une réponse réussie remplace la copie locale : une erreur du serveur ne
+         doit pas effacer les derniers chiffres connus. */
+      if (json && json.success) { _ecrireCache(action, json); delete _donneesDuCache[action]; }
+      return json;
     } catch (err) {
       /* Hors ligne, retenter ne sert à rien : on échoue tout de suite. */
       if (essai >= DELAIS_NOUVEL_ESSAI.length || !navigator.onLine) throw err;
@@ -1438,8 +1549,12 @@ async function _lireVallee(action) {
 function _echecChargement(libelle, detail) {
   MODULES_EN_ECHEC.add(libelle);
   console.error('[' + libelle + ']', detail);
-  showToast('Chargement incomplet', libelle + " n'a pas pu être chargé. Les chiffres affichés sont incomplets.", true);
+  /* Pas de notification quand la copie locale prend le relais : les chiffres affichés
+     restent justes, le bandeau et le bouton « Réessayer » suffisent à le signaler. Une
+     notification par module, en cas de panne générale, en empilait neuf à l'écran. */
+  if (!_heureCachePour(libelle)) showToast('Chargement incomplet', libelle + " n'a pas pu être chargé. Les chiffres affichés sont incomplets.", true);
   _majBandeauEchec();
+  _majBoutonActualiser();
 }
 
 /* Un module qui finit par répondre lève son propre signalement. Sans ça, un incident
@@ -1632,7 +1747,9 @@ function startSession(user) {
   const _view     = (_lastView && _navMap[_lastView] && !_viewBlocked) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
   _updateDashControls();
-  _chargerTout(false);
+  /* D'abord la copie locale (instantané), puis le serveur. Sans copie, la restauration
+     ne fait rien et le chargement se déroule comme avant. */
+  _restaurerDepuisCache().then(() => _chargerTout(true));
 }
 
 /* Le rôle restauré depuis sessionStorage n'est pas digne de confiance : il suffisait de
@@ -1869,8 +1986,8 @@ async function saveParametres() {
       }
     }
     showToast('Objectifs enregistrés', `${aEnvoyer.length} mois mis à jour pour toute l'équipe.`, false);
-    _objectifsLoaded = false; _objectifsInFlight = null; _objectifsNonDeployes = false;
-    await loadObjectifs();
+    _objectifsInFlight = null; _objectifsNonDeployes = false;
+    await loadObjectifs(true);   // relecture forcée : l'écran garde les données en attendant
     _renderDfaWeights();
   } catch (e) {
     showToast('Erreur', e.message, true);
@@ -1885,6 +2002,8 @@ function doLogout() {
   _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false; _demandesLoaded = false;
   _derniereActualisation = 0;
   document.getElementById('maj-heure').textContent = 'Actualiser';
+  /* Les données de l'équipe ne restent pas sur l'appareil après la déconnexion. */
+  _viderCache();
   VALLEE_SUPS = [...VALLEE_SUPS_BASE];
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
@@ -2703,6 +2822,21 @@ function resetSaisieForm() {
   btn.classList.remove('btn-danger'); btn.classList.add('btn-primary');
 }
 
+/* Reporte à l'écran une saisie que le serveur a confirmée mais que la relecture n'a pas
+   pu ramener. Même repérage que editSaisie : numéro de ligne d'abord, horodatage ensuite. */
+function _appliquerSaisieLocale(p, horodatageServeur) {
+  const valeurs = { date: isoToFR(p.date), grossAdd: p.grossAdd, momoUser: p.momoUser,
+                    totalDfa: p.totalDfa, dfaActif: p.dfaActif, observation: p.observation };
+  if (p.action === 'updateSaisieVallee') {
+    const entry = (p.row && VALLEE_SAISIES.find(r => r._row === Number(p.row)))
+      || VALLEE_SAISIES.find(r => r.horodatage === p.horodatage && sameId(r.supId, p.supId));
+    if (entry) Object.assign(entry, valeurs);
+    return;
+  }
+  VALLEE_SAISIES.push({ ...valeurs, supId: p.supId, supNom: p.supNom, zone: p.zone,
+                        horodatage: horodatageServeur || '', _row: null });
+}
+
 function editSaisie(horodatage, supId, row) {
   /* Renvoie true si le formulaire est bien passé en mode modification. Les appelants
      doivent le tester : sans ça, on pouvait annoncer « clique sur Modifier » alors que
@@ -2791,8 +2925,8 @@ async function saveSaisie() {
         /* La ligne en conflit peut avoir été créée après le dernier chargement, par un
            autre poste ou un autre onglet : sans ce rafraîchissement, editSaisie ne la
            trouve pas dans le cache et la saisie en cours est perdue. */
-        _saisiesLoaded = false; _saisiesInFlight = null;
-        await loadSaisies();
+        _saisiesInFlight = null;
+        await loadSaisies(true);   // relecture forcée : l'écran garde les données en attendant
 
         if (!editSaisie(json.horodatage, sup.id)) {
           /* La ligne en conflit reste introuvable (horodatage vide, rechargement en
@@ -2822,9 +2956,13 @@ async function saveSaisie() {
 
     if (json.success) {
       showToast(_editingTs ? 'Saisie modifiée' : 'Saisie enregistrée', json.message || '', false);
-      /* Invalider le cache et recharger */
-      _saisiesLoaded = false; _saisiesInFlight = null;
-      await loadSaisies();
+      /* Relire depuis le serveur pour afficher la saisie telle qu'enregistrée */
+      _saisiesInFlight = null;
+      await loadSaisies(true);   // relecture forcée : l'écran garde les données en attendant
+      /* Le serveur a confirmé l'enregistrement, mais Google a pu refuser la relecture :
+         la saisie est alors reportée à l'écran sans attendre, pour ne pas laisser croire
+         qu'elle a été perdue. La prochaine actualisation réussie la remplacera. */
+      if (MODULES_EN_ECHEC.has('Saisies')) _appliquerSaisieLocale(payload, json.horodatage);
       renderDashboard(); renderSaisieHist();
       resetSaisieForm();
     } else {
@@ -2965,8 +3103,8 @@ async function saveStock() {
     const json = await res.json();
     if (json.success) {
       showToast('Stock enregistré', json.message || '', false);
-      _stockLoaded = false; _stockInFlight = null;
-      await loadStock();
+      _stockInFlight = null;
+      await loadStock(true);   // relecture forcée : l'écran garde les données en attendant
       renderStockTable();
       ['stock-sim-debut','stock-sim-fin','stock-quantite'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     } else {
@@ -3074,8 +3212,8 @@ async function saveEnlevement() {
     const json = await res.json();
     if (json.success) {
       showToast('Enlèvement enregistré', '', false);
-      _enlvLoaded = false; _enlvInFlight = null;
-      await loadEnlevements();
+      _enlvInFlight = null;
+      await loadEnlevements(true);   // relecture forcée : l'écran garde les données en attendant
       ['enlv-sim-debut', 'enlv-sim-fin', 'enlv-quantite'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     } else {
       showToast('Erreur', json.error || 'Erreur inconnue.', true);
@@ -3148,8 +3286,8 @@ async function saveSwap() {
     const json = await res.json();
     if (json.success) {
       showToast('SWAP enregistré', '', false);
-      _swapLoaded = false; _swapInFlight = null;
-      await loadSwap();
+      _swapInFlight = null;
+      await loadSwap(true);   // relecture forcée : l'écran garde les données en attendant
       document.getElementById('swap-sim').value    = '';
       document.getElementById('swap-swaper').value = '';
     } else {
@@ -3834,8 +3972,8 @@ async function sendDemandeEmail() {
     } else {
       showToast('Courrier enregistré et envoyé par email', `Référence ${ref}`, false);
     }
-    _demandesLoaded = false; _demandesInFlight = null;
-    await loadDemandesVallee();
+    _demandesInFlight = null;
+    await loadDemandesVallee(true);   // relecture forcée : l'écran garde les données en attendant
     document.getElementById('dem-dest-nom').value    = '';
     document.getElementById('dem-dest-email').value  = '';
     document.getElementById('dem-cc').value          = '';
@@ -4138,8 +4276,8 @@ async function saveKpiReel() {
       if (!json.success) throw new Error(json.error || 'Erreur inconnue.');
     }
     showToast('KPI NEW ADD réel enregistré', `${toSave.length} mois mis à jour.`, false);
-    _kpiReelLoaded = false; _kpiReelInFlight = null;
-    await loadKpiReel();
+    _kpiReelInFlight = null;
+    await loadKpiReel(true);   // relecture forcée : l'écran garde les données en attendant
   } catch (e) {
     showToast('Erreur', e.message, true);
   }
@@ -4216,8 +4354,8 @@ async function saveUtilisateur() {
       confirmEl.style.display = '';
       confirmEl.innerHTML = `<i class="fa fa-triangle-exclamation"></i> Compte créé : identifiant <strong>${esc(id)}</strong>, mot de passe <strong>${esc(pwd)}</strong>. Note-les, ils ne seront plus affichés.`;
       showToast('Compte créé', '', false);
-      _usersDynLoaded = false; _usersDynInFlight = null;
-      await loadUtilisateursDynamiques();
+      _usersDynInFlight = null;
+      await loadUtilisateursDynamiques(true);   // relecture forcée : l'écran garde les données en attendant
       document.getElementById('user-new-nom').value  = '';
       document.getElementById('user-new-zone').value = '';
       document.getElementById('user-new-id').value   = '';
@@ -4278,8 +4416,8 @@ async function saveDysf() {
     const json = await res.json();
     if (json.success) {
       showToast('Dysfonctionnement enregistré', '', false);
-      _dysfLoaded = false; _dysfInFlight = null;
-      await loadDysf();
+      _dysfInFlight = null;
+      await loadDysf(true);   // relecture forcée : l'écran garde les données en attendant
       document.getElementById('dysf-nature').value         = '';
       document.getElementById('dysf-heure-debut').value    = '';
       document.getElementById('dysf-heure-fin').value      = '';
@@ -4486,9 +4624,13 @@ function _majBoutonActualiser() {
     btn.title = 'Certaines données n\'ont pas pu être chargées. Toucher pour réessayer.';
     return;
   }
-  const heure = new Date(_derniereActualisation).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  libelle.textContent = heure;
-  btn.title = 'Données chargées à ' + heure + '. Toucher pour actualiser.';
+  const d = new Date(_derniereActualisation);
+  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  /* Une copie locale de la veille doit se voir comme telle : l'heure seule tromperait. */
+  libelle.textContent = _dateToISO(d) === _dateToISO(new Date())
+    ? heure
+    : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) + ' ' + heure;
+  btn.title = 'Chiffres ' + _formaterMoment(_derniereActualisation) + '. Toucher pour actualiser.';
 }
 
 /* La date du jour (today, todayISO) est calculée une seule fois, à l'ouverture. Une
