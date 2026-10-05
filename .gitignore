@@ -60,3 +60,6 @@ CLAUDE.md
 .claude/
 .agents/
 skills-lock.json
+
+# Analyses de données (performances des superviseurs) : privées, jamais publiées
+livrables/analyses/
