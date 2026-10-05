@@ -97,10 +97,21 @@
   .sidebar-footer { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,.1); }
 
   /* ── MAIN CONTENT ── */
-  .main-content { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
+  /* min-width: 0 est indispensable : sans lui, un élément de la page trop large pour
+     l'écran (la rangée d'onglets de période, un tableau) élargit toute la colonne, et
+     sur téléphone c'est l'écran entier qui déborde à droite au lieu de ce seul élément. */
+  .main-content { flex: 1; min-width: 0; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
   .topbar { background: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
   .topbar-title { font-size: 17px; font-weight: 700; }
   .topbar-date { font-size: 13px; color: var(--text-muted); }
+  .topbar-droite { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  /* Icône en caractère texte plutôt qu'en FontAwesome : sur réseau lent, la police
+     d'icônes peut ne jamais arriver et le bouton deviendrait invisible. */
+  .btn-actualiser { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .btn-actualiser:hover { border-color: var(--mtn-yellow); }
+  .btn-actualiser:disabled { cursor: wait; opacity: .7; }
+  .btn-actualiser-icone { font-size: 15px; line-height: 1; display: inline-block; }
+  .btn-actualiser.en-cours .btn-actualiser-icone { animation: spin .8s linear infinite; }
   .page-body { padding: 24px; flex: 1; }
 
   /* ── CARDS ── */
@@ -120,8 +131,11 @@
   .kpi-pct.bad  { color: var(--danger); }
 
   /* ── PERIOD SELECTOR ── */
-  .period-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 16px; width: fit-content; }
-  .period-tab { padding: 6px 14px; border-radius: 6px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); transition: background .15s; }
+  /* Sur un écran étroit, les six onglets défilent horizontalement au lieu de pousser
+     la page hors de l'écran. */
+  .period-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 16px; width: fit-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .period-tabs::-webkit-scrollbar { display: none; }
+  .period-tab { padding: 6px 14px; border-radius: 6px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); transition: background .15s; white-space: nowrap; flex-shrink: 0; }
   .period-tab.active { background: #fff; color: var(--mtn-dark); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 
   /* ── TABLES ── */
@@ -135,7 +149,9 @@
 
   /* ── FORM ── */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  /* min-width: 0 laisse les champs (date, liste déroulante) se rétrécir à la largeur de
+     l'écran : leur largeur naturelle dépasse celle d'un petit téléphone. */
+  .form-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .form-group.full { grid-column: 1 / -1; }
   .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
   .form-group input, .form-group select, .form-group textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; font-family: inherit; }
@@ -255,6 +271,25 @@
     .kpi-big-grid { grid-template-columns: 1fr; }
     .kpi-stat-grid { grid-template-columns: 1fr 1fr; }
     .objectifs-grid { grid-template-columns: 1fr; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; min-width: 0; }
+  }
+  /* Petits téléphones : marges resserrées pour rendre la place au contenu. */
+  @media (max-width: 480px) {
+    .topbar { padding: 12px 14px; }
+    .topbar-date { display: none; }
+    .page-body { padding: 14px 12px; }
+    .card { padding: 16px 14px; }
+    .period-tab { padding: 6px 11px; }
+    .kpi-big { padding: 16px 16px; }
+    .kpi-big-value { font-size: 34px; }
+    .kpi-stat-grid { gap: 10px; }
+    .kpi-stat { padding: 12px; gap: 10px; }
+    .kpi-stat-icon { width: 36px; height: 36px; font-size: 16px; border-radius: 10px; }
+    .kpi-stat-val { font-size: 22px; }
+    .kpi-stat-lbl { font-size: 10px; }
+    .objectifs-grid { gap: 10px; }
+    #toast-container { left: 12px; right: 12px; }
+    .toast { min-width: 0; max-width: none; }
   }
 </style>
 </head>
@@ -374,7 +409,13 @@
           <button class="hamburger" onclick="openSidebar()"><i class="fa fa-bars"></i></button>
           <span class="topbar-title" id="topbar-title">Tableau de bord</span>
         </div>
-        <span class="topbar-date" id="topbar-date"></span>
+        <div class="topbar-droite">
+          <span class="topbar-date" id="topbar-date"></span>
+          <button class="btn-actualiser" id="btn-actualiser" onclick="actualiserDonnees()" title="Recharger les chiffres depuis le serveur">
+            <span class="btn-actualiser-icone" aria-hidden="true">↻</span>
+            <span id="maj-heure">Actualiser</span>
+          </button>
+        </div>
       </div>
       <div class="page-body">
 
@@ -397,7 +438,7 @@
               <input type="number" id="dash-input-annee"     style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;width:76px;text-align:center" min="2020" max="2035" onchange="dashYearChanged()">
               <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)"><i class="fa fa-chevron-right"></i></button>
             </div>
-            <div id="dash-ctrl-range" style="display:none;align-items:center;gap:5px">
+            <div id="dash-ctrl-range" style="display:none;align-items:center;flex-wrap:wrap;gap:5px">
               <span style="font-size:12px;color:var(--text-muted)">Du</span>
               <input type="date" id="dash-range-debut" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
               <span style="font-size:12px;color:var(--text-muted)">au</span>
@@ -934,7 +975,7 @@
               Cibles par superviseur calculées automatiquement selon leur part de DFA Actifs du mois en cours.
               Si aucune donnée DFA, la répartition est égale entre les 5 superviseurs.
             </p>
-            <div id="param-dfa-weights"></div>
+            <div id="param-dfa-weights" style="overflow-x:auto"></div>
           </div>
           <div class="card" id="card-users-form" style="display:none;margin-top:14px">
             <div class="card-title"><i class="fa fa-user-plus"></i> Gestion des utilisateurs</div>
@@ -1184,6 +1225,8 @@ let _dysfKpiRefDate = new Date(today);
 let VALLEE_DEMANDES = []; // [{ ref, date, destinataireNom, destinataireEmail, destinataireType, motif, contexte, message, dateLimite, statut, reponse, dateReponse, auteurId, horodatage }]
 let _demandesLoaded   = false;
 let _demandesInFlight = null;
+let _chargementGlobal      = null;   // promesse du chargement de tous les modules en cours
+let _derniereActualisation = 0;      // horodatage (ms) du dernier chargement complet terminé
 
 /* ── TOAST ── */
 function showToast(title, sub, isError) {
@@ -1341,7 +1384,52 @@ function _majBandeauEchec() {
   el.style.display = 'flex';
   el.innerHTML = `<i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i>
     Données incomplètes : ${esc([...MODULES_EN_ECHEC].join(', '))} indisponible(s).
-    <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="location.reload()">Recharger</button>`;
+    <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="actualiserDonnees()">Réessayer</button>`;
+}
+
+/* ── LECTURE DES DONNÉES ──
+   Apps Script répond lentement (10 à 70 s observés) et refuse une partie des requêtes
+   quand trop arrivent en même temps : il renvoie alors une page d'erreur HTML au lieu du
+   JSON attendu. À la connexion, l'application lançait ses neuf lectures d'un coup et un
+   module refusé restait vide jusqu'au rechargement de la page.
+   _lireVallee étale les lectures (quelques-unes à la fois) et retente celles qui échouent.
+   Réservé aux lectures : une écriture rejouée risquerait de créer un doublon. */
+const LECTURES_SIMULTANEES = 3;
+const DELAIS_NOUVEL_ESSAI  = [2000, 6000];   // deux nouvelles tentatives, de plus en plus espacées
+let _lecturesEnCours = 0;
+const _fileLectures  = [];
+
+function _prendreCreneau() {
+  if (_lecturesEnCours < LECTURES_SIMULTANEES) { _lecturesEnCours++; return Promise.resolve(); }
+  return new Promise(resolve => _fileLectures.push(resolve));
+}
+
+function _libererCreneau() {
+  const suivant = _fileLectures.shift();
+  if (suivant) suivant();            // le créneau passe directement à la lecture en attente
+  else _lecturesEnCours--;
+}
+
+async function _lireVallee(action) {
+  for (let essai = 0; ; essai++) {
+    await _prendreCreneau();
+    try {
+      const res = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action }) });
+      /* Lu en texte d'abord : la page d'erreur de Google fait échouer res.json() avec un
+         message illisible, alors qu'il s'agit d'un refus passager à retenter. */
+      const texte = await res.text();
+      try { return JSON.parse(texte); }
+      catch (_) { throw new Error('Réponse illisible du serveur (HTTP ' + res.status + ')'); }
+    } catch (err) {
+      /* Hors ligne, retenter ne sert à rien : on échoue tout de suite. */
+      if (essai >= DELAIS_NOUVEL_ESSAI.length || !navigator.onLine) throw err;
+      console.warn('[' + action + '] essai ' + (essai + 1) + ' échoué, nouvel essai :', err);
+    } finally {
+      _libererCreneau();
+    }
+    /* L'attente se fait créneau libéré, pour ne pas bloquer les autres lectures. */
+    await new Promise(r => setTimeout(r, DELAIS_NOUVEL_ESSAI[essai]));
+  }
 }
 
 function _echecChargement(libelle, detail) {
@@ -1376,11 +1464,10 @@ function _actionInconnue(err) {
   return String(err || '').indexOf('Action inconnue') !== -1;
 }
 
-async function loadObjectifs() {
-  if (_objectifsLoaded) return;
+async function loadObjectifs(force) {
+  if (_objectifsLoaded && !force) return;
   if (_objectifsInFlight) return _objectifsInFlight;
-  _objectifsInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getObjectifsVallee' }) })
-    .then(r => r.json())
+  _objectifsInFlight = _lireVallee('getObjectifsVallee')
     .then(json => {
       if (!json.success) {
         if (_actionInconnue(json.error)) {
@@ -1409,11 +1496,10 @@ async function loadObjectifs() {
   return _objectifsInFlight;
 }
 
-async function loadUtilisateursDynamiques() {
-  if (_usersDynLoaded) return;
+async function loadUtilisateursDynamiques(force) {
+  if (_usersDynLoaded && !force) return;
   if (_usersDynInFlight) return _usersDynInFlight;
-  _usersDynInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getUtilisateursVallee' }) })
-    .then(r => r.json())
+  _usersDynInFlight = _lireVallee('getUtilisateursVallee')
     .then(json => {
       if (json.success) {
         VALLEE_USERS_DYNAMIC = json.data || [];
@@ -1543,15 +1629,7 @@ function startSession(user) {
   const _view     = (_lastView && _navMap[_lastView] && !_viewBlocked) ? _lastView : 'dashboard';
   showView(_view, document.getElementById(_navMap[_view]));
   _updateDashControls();
-  loadSaisies();
-  loadStock();
-  loadDysf();
-  loadKpiReel();
-  loadEnlevements();
-  loadSwap();
-  loadObjectifs();
-  loadUtilisateursDynamiques();
-  loadDemandesVallee();
+  _chargerTout(false);
 }
 
 /* Le rôle restauré depuis sessionStorage n'est pas digne de confiance : il suffisait de
@@ -1802,6 +1880,8 @@ function doLogout() {
   _objectifsLoaded = false; _objectifsInFlight = null; _objectifsNonDeployes = false;
   currentUser = null; VALLEE_SAISIES = []; VALLEE_STOCK = []; VALLEE_DYSF = []; VALLEE_KPI_REEL = []; VALLEE_ENLEVEMENTS = []; VALLEE_SWAP = []; VALLEE_USERS_DYNAMIC = []; VALLEE_DEMANDES = [];
   _saisiesLoaded = false; _stockLoaded = false; _dysfLoaded = false; _kpiReelLoaded = false; _enlvLoaded = false; _swapLoaded = false; _usersDynLoaded = false; _demandesLoaded = false;
+  _derniereActualisation = 0;
+  document.getElementById('maj-heure').textContent = 'Actualiser';
   VALLEE_SUPS = [...VALLEE_SUPS_BASE];
   document.getElementById('screen-app').style.display = 'none';
   document.getElementById('screen-login').style.display = 'flex';
@@ -1841,11 +1921,10 @@ function showView(name, el) {
 }
 
 /* ── DATA LOADING ── */
-async function loadSaisies() {
-  if (_saisiesLoaded) return;
+async function loadSaisies(force) {
+  if (_saisiesLoaded && !force) return;
   if (_saisiesInFlight) return _saisiesInFlight;
-  _saisiesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSaisiesVallee' }) })
-    .then(r => r.json())
+  _saisiesInFlight = _lireVallee('getSaisiesVallee')
     .then(json => {
       console.log('[loadSaisies] success:', json.success, '| records:', json.data?.length ?? 0, '| user:', currentUser?.id, '| role:', currentUser?.role);
       if (json.success) {
@@ -1870,11 +1949,10 @@ async function loadSaisies() {
   return _saisiesInFlight;
 }
 
-async function loadStock() {
-  if (_stockLoaded) return;
+async function loadStock(force) {
+  if (_stockLoaded && !force) return;
   if (_stockInFlight) return _stockInFlight;
-  _stockInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getStockVallee' }) })
-    .then(r => r.json())
+  _stockInFlight = _lireVallee('getStockVallee')
     .then(json => {
       if (json.success) { VALLEE_STOCK = json.data || []; _stockLoaded = true; _succesChargement('Stocks SIM'); renderStockTable(); _refreshRapportIfActive(); }
       else { _echecChargement('Stocks SIM', json.error); }
@@ -2940,11 +3018,10 @@ function renderStockTable() {
 }
 
 /* ── ENLÈVEMENTS GLOBAUX ── */
-async function loadEnlevements() {
-  if (_enlvLoaded) return;
+async function loadEnlevements(force) {
+  if (_enlvLoaded && !force) return;
   if (_enlvInFlight) return _enlvInFlight;
-  _enlvInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getEnlevementsVallee' }) })
-    .then(r => r.json())
+  _enlvInFlight = _lireVallee('getEnlevementsVallee')
     .then(json => {
       if (json.success) {
         VALLEE_ENLEVEMENTS = json.data || [];
@@ -3036,11 +3113,10 @@ function renderEnlevementsTable() {
 }
 
 /* ── SWAP ── */
-async function loadSwap() {
-  if (_swapLoaded) return;
+async function loadSwap(force) {
+  if (_swapLoaded && !force) return;
   if (_swapInFlight) return _swapInFlight;
-  _swapInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getSwapVallee' }) })
-    .then(r => r.json())
+  _swapInFlight = _lireVallee('getSwapVallee')
     .then(json => {
       if (json.success) { VALLEE_SWAP = json.data || []; _swapLoaded = true; _succesChargement('SWAP'); renderSwapTable(); renderSwapStockGlobal(); renderSwapCumulParAgent(); renderDashboard(); _refreshRapportIfActive(); }
       else { _echecChargement('SWAP', json.error); }
@@ -3516,11 +3592,10 @@ function _refreshDemandesIfActive() {
 
 let _demLienItems = []; // liste courante des événements sélectionnables (dysf/stock/kpiréel)
 
-async function loadDemandesVallee() {
-  if (_demandesLoaded) return;
+async function loadDemandesVallee(force) {
+  if (_demandesLoaded && !force) return;
   if (_demandesInFlight) return _demandesInFlight;
-  _demandesInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDemandesVallee' }) })
-    .then(r => r.json())
+  _demandesInFlight = _lireVallee('getDemandesVallee')
     .then(json => {
       if (json.success) { VALLEE_DEMANDES = json.data || []; _demandesLoaded = true; _succesChargement('Courriers'); renderDemandesList(); }
       else { _echecChargement('Courriers', json.error); }
@@ -3925,11 +4000,10 @@ function updateImpactEstime() {
   hiddenSims.value = sims;
 }
 
-async function loadDysf() {
-  if (_dysfLoaded) return;
+async function loadDysf(force) {
+  if (_dysfLoaded && !force) return;
   if (_dysfInFlight) return _dysfInFlight;
-  _dysfInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getDysfVallee' }) })
-    .then(r => r.json())
+  _dysfInFlight = _lireVallee('getDysfVallee')
     .then(json => {
       if (json.success) { VALLEE_DYSF = json.data || []; _dysfLoaded = true; _succesChargement('Dysfonctionnements'); renderDysfHist(); updateImpactEstime(); _refreshRapportIfActive(); }
       else { _echecChargement('Dysfonctionnements', json.error); }
@@ -3940,11 +4014,10 @@ async function loadDysf() {
 }
 
 /* ── KPI NEW ADD RÉEL ── */
-async function loadKpiReel() {
-  if (_kpiReelLoaded) return;
+async function loadKpiReel(force) {
+  if (_kpiReelLoaded && !force) return;
   if (_kpiReelInFlight) return _kpiReelInFlight;
-  _kpiReelInFlight = fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'getKpiReelVallee' }) })
-    .then(r => r.json())
+  _kpiReelInFlight = _lireVallee('getKpiReelVallee')
     .then(json => {
       if (json.success) {
         VALLEE_KPI_REEL = json.data || [];
@@ -4367,8 +4440,77 @@ function _majEtatConnexion() {
   const barre = document.getElementById('barre-hors-ligne');
   if (barre) barre.classList.toggle('visible', !navigator.onLine);
 }
-window.addEventListener('online',  () => { _majEtatConnexion(); showToast('Connexion rétablie', 'Recharge la page pour actualiser les chiffres.', false); });
+window.addEventListener('online', () => {
+  _majEtatConnexion();
+  if (!currentUser) return;
+  showToast('Connexion rétablie', 'Actualisation des chiffres en cours…', false);
+  actualiserDonnees({ silencieux: true });
+});
 window.addEventListener('offline', _majEtatConnexion);
+
+/* ── ACTUALISATION DES DONNÉES ──
+   Chaque module n'était chargé qu'une fois par session : les saisies faites ensuite
+   par les autres comptes n'apparaissaient qu'après un rechargement complet de la page.
+   L'actualisation relit tous les modules sans vider l'écran : les anciens chiffres
+   restent affichés jusqu'à l'arrivée des nouveaux. */
+const ACTUALISATION_AUTO_MS = 5 * 60 * 1000;   // délai minimal entre deux actualisations automatiques
+
+function _chargerTout(force) {
+  if (_chargementGlobal) return _chargementGlobal;
+  const btn = document.getElementById('btn-actualiser');
+  btn.disabled = true;
+  btn.classList.add('en-cours');
+  _chargementGlobal = Promise.allSettled([
+    loadSaisies(force), loadStock(force), loadDysf(force), loadKpiReel(force),
+    loadEnlevements(force), loadSwap(force), loadObjectifs(force),
+    loadUtilisateursDynamiques(force), loadDemandesVallee(force)
+  ]).then(() => {
+    _derniereActualisation = Date.now();
+    _majBoutonActualiser();
+  }).finally(() => {
+    btn.disabled = false;
+    btn.classList.remove('en-cours');
+    _chargementGlobal = null;
+  });
+  return _chargementGlobal;
+}
+
+function _majBoutonActualiser() {
+  const libelle = document.getElementById('maj-heure');
+  const btn     = document.getElementById('btn-actualiser');
+  if (MODULES_EN_ECHEC.size) {
+    libelle.textContent = 'Réessayer';
+    btn.title = 'Certaines données n\'ont pas pu être chargées. Toucher pour réessayer.';
+    return;
+  }
+  const heure = new Date(_derniereActualisation).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  libelle.textContent = heure;
+  btn.title = 'Données chargées à ' + heure + '. Toucher pour actualiser.';
+}
+
+/* La date du jour (today, todayISO) est calculée une seule fois, à l'ouverture. Une
+   application installée reste ouverte des jours entiers : sans ce contrôle, « Aujourd'hui »
+   continuait d'afficher la veille. Recharger la page la recalcule partout d'un coup, et
+   la session comme la vue en cours sont restaurées automatiquement. */
+function _jourAChange() {
+  return _dateToISO(new Date()) !== todayISO;
+}
+
+async function actualiserDonnees({ silencieux = false } = {}) {
+  if (!currentUser) return;
+  if (_jourAChange()) { location.reload(); return; }
+  await _chargerTout(true);
+  if (!silencieux && !MODULES_EN_ECHEC.size) showToast('Données à jour', 'Chiffres rechargés depuis le serveur.', false);
+}
+
+/* Retour sur l'application (onglet réaffiché, appli rouverte sur le téléphone) :
+   actualisation si les données ont plus de 5 minutes ou si un module avait échoué. */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !currentUser || !navigator.onLine) return;
+  if (_jourAChange()) { location.reload(); return; }
+  const perimees = Date.now() - _derniereActualisation > ACTUALISATION_AUTO_MS;
+  if (perimees || MODULES_EN_ECHEC.size) actualiserDonnees({ silencieux: true });
+});
 
 /* ── MISE À JOUR ──
    Sans ça, un navigateur qui a déjà installé un service worker peut continuer à servir
