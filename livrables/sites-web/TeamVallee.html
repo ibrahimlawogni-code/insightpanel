@@ -1302,10 +1302,12 @@ async function doLogin() {
 
   btn.disabled = true; btn.textContent = 'Connexion…';
   let user = null;
+  /* Vrai si un serveur n'a jamais pu répondre. Google perd régulièrement les réponses
+     d'Apps Script : sans cette distinction, un bon mot de passe s'affichait « incorrect ». */
+  let serveurInjoignable = false;
 
   try {
-    const res  = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login', id: identifiant, pwd: password }) });
-    const json = await res.json();
+    const json = await _appelSansEffet(APPS_SCRIPT_URL, { action: 'login', id: identifiant, pwd: password });
     if (json.success && json.user) {
       const seed = _findSeed(json.user.id);
       if (!seed) {
@@ -1318,7 +1320,7 @@ async function doLogin() {
       }
       user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role, zone: seed.zone || json.user.zone } : json.user;
     }
-  } catch (_) {}
+  } catch (_) { serveurInjoignable = true; }
 
   if (!user) {
     try {
@@ -1329,15 +1331,21 @@ async function doLogin() {
 
   if (!user) {
     try {
-      const res  = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action: 'loginVallee', id: identifiant, pwd: password }) });
-      const json = await res.json();
+      const json = await _appelSansEffet(VALLEE_URL, { action: 'loginVallee', id: identifiant, pwd: password });
       if (json.success && json.user) {
         user = { ...json.user, zone: json.user.libelle };
       }
-    } catch (_) {}
+    } catch (_) { serveurInjoignable = true; }
   }
 
   btn.disabled = false; btn.textContent = 'Se connecter';
+
+  if (!user && serveurInjoignable) {
+    /* Le mot de passe est conservé : il n'a pas été refusé, le serveur n'a pas répondu. */
+    errEl.innerHTML = '<i class="fa fa-circle-exclamation"></i> Le serveur ne répond pas pour le moment. Vérifie ta connexion puis réessaie.';
+    errEl.style.display = 'block';
+    return;
+  }
 
   if (!user) {
     errEl.innerHTML = '<i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.';
@@ -1520,24 +1528,31 @@ async function _lireVallee(action) {
     const c = _lireCache(action);
     if (c) { _donneesDuCache[action] = c.ts; return c.json; }
   }
+  const json = await _appelSansEffet(VALLEE_URL, { action });
+  /* Seule une réponse réussie remplace la copie locale : une erreur du serveur ne
+     doit pas effacer les derniers chiffres connus. */
+  if (json && json.success) { _ecrireCache(action, json); delete _donneesDuCache[action]; }
+  return json;
+}
+
+/* Appel Apps Script avec nouveaux essais, pour les seules requêtes sans effet sur le
+   serveur (lectures, connexion) : les rejouer ne change rien côté serveur. Rend la
+   réponse JSON (réussie ou non), ou lève une erreur si le serveur est resté injoignable
+   ou illisible à tous les essais. */
+async function _appelSansEffet(url, corps) {
   for (let essai = 0; ; essai++) {
     await _prendreCreneau();
     try {
-      const res = await fetch(VALLEE_URL, { method: 'POST', body: JSON.stringify({ action }) });
+      const res = await fetch(url, { method: 'POST', body: JSON.stringify(corps) });
       /* Lu en texte d'abord : la page d'erreur de Google fait échouer res.json() avec un
          message illisible, alors qu'il s'agit d'un refus passager à retenter. */
       const texte = await res.text();
-      let json;
-      try { json = JSON.parse(texte); }
+      try { return JSON.parse(texte); }
       catch (_) { throw new Error('Réponse illisible du serveur (HTTP ' + res.status + ')'); }
-      /* Seule une réponse réussie remplace la copie locale : une erreur du serveur ne
-         doit pas effacer les derniers chiffres connus. */
-      if (json && json.success) { _ecrireCache(action, json); delete _donneesDuCache[action]; }
-      return json;
     } catch (err) {
       /* Hors ligne, retenter ne sert à rien : on échoue tout de suite. */
       if (essai >= DELAIS_NOUVEL_ESSAI.length || !navigator.onLine) throw err;
-      console.warn('[' + action + '] essai ' + (essai + 1) + ' échoué, nouvel essai :', err);
+      console.warn('[' + corps.action + '] essai ' + (essai + 1) + ' échoué, nouvel essai :', err);
     } finally {
       _libererCreneau();
     }
