@@ -243,6 +243,20 @@
   .objp-detail { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   #card-dash-supperf td.num, #card-dash-supperf th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .ecart-momo { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--etat-attention); }
+
+  /* WTD / MTD : cumul de la semaine et du mois en cours, comparé aux mêmes jours de la
+     semaine et du mois précédents (LWTD, LMTD). */
+  .adate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .adate { background: var(--card-bg); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: grid; gap: 8px; min-width: 0; }
+  .adate-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+  .adate-code { font-family: var(--police-chiffres); font-size: 18px; font-weight: 700; color: var(--mtn-dark); letter-spacing: .02em; }
+  .adate-periode { font-size: 12px; color: var(--text-muted); }
+  .adate-chiffre { font-family: var(--police-chiffres); font-size: 36px; font-weight: 700; line-height: 1; color: var(--mtn-dark); }
+  .adate-chiffre span { font-family: inherit; font-size: 15px; font-weight: 600; color: var(--text-muted); }
+  .adate-comp { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .th-sous { display: block; font-size: 9px; font-weight: 600; letter-spacing: .3px; color: var(--text-muted); opacity: .8; }
+  .sous { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+  @media (max-width: 560px) { .adate-grid { grid-template-columns: 1fr; } }
   .kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
   .kpi-delta.up   { background: #dcfce7; color: #15803d; }
   .kpi-delta.down { background: #fee2e2; color: #dc2626; }
@@ -480,6 +494,8 @@
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard">
+          <!-- WTD / MTD : toujours la semaine et le mois en cours, quel que soit l'onglet choisi -->
+          <div class="adate-grid" id="dash-adate"></div>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
             <div class="period-tabs" id="dash-kpi-tabs">
               <button class="period-tab active" onclick="setDashPeriod('jour',this)">Jour</button>
@@ -529,9 +545,11 @@
             <div class="table-wrap">
               <table>
                 <thead><tr>
-                  <th>Superviseur</th><th>Zone</th>
-                  <th class="num">Activations</th><th class="num" id="dash-th-evol">Évolution</th>
+                  <th>Superviseur</th>
+                  <th class="num" id="dash-th-evol">Activations</th>
                   <th class="num">Cible</th><th>État</th>
+                  <th class="num">WTD<span class="th-sous">vs LWTD</span></th>
+                  <th class="num">MTD<span class="th-sous">vs LMTD</span></th>
                 </tr></thead>
                 <tbody id="dash-tbody"></tbody>
                 <tfoot><tr class="tfoot-total" id="dash-tfoot"></tr></tfoot>
@@ -2618,6 +2636,62 @@ function _evolutionHtml(cur, prev, libelle) {
   return `<span class="evol ${cls}">${diff > 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}${pct}</span>${libelle ? ' ' + esc(libelle) : ''}`;
 }
 
+/* ── WTD / MTD ──
+   Semaine et mois en cours, à date (jusqu'au dernier jour renseigné), quel que soit
+   l'onglet choisi, comparés aux mêmes jours de la semaine et du mois précédents. */
+function _aDate(period, src) {
+  const b      = _bornesPeriode(period, new Date());
+  const av     = _avancement(b);
+  const lignes = src.filter(r => { const d = parseSaisieDate(r.date); return d && d >= b.debut && d <= b.fin; });
+  return { b, av, lignes, comp: _comparaison(src, b, period, av) };
+}
+
+function _libelleADate(code, x) {
+  return x.comp ? 'vs L' + code + ' (' + x.comp.libelle.replace(/^vs /, '') + ')' : '';
+}
+
+/* Évolution courte, pour les cellules du tableau : pourcentage seul. */
+function _evolPct(cur, prev) {
+  if (prev === null || prev === undefined) return '<span class="evol stable">—</span>';
+  const diff = cur - prev;
+  const cls  = diff > 0 ? 'hausse' : diff < 0 ? 'baisse' : 'stable';
+  const txt  = prev > 0 ? `${diff > 0 ? '+' : ''}${Math.round(diff / prev * 100)} %` : `${diff > 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}`;
+  return `<span class="evol ${cls}">${txt}</span>`;
+}
+
+function _gaParSup(lignes) {
+  const m = {};
+  lignes.forEach(r => { const k = String(r.supId || '').trim().toLowerCase(); m[k] = (m[k] || 0) + (Number(r.grossAdd) || 0); });
+  return m;
+}
+
+function _renderADate(isRa, myId) {
+  const src  = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
+  const auj  = new Date();
+  const snap = _dfaSnapshot(auj);
+  const tuile = (code, nom, period) => {
+    const x       = _aDate(period, src);
+    const equipe  = teamPeriodTarget('ga', period, auj);
+    const cible   = isRa ? equipe : supPropTarget(equipe, myId, auj, snap);
+    const realise = _sommeGA(x.lignes);
+    const e       = _etatCible(realise, cible, x.av);
+    const plage   = !x.av || !x.av.dernier ? 'aucun rapport reçu'
+      : +x.av.dernier === +x.b.debut ? _jourCourt(x.b.debut)
+      : _jourCourt(x.b.debut) + ' au ' + _jourCourt(x.av.dernier);
+    const comp = x.comp
+      ? _evolutionHtml(realise, _sommeGA(x.comp.lignes), _libelleADate(code, x))
+      : 'Comparaison disponible dès le premier rapport';
+    return `<section class="adate" aria-label="${esc(nom)}">
+      <div class="adate-tete"><span class="adate-code" title="${esc(nom)}">${code}</span><span class="adate-periode">${esc(plage)}</span></div>
+      <div class="adate-chiffre">${realise.toLocaleString('fr-FR')} <span>activations · cible ${cible.toLocaleString('fr-FR')}</span></div>
+      <div class="adate-comp">${comp}</div>
+      <div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>
+    </section>`;
+  };
+  document.getElementById('dash-adate').innerHTML =
+    tuile('WTD', 'Semaine en cours (Week to Date)', 'semaine') + tuile('MTD', 'Mois en cours (Month to Date)', 'mois');
+}
+
 /* Déclarations de fonction et non constantes : renderDashboard peut tourner pendant
    l'évaluation du script (restauration de session), avant ces lignes. */
 function _sommeGA(lignes)   { return lignes.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0); }
@@ -2625,7 +2699,9 @@ function _sommeMoMo(lignes) { return lignes.reduce((s, r) => s + (Number(r.momoU
 
 function renderDashboard() {
   // Agence/Service CARE : dashboard dédié SWAP uniquement, pas de GA/MoMo/équipe.
-  if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { renderDashboardSwap(); return; }
+  const blocADate = document.getElementById('dash-adate');
+  if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { blocADate.style.display = 'none'; renderDashboardSwap(); return; }
+  blocADate.style.display = '';
 
   document.getElementById('card-dash-objectifs').style.display = '';
   document.getElementById('card-dash-kpireel').style.display   = '';
@@ -2736,6 +2812,8 @@ function renderDashboard() {
       ${infos.length ? `<div class="rythme-infos">${infos.map(i => `<span>${i}</span>`).join('')}</div>` : ''}
       ${noteMomo}
     </section>`;
+
+  _renderADate(isRa, myId);
 
   /* Avertissement si aucune donnée pour cette période */
   const noDataEl = document.getElementById('dash-no-data');
@@ -2872,55 +2950,62 @@ function renderDashboard() {
     }
   });
 
-  /* L'en-tête dit à quoi l'on compare ; sans comparaison possible, la colonne affiche « — ». */
-  document.getElementById('dash-th-evol').textContent = comp ? 'Évolution ' + comp.libelle : 'Évolution';
+  /* WTD / MTD par superviseur : semaine et mois en cours, indépendants de l'onglet. */
+  const xW = _aDate('semaine', VALLEE_SAISIES), xM = _aDate('mois', VALLEE_SAISIES);
+  const wtd  = _gaParSup(xW.lignes), lwtd = xW.comp ? _gaParSup(xW.comp.lignes) : null;
+  const mtd  = _gaParSup(xM.lignes), lmtd = xM.comp ? _gaParSup(xM.comp.lignes) : null;
+  const celluleADate = (cur, prev) =>
+    `<td class="num"><strong>${cur.toLocaleString('fr-FR')}</strong><div class="sous">${_evolPct(cur, prev)}</div></td>`;
+  const adateSup = k => celluleADate(wtd[k] || 0, lwtd ? (lwtd[k] || 0) : null) + celluleADate(mtd[k] || 0, lmtd ? (lmtd[k] || 0) : null);
+
+  /* L'en-tête dit à quoi l'évolution se compare ; sans comparaison possible, « — ». */
+  document.getElementById('dash-th-evol').innerHTML = 'Activations'
+    + `<span class="th-sous">${comp ? esc(comp.libelle) : 'période'}</span>`;
   const evol      = (cur, prev) => _evolutionHtml(cur, comp ? prev : null, '');
   const pastille  = e => `<span class="etat etat-${e.cls}">${esc(e.mot)}</span>`;
   const ecartMoMo = (ga, momo) => momo !== ga
     ? `<span class="ecart-momo" title="New MoMo User : ${momo.toLocaleString('fr-FR')}">MoMo ≠ GA (${momo.toLocaleString('fr-FR')})</span>` : '';
+  const celluleSup = (nom, zone) => `<td><strong>${esc(nom)}</strong><div class="sous">${esc(zone)}</div></td>`;
+  const cellulePeriode = (ga, momo, prev) =>
+    `<td class="num"><strong>${ga.toLocaleString('fr-FR')}</strong>${ecartMoMo(ga, momo)}<div class="sous">${evol(ga, prev)}</div></td>`;
 
   if (isRa) {
     document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
-      const { ga, momo } = totals[cle(sup.id)];
+      const k = cle(sup.id);
+      const { ga, momo } = totals[k];
       /* Cible individuelle pondérée par DFA Actifs */
       const tGASup = supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap);
       return `<tr>
-        <td><strong>${esc(sup.nom)}</strong></td>
-        <td style="color:var(--text-muted);font-size:12px">${esc(sup.zone)}</td>
-        <td class="num"><strong>${ga.toLocaleString('fr-FR')}</strong>${ecartMoMo(ga, momo)}</td>
-        <td class="num">${evol(ga, prevTotals[cle(sup.id)].ga)}</td>
+        ${celluleSup(sup.nom, sup.zone)}
+        ${cellulePeriode(ga, momo, prevTotals[k].ga)}
         <td class="num">${tGASup.toLocaleString('fr-FR')}</td>
         <td>${pastille(_etatCible(ga, tGASup, av))}</td>
+        ${adateSup(k)}
       </tr>`;
     }).join('')
     + ((orphelins.ga || orphelins.momo) ? `<tr>
-        <td><strong>Hors liste</strong></td>
-        <td style="color:var(--danger);font-size:12px" title="${esc([...orphelins.ids].join(', '))}">
-          ${orphelins.ids.size} identifiant(s) inconnu(s)
-        </td>
-        <td class="num"><strong>${orphelins.ga.toLocaleString('fr-FR')}</strong>${ecartMoMo(orphelins.ga, orphelins.momo)}</td>
-        <td class="num">${evol(orphelins.ga, orphelinsPrev.ga)}</td>
-        <td class="num">—</td>
-        <td>—</td>
+        <td><strong>Hors liste</strong><div class="sous" style="color:var(--danger)" title="${esc([...orphelins.ids].join(', '))}">${orphelins.ids.size} identifiant(s) inconnu(s)</div></td>
+        ${cellulePeriode(orphelins.ga, orphelins.momo, orphelinsPrev.ga)}
+        <td class="num">—</td><td>—</td><td class="num">—</td><td class="num">—</td>
       </tr>` : '');
     document.getElementById('dash-tfoot').innerHTML = `
-      <td colspan="2"><strong>TOTAL ÉQUIPE</strong></td>
-      <td class="num"><strong>${curGA.toLocaleString('fr-FR')}</strong>${ecartMoMo(curGA, curMomo)}</td>
-      <td class="num">${evol(curGA, _sommeGA(prevFiltered))}</td>
+      <td><strong>TOTAL ÉQUIPE</strong></td>
+      ${cellulePeriode(curGA, curMomo, _sommeGA(prevFiltered))}
       <td class="num" title="${totalMonthDfa > 0 ? 'Cible répartie entre superviseurs selon leurs DFA actifs' : 'Cible répartie à parts égales (aucun DFA actif connu)'}"><strong>${teamTargetGA.toLocaleString('fr-FR')}</strong></td>
-      <td>${pastille(_etatCible(curGA, teamTargetGA, av))}</td>`;
+      <td>${pastille(_etatCible(curGA, teamTargetGA, av))}</td>
+      ${celluleADate(_sommeGA(xW.lignes), xW.comp ? _sommeGA(xW.comp.lignes) : null)}
+      ${celluleADate(_sommeGA(xM.lignes), xM.comp ? _sommeGA(xM.comp.lignes) : null)}`;
   } else {
-    const mySup    = VALLEE_SUPS.find(s => sameId(s.id, myId)) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
-    const myGA     = totals[cle(myId)]?.ga     || 0;
-    const myMomo   = totals[cle(myId)]?.momo   || 0;
-    const myPrevGA = prevTotals[cle(myId)]?.ga || 0;
+    const mySup  = VALLEE_SUPS.find(s => sameId(s.id, myId)) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
+    const k      = cle(myId);
+    const myGA   = totals[k]?.ga   || 0;
+    const myMomo = totals[k]?.momo || 0;
     document.getElementById('dash-tbody').innerHTML = `<tr>
-      <td><strong>${esc(mySup.nom)}</strong></td>
-      <td style="color:var(--text-muted);font-size:12px">${esc(mySup.zone)}</td>
-      <td class="num"><strong>${myGA.toLocaleString('fr-FR')}</strong>${ecartMoMo(myGA, myMomo)}</td>
-      <td class="num">${evol(myGA, myPrevGA)}</td>
+      ${celluleSup(mySup.nom, mySup.zone)}
+      ${cellulePeriode(myGA, myMomo, prevTotals[k]?.ga || 0)}
       <td class="num">${targetGA.toLocaleString('fr-FR')}</td>
       <td>${pastille(_etatCible(myGA, targetGA, av))}</td>
+      ${adateSup(k)}
     </tr>`;
     document.getElementById('dash-tfoot').innerHTML = '';
   }
