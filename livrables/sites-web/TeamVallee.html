@@ -51,6 +51,7 @@
     --critique:      #FF9A90;  --critique-fond:  #3A1D1B;  --critique-plein:  #F06A5F;
     --info:          #9CC0FF;  --info-fond:      #1B2A44;  --info-plein:      #5B8DEF;
     --neutre-fond:   #2A2B30;
+    --sur-info:      #0B1220;
     --police-texte:  Manrope, "Segoe UI", system-ui, sans-serif;
 
     /* Alias historiques : le reste du fichier les utilise encore. */
@@ -88,6 +89,7 @@
     --critique:      #991B1B;  --critique-fond:  #FEE2E2;  --critique-plein:  #DC2626;
     --info:          #1E40AF;  --info-fond:      #DBEAFE;  --info-plein:      #2563EB;
     --neutre-fond:   #EDEAE2;
+    --sur-info:      #FFFFFF;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -429,7 +431,7 @@
 <div id="barre-maj">
   <span><i class="fa fa-arrows-rotate"></i> Une nouvelle version est disponible.</span>
   <span style="display:flex;gap:8px">
-    <button onclick="appliquerMiseAJour()" style="background:#fff;color:var(--mtn-dark);border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Recharger</button>
+    <button onclick="appliquerMiseAJour()" style="background:var(--jaune);color:var(--sur-jaune);border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Recharger</button>
     <button onclick="document.getElementById('barre-maj').classList.remove('visible')" style="background:none;border:none;color:rgba(255,255,255,.75);font-size:12px;cursor:pointer;font-family:inherit">Plus tard</button>
   </span>
 </div>
@@ -570,7 +572,7 @@
               <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
               <input type="date"   id="dash-input-jour"      style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashRefDateChanged()">
               <input type="month"  id="dash-input-mois"      style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashMonthChanged()">
-              <span                id="dash-input-trimestre"  style="display:none;padding:5px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-weight:600;min-width:110px;text-align:center"></span>
+              <span                id="dash-input-trimestre"  style="display:none;padding:5px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--texte);font-weight:600;min-width:110px;text-align:center"></span>
               <input type="number" id="dash-input-annee"     style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;width:76px;text-align:center" min="2020" max="2035" onchange="dashYearChanged()">
               <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)"><i class="fa fa-chevron-right"></i></button>
             </div>
@@ -953,7 +955,7 @@
             <div class="form-actions" style="margin-top:12px">
               <button class="btn btn-secondary" onclick="copyRapportVallee()" id="rap-copy-btn">📋 Copier</button>
               <button onclick="sendRapportWhatsAppVallee()" style="padding:9px 16px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">📱 WhatsApp</button>
-              <button onclick="sendRapportEmailVallee()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Email</button>
+              <button onclick="sendRapportEmailVallee()" style="padding:9px 16px;background:var(--info-plein);color:var(--sur-info);border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Email</button>
             </div>
           </div>
         </div>
@@ -1035,7 +1037,7 @@
               </div>
             </div>
             <div class="form-actions">
-              <button onclick="sendDemandeEmail()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Envoyer par Email</button>
+              <button onclick="sendDemandeEmail()" style="padding:9px 16px;background:var(--info-plein);color:var(--sur-info);border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Envoyer par Email</button>
             </div>
           </div>
           <div class="card">
@@ -1157,7 +1159,7 @@
                 </div>
               </div>
             </div>
-            <div id="user-new-confirm" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:#fef9c3;color:#854d0e;font-size:13px"></div>
+            <div id="user-new-confirm" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:var(--jaune-fond);color:var(--jaune-texte);font-size:13px"></div>
             <div class="form-actions">
               <button class="btn btn-primary" onclick="saveUtilisateur()" id="btn-save-user">
                 <i class="fa fa-floppy-disk"></i> Créer le compte
@@ -2000,12 +2002,12 @@ function renderParametres() {
         <input type="number" class="param-month-ga" data-key="${key}" min="1" step="1"
                value="${saved ? saved.ga : ''}" placeholder="${VALLEE_TEAM_TARGET.ga}"
                oninput="(function(inp){const m=inp.closest('tr').querySelector('.param-month-momo');m.value=inp.value?Math.round(inp.value*0.9):''})(this)"
-               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
       <td style="padding:8px 0 8px 6px;text-align:right">
         <input type="number" class="param-month-momo" data-key="${key}" min="1" step="1"
                value="${saved ? saved.momo : ''}" placeholder="${Math.round(VALLEE_TEAM_TARGET.ga * 0.9)}"
-               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
     </tr>`;
   }).join('');
@@ -2056,7 +2058,7 @@ function _renderDfaWeights() {
           const cMomo = Math.round(tgt.momo * part);
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:7px 8px 7px 0">${esc(sup.nom)}</td>
-            <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger,#e74c3c)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
+            <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
             <td style="text-align:right;padding:7px 6px;color:var(--text-muted)">${(part * 100).toFixed(1)}%</td>
             <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cGa.toLocaleString('fr-FR')}</td>
             <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cMomo.toLocaleString('fr-FR')}</td>
@@ -2568,14 +2570,14 @@ function renderDashboardSwap() {
 
   document.getElementById('kpi-stat-grid').innerHTML = `
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-right-left"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)"><i class="fa fa-right-left"></i></div>
       <div>
         <div class="kpi-stat-val">${swapEffectuesMoi.toLocaleString('fr-FR')}</div>
         <div class="kpi-stat-lbl">Mes SWAP effectués (total)</div>
       </div>
     </div>
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dcfce7;color:#16a34a"><i class="fa fa-calendar-check"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)"><i class="fa fa-calendar-check"></i></div>
       <div>
         <div class="kpi-stat-val">${dernier ? (isoToFR(dernier.date) || dernier.date) : '—'}</div>
         <div class="kpi-stat-lbl">Dernier SWAP</div>
@@ -2902,21 +2904,21 @@ function renderDashboard() {
   /* ── 2. Stat cards ── */
   document.getElementById('kpi-stat-grid').innerHTML = `
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#fef9c3;color:#ca8a04"><i class="fa fa-users"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--jaune-fond);color:var(--jaune-texte)"><i class="fa fa-users"></i></div>
       <div>
         <div class="kpi-stat-val">${isRa ? activeSups.size + ' / ' + VALLEE_SUPS.length : (activeSups.size > 0 ? 'Actif' : 'En attente')}</div>
         <div class="kpi-stat-lbl">Superviseurs actifs</div>
       </div>
     </div>
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-sim-card"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)"><i class="fa fa-sim-card"></i></div>
       <div>
         <div class="kpi-stat-val">${curTotalDfa.toLocaleString('fr-FR')}</div>
         <div class="kpi-stat-lbl">Total DFA</div>
       </div>
     </div>
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dcfce7;color:#16a34a"><i class="fa fa-circle-check"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)"><i class="fa fa-circle-check"></i></div>
       <div>
         <div class="kpi-stat-val">${curDfaActif.toLocaleString('fr-FR')}</div>
         <div class="kpi-stat-lbl">DFA Actifs</div>
@@ -2969,11 +2971,11 @@ function renderDashboard() {
 
   document.getElementById('objectifs-body').innerHTML = `<div class="objectifs-grid">
     ${objCarte('Journalier', objRef.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-        'fa-calendar-day', '#fef9c3', '#ca8a04', 'jour', Math.round(baseGA / objDim))}
+        'fa-calendar-day', 'var(--jaune-fond)', 'var(--jaune-texte)', 'jour', Math.round(baseGA / objDim))}
     ${objCarte('Hebdomadaire', hebSub,
-        'fa-calendar-week', '#dbeafe', '#2563eb', 'semaine', Math.round(baseGA / objDim * weekDays))}
+        'fa-calendar-week', 'var(--info-fond)', 'var(--info)', 'semaine', Math.round(baseGA / objDim * weekDays))}
     ${objCarte('Mensuel', objRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-        'fa-calendar', '#dcfce7', '#16a34a', 'mois', baseGA)}
+        'fa-calendar', 'var(--bon-fond)', 'var(--bon)', 'mois', baseGA)}
   </div>`;
 
   /* ── 4. Table performance ── */
@@ -3340,8 +3342,8 @@ function _updateStockCoverageHint() {
   if (!d || !f || d.length < 8 || f.length < 8) { hint.innerHTML = ''; return; }
   const covering = _findCoveringEnlevement(d, f, type);
   hint.innerHTML = covering
-    ? `<span style="color:var(--success,#2ecc71)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
-    : `<span style="color:var(--danger,#e74c3c)"><i class="fa fa-triangle-exclamation"></i> Hors plage — aucun enlèvement global ne couvre cette plage</span>`;
+    ? `<span style="color:var(--success)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
+    : `<span style="color:var(--danger)"><i class="fa fa-triangle-exclamation"></i> Hors plage — aucun enlèvement global ne couvre cette plage</span>`;
 }
 
 async function saveStock() {
@@ -4475,7 +4477,7 @@ function renderKpiReelCard() {
   const ecart    = decl - reel;
   const ecartPct = reel > 0 ? Math.round(ecart / reel * 100) : 0;
   const alerte   = Math.abs(ecartPct) > 15;
-  const ecartCol = alerte ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)';
+  const ecartCol = alerte ? 'var(--danger)' : 'var(--success)';
   const ecartTxt = `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')} (${ecartPct > 0 ? '+' : ''}${ecartPct}%)`;
 
   el.innerHTML = `
@@ -4506,7 +4508,7 @@ function _renderKpiReelTable() {
     const reel     = _kpiReelForMonth(key);
     const ecart    = reel !== null ? decl - reel : null;
     const ecartTxt = ecart === null ? '—' : `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}`;
-    const ecartCol = ecart === null ? 'var(--text-muted)' : (reel > 0 && Math.abs(ecart / reel) > 0.15 ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)');
+    const ecartCol = ecart === null ? 'var(--text-muted)' : (reel > 0 && Math.abs(ecart / reel) > 0.15 ? 'var(--danger)' : 'var(--success)');
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 12px 8px 0;font-size:13px;white-space:nowrap">
         ${FR_MONTHS[month0]} ${year}${isCur ? ' <span style="font-size:11px;color:var(--primary);font-weight:600">← actuel</span>' : ''}
@@ -4515,7 +4517,7 @@ function _renderKpiReelTable() {
       <td style="padding:8px 6px;text-align:right">
         <input type="number" class="param-month-kpireel" data-key="${key}" min="0" step="1"
                value="${reel !== null ? reel : ''}" placeholder="—"
-               style="width:100px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:100px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
       <td style="padding:8px 0 8px 6px;text-align:right;font-weight:600;color:${ecartCol}">${ecartTxt}</td>
     </tr>`;
