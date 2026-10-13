@@ -26,7 +26,7 @@
      repli (Arial Narrow, puis la police système) prend le relais sans rien casser. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
   /* ── THÈME ──
      « Nuit opérationnelle » par défaut ; « clair » (mode soleil) sous [data-theme="clair"],
@@ -92,7 +92,7 @@
     --sur-info:      #FFFFFF;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body { font-family: var(--police-texte); background: var(--bg); color: var(--text); min-height: 100vh; }
 
   /* ── TOAST ── */
   #toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
@@ -159,7 +159,7 @@
      sur téléphone c'est l'écran entier qui déborde à droite au lieu de ce seul élément. */
   .main-content { flex: 1; min-width: 0; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
   .topbar { background: var(--fond); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-  .topbar-title { font-size: 17px; font-weight: 700; }
+  .topbar-title { font-family: var(--police-chiffres); font-size: 22px; font-weight: 700; letter-spacing: .01em; }
   .topbar-date { font-size: 13px; color: var(--text-muted); }
   .topbar-droite { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   /* Icône en caractère texte plutôt qu'en FontAwesome : sur réseau lent, la police
@@ -178,8 +178,8 @@
   .page-body { padding: 24px; flex: 1; }
 
   /* ── CARDS ── */
-  .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 16px; }
-  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card { background: var(--card-bg); border-radius: 18px; padding: 20px; border: 1px solid var(--bordure); margin-bottom: 16px; }
+  .card-title { font-family: var(--police-chiffres); font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   .card-title i { color: var(--mtn-yellow); }
 
   /* ── KPI ROW ── */
@@ -220,7 +220,7 @@
   .form-group input, .form-group select, .form-group textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: var(--surface-2); color: var(--texte); transition: border-color .2s; font-family: inherit; }
   .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--mtn-yellow); }
   .form-group textarea { resize: vertical; min-height: 72px; }
-  .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .2s; }
+  .btn { padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: opacity .2s; }
   .btn:hover { opacity: .88; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn-primary { background: var(--mtn-yellow); color: var(--sur-jaune); }
