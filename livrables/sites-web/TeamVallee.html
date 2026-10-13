@@ -386,9 +386,22 @@
   }
 
   /* ── MOBILE ── */
+  .ico { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item .ico { width: 18px; }
+  .btn-actualiser-icone .ico { width: 15px; height: 15px; }
+  .barre-bas { display: none; }
   .hamburger { display: none; background: none; border: none; cursor: pointer; font-size: 22px; padding: 4px; }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
   @media (max-width: 768px) {
+    /* Barre du bas : remplace la barre latérale sur téléphone. */
+    .barre-bas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 90; background: var(--lateral); border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 7px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .bb-item { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 48px; justify-content: center; border: 0; border-radius: 15px; background: transparent; color: rgba(255,255,255,.72); font: 600 11px var(--police-texte); cursor: pointer; }
+    .bb-item .ico { width: 20px; height: 20px; }
+    .bb-item[hidden] { display: none; }
+    .bb-item.actif { background: var(--jaune); color: var(--sur-jaune); font-weight: 700; }
+    .page-body { padding-bottom: 104px; }
+    #barre-hors-ligne, #barre-maj { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+    .hamburger { display: none !important; }
     .sidebar { transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
     .sidebar-overlay.open { display: block; }
@@ -405,6 +418,7 @@
   @media (max-width: 480px) {
     .topbar { padding: 12px 14px; }
     .topbar-date { display: none; }
+    .btn-theme-texte { display: none; }
     .page-body { padding: 14px 12px; }
     .card { padding: 16px 14px; }
     .period-tab { padding: 6px 11px; }
@@ -436,6 +450,14 @@
   </span>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<!-- Barre de navigation du téléphone, à portée de pouce. « Plus » ouvre le menu complet. -->
+<nav class="barre-bas" id="barre-bas" aria-label="Navigation principale">
+  <button class="bb-item" data-vue="dashboard" onclick="showView('dashboard', document.getElementById('nav-dashboard'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg><span>Accueil</span></button>
+  <button class="bb-item" data-vue="saisie" onclick="showView('saisie', document.getElementById('nav-saisie'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg><span>Saisie</span></button>
+  <button class="bb-item" data-vue="stocks" onclick="showView('stocks', document.getElementById('nav-stocks'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg><span>Stocks</span></button>
+  <button class="bb-item" data-vue="swap" onclick="showView('swap', document.getElementById('nav-swap'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg><span>SWAP</span></button>
+  <button class="bb-item" data-vue="plus" onclick="openSidebar()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg><span>Plus</span></button>
+</nav>
 
 <!-- ══ LOGIN ══ -->
 <div id="screen-login">
@@ -499,36 +521,36 @@
       </div>
       <nav class="sidebar-nav">
         <button class="nav-item active" id="nav-dashboard" onclick="showView('dashboard', this)">
-          <i class="fa fa-chart-line"></i> Tableau de bord
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg> Tableau de bord
         </button>
         <button class="nav-item" id="nav-saisie" onclick="showView('saisie', this)">
-          <i class="fa fa-pen-to-square"></i> Saisie du jour
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg> Saisie du jour
         </button>
         <button class="nav-item" id="nav-stocks" onclick="showView('stocks', this)">
-          <i class="fa fa-boxes-stacked"></i> Stocks SIM
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg> Stocks SIM
         </button>
         <button class="nav-item" id="nav-dysf" onclick="showView('dysfonctionnement', this)">
-          <i class="fa fa-triangle-exclamation"></i> Dysfonctionnements
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z M12 10v5 M12 18v.01"></path></svg> Dysfonctionnements
         </button>
         <button class="nav-item" id="nav-swap" onclick="showView('swap', this)">
-          <i class="fa fa-right-left"></i> SWAP
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg> SWAP
         </button>
         <button class="nav-item" id="nav-rapport" onclick="showView('rapport', this)">
-          <i class="fa fa-share-nodes"></i> Rapport
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8 M12 3v13 M7 8l5-5 5 5"></path></svg> Rapport
         </button>
         <button class="nav-item" id="nav-demandes" onclick="showView('demandes', this)" style="display:none">
-          <i class="fa fa-file-signature"></i> Courriers
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg> Courriers
         </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
-          <i class="fa fa-gear"></i> Paramètres
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2"></path></svg> Paramètres
         </button>
       </nav>
       <div class="sidebar-footer">
         <button class="btn-installer" id="btn-installer" onclick="installerApplication()">
-          <i class="fa fa-circle-down"></i> <span id="btn-installer-texte">Installer l'application</span>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v9 M8 12l4 4 4-4"></path></svg> <span id="btn-installer-texte">Installer l'application</span>
         </button>
         <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
-          <i class="fa fa-right-from-bracket"></i> Déconnexion
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H5v16h5 M15 8l4 4-4 4 M19 12H9"></path></svg> Déconnexion
         </button>
       </div>
     </aside>
@@ -537,7 +559,7 @@
     <div class="main-content">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px">
-          <button class="hamburger" onclick="openSidebar()"><i class="fa fa-bars"></i></button>
+          <button class="hamburger" onclick="openSidebar()" aria-label="Ouvrir le menu"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg></button>
           <span class="topbar-title" id="topbar-title">Tableau de bord</span>
         </div>
         <div class="topbar-droite">
@@ -548,7 +570,7 @@
             <span class="btn-theme-texte">Mode soleil</span>
           </button>
           <button class="btn-actualiser" id="btn-actualiser" onclick="actualiserDonnees()" title="Recharger les chiffres depuis le serveur">
-            <span class="btn-actualiser-icone" aria-hidden="true">↻</span>
+            <span class="btn-actualiser-icone" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7 M20 4v7h-7"></path></svg></span>
             <span id="maj-heure">Actualiser</span>
           </button>
         </div>
@@ -2167,6 +2189,7 @@ function showView(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
+  _majBarreBas(name);
   const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', demandes: 'Courriers', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
@@ -2760,7 +2783,30 @@ function _renderADate(isRa, myId) {
 function _sommeGA(lignes)   { return lignes.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0); }
 function _sommeMoMo(lignes) { return lignes.reduce((s, r) => s + (Number(r.momoUser) || 0), 0); }
 
+/* Date des derniers rapports reçus, dans la barre du haut : c'est elle qui compte, pas la
+   date du jour (les rapports arrivent le lendemain). */
+function _majDateDonnees() {
+  const el = document.getElementById('topbar-date');
+  if (!el) return;
+  let dernier = null;
+  VALLEE_SAISIES.forEach(r => { const d = parseSaisieDate(r.date); if (d && (!dernier || d > dernier)) dernier = d; });
+  el.textContent = dernier
+    ? "Rapports reçus jusqu'au " + dernier.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    : 'Rapports en cours de chargement';
+}
+
+/* Barre du bas : Saisie pour les comptes qui saisissent, SWAP pour Agence et CARE. */
+function _majBarreBas(nomVue) {
+  const restreint = FIELD_RESTRICTED_ROLES.includes(currentUser?.role);
+  document.querySelectorAll('#barre-bas .bb-item').forEach(b => {
+    const v = b.dataset.vue;
+    b.hidden = (v === 'saisie' && restreint) || (v === 'swap' && !restreint);
+    b.classList.toggle('actif', v === nomVue);
+  });
+}
+
 function renderDashboard() {
+  _majDateDonnees();
   // Agence/Service CARE : dashboard dédié SWAP uniquement, pas de GA/MoMo/équipe.
   const blocADate = document.getElementById('dash-adate');
   if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { blocADate.style.display = 'none'; renderDashboardSwap(); return; }
