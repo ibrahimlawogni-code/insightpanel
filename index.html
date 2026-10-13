@@ -2986,22 +2986,23 @@
   });
 
   /* ---- Comptes utilisateurs ---- */
-  /* Comptes locaux de secours (actifs si Google Sheets inaccessible) */
-  /* Données de secours (offline). Les vraies données viennent de Google Sheets via loadUsers().
+  /* Comptes connus : nom, rôle et zone de référence. Aucun mot de passe ici : ce fichier
+     est public (GitHub Pages), et les mots de passe qui y figuraient en clair étaient
+     lisibles par n'importe qui. La connexion passe uniquement par Google Sheets.
+     Les vraies données viennent de Google Sheets via loadUsers().
      Structure réelle : 5 superviseurs, 30 DFAs/zone = 150 DFAs — target individuel : 10 SIMs/jour */
   const USERS_SEED = [
-    { id: 'Ibrahim.Lawogni',  pwd: 'Zephir@2026', nom: 'Ibrahim LAWOGNI',           role: 'ra',    zone: 'Toutes zones', initiales: 'IL',  statut: 'actif' },
-    { id: 'Admin.Zephir',    pwd: 'Admin@2026',  nom: 'Administrateur',            role: 'admin', zone: 'Toutes zones', initiales: 'ADM', statut: 'actif' },
-    { id: 'Dg.Zephir',      pwd: 'Admin@2026',  nom: 'Directeur Général',         role: 'dg',    zone: 'Toutes zones', initiales: 'DG',  statut: 'actif' },
-    { id: 'Dga.Zephir',     pwd: 'Admin@2026',  nom: 'Directeur Général Adjoint', role: 'dga',   zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
-    { id: 'Marcel.Tchikpe',  pwd: 'Zephir@2026', nom: 'Marcel TCHIKPE',            role: 'dc',    zone: 'Toutes zones', initiales: 'MT',  statut: 'actif' },
-    { id: 'Didier.Fadegnon', pwd: 'Zephir@2026', nom: 'Didier FADEGNON',           role: 'dcc',   zone: 'Toutes zones', initiales: 'DF',  statut: 'actif' },
+    { id: 'Ibrahim.Lawogni',  nom: 'Ibrahim LAWOGNI',           role: 'ra',    zone: 'Toutes zones', initiales: 'IL',  statut: 'actif' },
+    { id: 'Dg.Zephir',      nom: 'Directeur Général',         role: 'dg',    zone: 'Toutes zones', initiales: 'DG',  statut: 'actif' },
+    { id: 'Dga.Zephir',     nom: 'Directeur Général Adjoint', role: 'dga',   zone: 'Toutes zones', initiales: 'DGA', statut: 'actif' },
+    { id: 'Marcel.Tchikpe',  nom: 'Marcel TCHIKPE',            role: 'dc',    zone: 'Toutes zones', initiales: 'MT',  statut: 'actif' },
+    { id: 'Didier.Fadegnon', nom: 'Didier FADEGNON',           role: 'dcc',   zone: 'Toutes zones', initiales: 'DF',  statut: 'actif' },
     /* Superviseurs */
-    { id: 'Alphonse.Djokpe',      pwd: 'Zephir@2026', nom: 'Alphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
-    { id: 'Missimahou.Honkou',    pwd: 'Zephir@2026', nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
-    { id: 'Ghislain.Bah',         pwd: 'Zephir@2026', nom: 'Ghislain BAH',         role: 'superviseur', zone: 'Akpro - Missérété',   initiales: 'GB', statut: 'actif' },
-    { id: 'Loukmane.Yessoufou',   pwd: 'Zephir@2026', nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',             initiales: 'LY', statut: 'actif' },
-    { id: 'François.Dansou',      pwd: 'Zephir@2026', nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',            initiales: 'FD', statut: 'actif' },
+    { id: 'Alphonse.Djokpe',      nom: 'Alphonse DJOKPE',      role: 'superviseur', zone: 'Bonou - Adjohoun',    initiales: 'AD', statut: 'actif' },
+    { id: 'Missimahou.Honkou',    nom: 'Missimahou HONKOU',    role: 'superviseur', zone: 'Aguégués - Dangbo',   initiales: 'MH', statut: 'actif' },
+    { id: 'Ghislain.Bah',         nom: 'Ghislain BAH',         role: 'superviseur', zone: 'Akpro - Missérété',   initiales: 'GB', statut: 'actif' },
+    { id: 'Loukmane.Yessoufou',   nom: 'Loukmane YESSOUFOU',  role: 'superviseur', zone: 'Adjarra',             initiales: 'LY', statut: 'actif' },
+    { id: 'François.Dansou',      nom: 'François DANSOU',      role: 'superviseur', zone: 'Avrankou',            initiales: 'FD', statut: 'actif' },
     /* Les comptes DFA (agents) sont chargés depuis Google Sheets uniquement */
   ];
   let USERS              = [...USERS_SEED];
@@ -3066,29 +3067,42 @@
 
     let user = null;
 
-    /* Vérification via Google Sheets */
+    /* Vérification via Google Sheets, seule source des mots de passe. Google perd au
+       hasard une réponse d'Apps Script sur trois environ (page d'erreur au lieu du JSON) :
+       on retente jusqu'à 5 fois. Se connecter ne modifie rien côté serveur, rejouer est
+       donc sans risque. */
+    let serveurInjoignable = false;
     try {
-      const res  = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'login', id: identifiant, pwd: password })
-      });
-      const json = await res.json();
+      let json = null, derniere = null;
+      for (let essai = 0; essai < 5 && !json; essai++) {
+        if (essai) await new Promise(r => setTimeout(r, 1000 * 2 ** (essai - 1)));
+        try {
+          const res = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'login', id: identifiant, pwd: password })
+          });
+          json = JSON.parse(await res.text());
+        } catch (err) { derniere = err; if (!navigator.onLine) break; }
+      }
+      if (!json) throw derniere || new Error('Serveur injoignable');
       if (json.success && json.user) {
         /* Si le compte est dans USERS_SEED, le seed est prioritaire sur Sheets pour le rôle */
         const seed = USERS_SEED.find(u => u.id.toLowerCase() === json.user.id.toLowerCase());
         user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role } : json.user;
       }
     } catch (e) {
-      /* Erreur réseau : fallback immédiat sur USERS_SEED */
-    }
-
-    /* Si Sheets n'a pas trouvé le compte (ou erreur réseau), tenter USERS_SEED */
-    if (!user) {
-      user = USERS_SEED.find(u => u.id === identifiant && u.pwd === password && u.statut === 'actif') || null;
+      serveurInjoignable = true;
     }
 
     btn.disabled    = false;
     btn.textContent = 'Se connecter';
+
+    if (!user && serveurInjoignable) {
+      /* Le mot de passe est conservé : il n'a pas été refusé, le serveur n'a pas répondu. */
+      errEl.innerHTML     = '<i class="fa fa-circle-exclamation"></i> Le serveur ne répond pas pour le moment. Vérifie ta connexion puis réessaie.';
+      errEl.style.display = 'block';
+      return;
+    }
 
     if (!user) {
       errEl.innerHTML     = '<i class="fa fa-circle-exclamation"></i> Identifiant ou mot de passe incorrect.';

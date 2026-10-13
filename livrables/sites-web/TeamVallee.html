@@ -1195,23 +1195,21 @@ function supPropTarget(teamTarget, supId, refDate, snapshot) {
   return Math.round(teamTarget * (snap.map[String(supId || '').trim().toLowerCase()] || 0) / snap.total);
 }
 
-/* Comptes de secours, utilisés quand les deux services d'authentification sont
-   injoignables. Les mots de passe ne figurent plus ici : seule leur empreinte SHA-256
-   est stockée, car ce fichier est servi publiquement par GitHub Pages et son code
-   source était lisible par n'importe qui. Pour changer un mot de passe, remplacer
-   l'empreinte (console du navigateur : await sha256Hex('NouveauMotDePasse')). */
+/* Comptes connus : nom, rôle et zone affichés pour les identifiants renvoyés par les
+   serveurs. Aucun mot de passe ni empreinte ici : ce fichier est public (GitHub Pages)
+   et une empreinte SHA-256 sans sel d'un mot de passe connu se retrouve en une seconde.
+   La connexion passe uniquement par les serveurs (InsightPanel puis loginVallee). */
 const USERS_SEED = [
-  { id: 'Ibrahim.Lawogni',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
-  { id: 'Admin.Zephir',        pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Administrateur',            role: 'admin',       zone: 'Toutes zones', initiales: 'ADM' },
-  { id: 'Dg.Zephir',           pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Directeur Général',         role: 'dg',          zone: 'Toutes zones', initiales: 'DG'  },
-  { id: 'Dga.Zephir',          pwdHash: 'a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408', nom: 'Directeur Général Adjoint', role: 'dga',         zone: 'Toutes zones', initiales: 'DGA' },
-  { id: 'Marcel.Tchikpe',      pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Marcel TCHIKPE',            role: 'dc',          zone: 'Toutes zones', initiales: 'MT'  },
-  { id: 'Didier.Fadegnon',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Didier FADEGNON',           role: 'dcc',         zone: 'Toutes zones', initiales: 'DF'  },
-  { id: 'Alphonse.Djokpe',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Alphonse DJOKPE',           role: 'superviseur', zone: 'Bonou - Adjohoun',  initiales: 'AD' },
-  { id: 'Missimahou.Honkou',   pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Missimahou HONKOU',         role: 'superviseur', zone: 'Aguégués - Dangbo', initiales: 'MH' },
-  { id: 'Ghislain.Bah',        pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Ghislain BAH',              role: 'superviseur', zone: 'Akpro - Missérété', initiales: 'GB' },
-  { id: 'Loukmane.Yessoufou',  pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'Loukmane YESSOUFOU',        role: 'superviseur', zone: 'Adjarra',           initiales: 'LY' },
-  { id: 'François.Dansou',     pwdHash: '288fc32bd0560afb94fce848941d165137d2c9df9549b52a176c7ac9abe40b75', nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
+  { id: 'Ibrahim.Lawogni',     nom: 'Ibrahim LAWOGNI',           role: 'ra',          zone: 'Toutes zones', initiales: 'IL'  },
+  { id: 'Dg.Zephir',           nom: 'Directeur Général',         role: 'dg',          zone: 'Toutes zones', initiales: 'DG'  },
+  { id: 'Dga.Zephir',          nom: 'Directeur Général Adjoint', role: 'dga',         zone: 'Toutes zones', initiales: 'DGA' },
+  { id: 'Marcel.Tchikpe',      nom: 'Marcel TCHIKPE',            role: 'dc',          zone: 'Toutes zones', initiales: 'MT'  },
+  { id: 'Didier.Fadegnon',     nom: 'Didier FADEGNON',           role: 'dcc',         zone: 'Toutes zones', initiales: 'DF'  },
+  { id: 'Alphonse.Djokpe',     nom: 'Alphonse DJOKPE',           role: 'superviseur', zone: 'Bonou - Adjohoun',  initiales: 'AD' },
+  { id: 'Missimahou.Honkou',   nom: 'Missimahou HONKOU',         role: 'superviseur', zone: 'Aguégués - Dangbo', initiales: 'MH' },
+  { id: 'Ghislain.Bah',        nom: 'Ghislain BAH',              role: 'superviseur', zone: 'Akpro - Missérété', initiales: 'GB' },
+  { id: 'Loukmane.Yessoufou',  nom: 'Loukmane YESSOUFOU',        role: 'superviseur', zone: 'Adjarra',           initiales: 'LY' },
+  { id: 'François.Dansou',     nom: 'François DANSOU',           role: 'superviseur', zone: 'Avrankou',          initiales: 'FD' },
 ];
 
 /* Correspondances connues entre un identifiant renvoyé par InsightPanel et un compte
@@ -1221,13 +1219,6 @@ const USERS_SEED = [
 const ID_ALIASES = {
   'dbah': 'Ghislain.Bah'
 };
-
-/* SHA-256 en hexadécimal. Disponible uniquement en contexte sécurisé (HTTPS),
-   ce qui est le cas sur GitHub Pages. */
-async function sha256Hex(txt) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 const ALLOWED_ROLES = ['superviseur', 'ra', 'admin', 'dg', 'dga', 'dc', 'dcc', 'agence', 'care'];
 
@@ -1380,13 +1371,6 @@ async function doLogin() {
       user = seed ? { ...json.user, id: seed.id, nom: seed.nom, initiales: seed.initiales, role: seed.role, zone: seed.zone || json.user.zone } : json.user;
     }
   } catch (_) { serveurInjoignable = true; }
-
-  if (!user) {
-    try {
-      const hash = await sha256Hex(password);
-      user = USERS_SEED.find(u => sameId(u.id, identifiant) && u.pwdHash === hash) || null;
-    } catch (_) { /* crypto.subtle indisponible : on laisse loginVallee prendre le relais */ }
-  }
 
   if (!user) {
     try {
