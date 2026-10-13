@@ -66,3 +66,6 @@ livrables/analyses/
 
 # Diagnostics de design (outil impeccable) : internes
 .impeccable/
+
+# Suivi d'exécution des plans (outil Superpowers) : interne
+.superpowers/
