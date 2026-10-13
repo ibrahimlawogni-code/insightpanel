@@ -304,17 +304,20 @@
 
   /* WTD / MTD : cumul de la semaine et du mois en cours, comparé aux mêmes jours de la
      semaine et du mois précédents (LWTD, LMTD). */
-  .adate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .adate { background: var(--card-bg); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: grid; gap: 8px; min-width: 0; }
+  .tuiles-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 900px) { .tuiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+  .adate { background: var(--surface); border: 1px solid var(--bordure); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; align-content: start; }
+  .adate-barre { height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  .adate-barre div { height: 100%; border-radius: 99px; background: var(--jaune); }
   .adate-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
-  .adate-code { font-family: var(--police-chiffres); font-size: 18px; font-weight: 700; color: var(--mtn-dark); letter-spacing: .02em; }
+  .adate-code { font-family: var(--police-chiffres); font-size: 16px; font-weight: 700; color: var(--jaune-texte); letter-spacing: .08em; }
   .adate-periode { font-size: 12px; color: var(--text-muted); }
-  .adate-chiffre { font-family: var(--police-chiffres); font-size: 36px; font-weight: 700; line-height: 1; color: var(--mtn-dark); }
+  .adate-chiffre { font-family: var(--police-chiffres); font-size: 40px; font-weight: 700; line-height: 1; color: var(--texte); display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
   .adate-chiffre span { font-family: inherit; font-size: 15px; font-weight: 600; color: var(--text-muted); }
   .adate-comp { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .th-sous { display: block; font-size: 9px; font-weight: 600; letter-spacing: .3px; color: var(--text-muted); opacity: .8; }
   .sous { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
-  @media (max-width: 560px) { .adate-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .adate { padding: 12px; } .adate-chiffre { font-size: 32px; } .adate-chiffre span { font-size: 12px; } }
   .kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
   .kpi-delta.up   { background: var(--bon-fond); color: var(--bon); }
   .kpi-delta.down { background: var(--critique-fond); color: var(--critique); }
@@ -579,8 +582,8 @@
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard">
-          <!-- WTD / MTD : toujours la semaine et le mois en cours, quel que soit l'onglet choisi -->
-          <div class="adate-grid" id="dash-adate"></div>
+          <!-- Dernier jour, WTD, MTD, Équipe : toujours visibles, quel que soit l'onglet choisi -->
+          <div class="tuiles-grid" id="dash-tuiles"></div>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
             <div class="period-tabs" id="dash-kpi-tabs">
               <button class="period-tab active" onclick="setDashPeriod('jour',this)">Jour</button>
@@ -2751,16 +2754,46 @@ function _gaParSup(lignes) {
   return m;
 }
 
-function _renderADate(isRa, myId) {
+/* Dernier jour renseigné (les rapports arrivent le lendemain), comparé au même jour de
+   la semaine précédente : un dimanche se compare à un dimanche. */
+function _dernierJour(src, isRa, myId) {
+  let dernier = null;
+  VALLEE_SAISIES.forEach(r => { const x = parseSaisieDate(r.date); if (x && (!dernier || x > dernier)) dernier = _debutJour(x); });
+  if (!dernier) return { date: null, total: 0, cible: 0, prec: null };
+  const totalLe = jour => src.reduce((t, r) => { const x = parseSaisieDate(r.date); return t + (x && +_debutJour(x) === +jour ? (Number(r.grossAdd) || 0) : 0); }, 0);
+  const mois  = getMonthTarget(dernier.getFullYear(), dernier.getMonth()).ga;
+  const jours = new Date(dernier.getFullYear(), dernier.getMonth() + 1, 0).getDate();
+  const equipe = Math.round(mois / jours);
+  const cible = isRa ? equipe : supPropTarget(equipe, myId, dernier, _dfaSnapshot(dernier));
+  const precJour = _ajouterJours(dernier, -7);
+  return { date: dernier, total: totalLe(dernier), cible, prec: { date: precJour, total: totalLe(precJour) } };
+}
+
+function _renderTuiles(isRa, myId) {
   const src  = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
   const auj  = new Date();
   const snap = _dfaSnapshot(auj);
-  const tuile = (code, nom, period) => {
+  const jourCourt = x => x.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const pastille = e => `<div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>`;
+  const tete = (code, nom, plage) => `<div class="adate-tete"><span class="adate-code" title="${esc(nom)}">${code}</span><span class="adate-periode">${esc(plage)}</span></div>`;
+
+  // Dernier jour
+  const dj = _dernierJour(src, isRa, myId);
+  const tDernier = dj.date
+    ? `<section class="adate" aria-label="Dernier jour renseigné">
+        ${tete('DERNIER JOUR', 'Dernier jour renseigné', jourCourt(dj.date))}
+        <div class="adate-chiffre">${dj.total.toLocaleString('fr-FR')} <span>activations · cible ${dj.cible.toLocaleString('fr-FR')}</span></div>
+        <div class="adate-comp">${_evolutionHtml(dj.total, dj.prec.total, 'vs ' + jourCourt(dj.prec.date))}</div>
+        ${pastille(_etatCible(dj.total, dj.cible, { total: 1, ecoules: 1, enCours: false }))}
+      </section>`
+    : `<section class="adate" aria-label="Dernier jour renseigné">${tete('DERNIER JOUR', 'Dernier jour renseigné', 'aucun rapport reçu')}<div class="adate-chiffre">0</div>${pastille({ cls: 'neutre', mot: 'Rapports en attente' })}</section>`;
+
+  // WTD et MTD
+  const tuileADate = (code, nom, period) => {
     const x       = _aDate(period, src);
     const equipe  = teamPeriodTarget('ga', period, auj);
     const cible   = isRa ? equipe : supPropTarget(equipe, myId, auj, snap);
     const realise = _sommeGA(x.lignes);
-    const e       = _etatCible(realise, cible, x.av);
     const plage   = !x.av || !x.av.dernier ? 'aucun rapport reçu'
       : +x.av.dernier === +x.b.debut ? _jourCourt(x.b.debut)
       : _jourCourt(x.b.debut) + ' au ' + _jourCourt(x.av.dernier);
@@ -2768,14 +2801,35 @@ function _renderADate(isRa, myId) {
       ? _evolutionHtml(realise, _sommeGA(x.comp.lignes), _libelleADate(code, x))
       : 'Comparaison disponible dès le premier rapport';
     return `<section class="adate" aria-label="${esc(nom)}">
-      <div class="adate-tete"><span class="adate-code" title="${esc(nom)}">${code}</span><span class="adate-periode">${esc(plage)}</span></div>
+      ${tete(code, nom, plage)}
       <div class="adate-chiffre">${realise.toLocaleString('fr-FR')} <span>activations · cible ${cible.toLocaleString('fr-FR')}</span></div>
       <div class="adate-comp">${comp}</div>
-      <div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>
+      ${pastille(_etatCible(realise, cible, x.av))}
     </section>`;
   };
-  document.getElementById('dash-adate').innerHTML =
-    tuile('WTD', 'Semaine en cours (Week to Date)', 'semaine') + tuile('MTD', 'Mois en cours (Month to Date)', 'mois');
+
+  // Équipe : DFA de la dernière saisie du mois de chaque superviseur
+  const bm = _bornesPeriode('mois', auj);
+  const derniers = {};
+  [...src].filter(r => { const x = parseSaisieDate(r.date); return x && x >= bm.debut && x <= bm.fin; })
+    .sort((a, b) => (parseSaisieDate(b.date) - parseSaisieDate(a.date)))
+    .forEach(r => { const k = String(r.supId || '').trim().toLowerCase(); if (k && !derniers[k]) derniers[k] = r; });
+  const lignesDfa = Object.values(derniers);
+  const totalDfa = lignesDfa.reduce((t, r) => t + (Number(r.totalDfa) || 0), 0);
+  const actifs   = lignesDfa.reduce((t, r) => t + (Number(r.dfaActif) || 0), 0);
+  const taux     = totalDfa > 0 ? Math.round(actifs / totalDfa * 100) : 0;
+  const sousTitre = isRa ? `${lignesDfa.length} superviseur${lignesDfa.length > 1 ? 's' : ''} actif${lignesDfa.length > 1 ? 's' : ''}` : 'ma zone';
+  const tEquipe = `<section class="adate" aria-label="Équipe">
+      ${tete('ÉQUIPE', 'Équipe', sousTitre)}
+      <div class="adate-chiffre">${actifs.toLocaleString('fr-FR')} <span>DFA actifs sur ${totalDfa.toLocaleString('fr-FR')}</span></div>
+      <div class="adate-barre" role="img" aria-label="Taux d'activité des DFA : ${taux} %"><div style="width:${taux}%"></div></div>
+      <div class="adate-comp">Taux d'activité <strong>${taux} %</strong></div>
+    </section>`;
+
+  document.getElementById('dash-tuiles').innerHTML = tDernier
+    + tuileADate('WTD', 'Semaine en cours (Week to Date)', 'semaine')
+    + tuileADate('MTD', 'Mois en cours (Month to Date)', 'mois')
+    + tEquipe;
 }
 
 /* Déclarations de fonction et non constantes : renderDashboard peut tourner pendant
@@ -2808,7 +2862,7 @@ function _majBarreBas(nomVue) {
 function renderDashboard() {
   _majDateDonnees();
   // Agence/Service CARE : dashboard dédié SWAP uniquement, pas de GA/MoMo/équipe.
-  const blocADate = document.getElementById('dash-adate');
+  const blocADate = document.getElementById('dash-tuiles');
   if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { blocADate.style.display = 'none'; renderDashboardSwap(); return; }
   blocADate.style.display = '';
 
@@ -2922,7 +2976,7 @@ function renderDashboard() {
       ${noteMomo}
     </section>`;
 
-  _renderADate(isRa, myId);
+  _renderTuiles(isRa, myId);
 
   /* Avertissement si aucune donnée pour cette période */
   const noDataEl = document.getElementById('dash-no-data');
