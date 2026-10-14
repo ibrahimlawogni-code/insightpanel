@@ -46,6 +46,7 @@
     --jaune-texte:   #F8C200;
     --jaune-fond:    #2A2510;
     --sur-jaune:     #101113;
+    --jaune-trait:   #F8C200;
     --bon:           #6EE09A;  --bon-fond:       #17331F;  --bon-plein:       #4CC97A;
     --attention:     #FFC46B;  --attention-fond: #3A2C14;  --attention-plein: #F2A93B;
     --critique:      #FF9A90;  --critique-fond:  #3A1D1B;  --critique-plein:  #F06A5F;
@@ -86,14 +87,15 @@
     --jaune-texte:   #8A6A00;
     --jaune-fond:    #FFF4CC;
     --sur-jaune:     #16150F;
-    --bon:           #15803D;  --bon-fond:       #DCFCE7;  --bon-plein:       #16A34A;
-    --attention:     #92400E;  --attention-fond: #FEF3C7;  --attention-plein: #D97706;
+    --jaune-trait:   #A87E00;
+    --bon:           #15803D;  --bon-fond:       #DCFCE7;  --bon-plein:       #15803D;
+    --attention:     #92400E;  --attention-fond: #FEF3C7;  --attention-plein: #B45309;
     --critique:      #991B1B;  --critique-fond:  #FEE2E2;  --critique-plein:  #DC2626;
     --info:          #1E40AF;  --info-fond:      #DBEAFE;  --info-plein:      #2563EB;
     --neutre-fond:   #EDEAE2;
     --sur-info:      #FFFFFF;
     --sur-critique:  #FFFFFF;
-    --sur-attention: #16150F;
+    --sur-attention: #FFFFFF;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--police-texte); background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -278,8 +280,14 @@
   /* Traits d'épaisseur constante à toutes les tailles d'écran. */
   .rythme-graphes svg * { vector-effect: non-scaling-stroke; }
   /* Sur téléphone, le dessin est réduit d'environ trois fois : libellés agrandis, secondaires masqués. */
+  /* Le dessin est mis à l'échelle de sa largeur : --ech (800 / largeur affichée, posé en JS)
+     garde les libellés à 12 px réels quelle que soit la taille d'écran. */
+  .rythme-graphes svg text { font-size: calc(12px * var(--ech, 1)); }
+  .rythme-graphes svg text[font-weight="700"] { font-size: calc(13px * var(--ech, 1)); }
+  .rythme-valeur { min-height: 1.4em; font-size: 13px; font-weight: 700; color: var(--texte); font-variant-numeric: tabular-nums; }
+  .barres-jours { cursor: pointer; }
+  /* Sur téléphone, les libellés secondaires masqués. */
   @media (max-width: 600px) {
-    .rythme-graphes svg text { font-size: 30px; }
     .rythme-graphes svg .lib-sec { display: none; }
   }
   @media (max-width: 900px) { .rythme { grid-template-columns: minmax(0, 1fr); padding: 18px; } }
@@ -439,6 +447,9 @@
   .nav-item .ico { width: 18px; }
   .btn-actualiser-icone .ico { width: 15px; height: 15px; }
   .barre-bas { display: none; }
+  .ico.tourne { animation: tourne 1s linear infinite; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .ico.tourne { animation: none; } }
   .hamburger { display: none; background: none; border: none; cursor: pointer; font-size: 22px; padding: 4px; }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
   @media (max-width: 768px) {
@@ -448,7 +459,7 @@
     .bb-item .ico { width: 20px; height: 20px; }
     .bb-item[hidden] { display: none; }
     .bb-item.actif { background: var(--jaune); color: var(--sur-jaune); font-weight: 700; }
-    .page-body { padding-bottom: 104px; }
+    .page-body { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
     #barre-hors-ligne, #barre-maj { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
     .hamburger { display: none !important; }
     .sidebar { transform: translateX(-100%); }
@@ -468,7 +479,7 @@
     .topbar { padding: 12px 14px; }
     .topbar-date { display: none; }
     .btn-theme-texte { display: none; }
-    .page-body { padding: 14px 12px; }
+    .page-body { padding: 14px 12px calc(96px + env(safe-area-inset-bottom, 0px)); }
     .card { padding: 16px 14px; }
     .period-tab { padding: 6px 11px; }
     .kpi-big { padding: 16px 16px; }
@@ -499,14 +510,6 @@
   </span>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-<!-- Barre de navigation du téléphone, à portée de pouce. « Plus » ouvre le menu complet. -->
-<nav class="barre-bas" id="barre-bas" aria-label="Navigation principale">
-  <button class="bb-item" data-vue="dashboard" onclick="showView('dashboard', document.getElementById('nav-dashboard'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg><span>Accueil</span></button>
-  <button class="bb-item" data-vue="saisie" onclick="showView('saisie', document.getElementById('nav-saisie'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg><span>Saisie</span></button>
-  <button class="bb-item" data-vue="stocks" onclick="showView('stocks', document.getElementById('nav-stocks'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg><span>Stocks</span></button>
-  <button class="bb-item" data-vue="swap" onclick="showView('swap', document.getElementById('nav-swap'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg><span>SWAP</span></button>
-  <button class="bb-item" data-vue="plus" onclick="openSidebar()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg><span>Plus</span></button>
-</nav>
 
 <!-- ══ LOGIN ══ -->
 <div id="screen-login">
@@ -640,19 +643,19 @@
               <button class="period-tab" onclick="setDashPeriod('annee',this)">Année</button>
             </div>
             <div id="dash-ctrl-date" style="display:flex;align-items:center;gap:5px">
-              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)" aria-label="Période précédente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
               <input type="date"   id="dash-input-jour"      style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashRefDateChanged()">
               <input type="month"  id="dash-input-mois"      style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashMonthChanged()">
               <span                id="dash-input-trimestre"  style="display:none;padding:5px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--texte);font-weight:600;min-width:110px;text-align:center"></span>
               <input type="number" id="dash-input-annee"     style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;width:76px;text-align:center" min="2020" max="2035" onchange="dashYearChanged()">
-              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)"><i class="fa fa-chevron-right"></i></button>
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)" aria-label="Période suivante"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></button>
             </div>
             <div id="dash-ctrl-range" style="display:none;align-items:center;flex-wrap:wrap;gap:5px">
               <span style="font-size:12px;color:var(--text-muted)">Du</span>
               <input type="date" id="dash-range-debut" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
               <span style="font-size:12px;color:var(--text-muted)">au</span>
               <input type="date" id="dash-range-fin" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
-              <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><i class="fa fa-check"></i> Appliquer</button>
+              <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg> Appliquer</button>
             </div>
           </div>
           <!-- Bandeau info / chargement / données vides -->
@@ -671,7 +674,7 @@
           </section>
           <!-- KPI NEW ADD réel vs déclaratif -->
           <div class="card" style="margin-bottom:16px" id="card-dash-kpireel">
-            <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD : déclaré contre réel MTN</div>
+            <div class="card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18 M5 21h14 M6 7h12 M6 7l-3 7a3 3 0 0 0 6 0z M18 7l-3 7a3 3 0 0 0 6 0z"></path></svg> KPI NEW ADD : déclaré contre réel MTN</div>
             <div id="kpi-reel-body" style="margin-top:16px"></div>
           </div>
         </div>
@@ -1237,6 +1240,14 @@
       </div><!-- /page-body -->
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
+<!-- Barre de navigation du téléphone, à portée de pouce. « Plus » ouvre le menu complet. -->
+<nav class="barre-bas" id="barre-bas" aria-label="Navigation principale">
+  <button class="bb-item" data-vue="dashboard" onclick="showView('dashboard', document.getElementById('nav-dashboard'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg><span>Accueil</span></button>
+  <button class="bb-item" data-vue="saisie" onclick="showView('saisie', document.getElementById('nav-saisie'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg><span>Saisie</span></button>
+  <button class="bb-item" data-vue="stocks" onclick="showView('stocks', document.getElementById('nav-stocks'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg><span>Stocks</span></button>
+  <button class="bb-item" data-vue="swap" onclick="showView('swap', document.getElementById('nav-swap'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg><span>SWAP</span></button>
+  <button class="bb-item" data-vue="plus" onclick="openSidebar()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg><span>Plus</span></button>
+</nav>
 </div><!-- /screen-app -->
 
 <script>
@@ -2601,10 +2612,10 @@ function renderDashboardSwap() {
 
   const diff = effectuesPeriode - prevEffectues;
   const deltaHtml = !prevEffectues && !effectuesPeriode
-    ? `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> —</span>`
-    : diff > 0 ? `<span class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +${diff}</span>`
-    : diff < 0 ? `<span class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> ${diff}</span>`
-    : `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> 0</span>`;
+    ? `<span class="kpi-delta neutral">${_icone('moins')} —</span>`
+    : diff > 0 ? `<span class="kpi-delta up">${_icone('hausse')} +${diff}</span>`
+    : diff < 0 ? `<span class="kpi-delta down">${_icone('baisse')} ${diff}</span>`
+    : `<span class="kpi-delta neutral">${_icone('moins')} 0</span>`;
 
   const restantCol = stockSwapMoi <= 0 ? 'inherit' : restantMoi <= 0 ? 'var(--danger)' : restantMoi < stockSwapMoi * 0.15 ? 'var(--warning)' : 'var(--success)';
 
@@ -2625,14 +2636,14 @@ function renderDashboardSwap() {
 
   document.getElementById('kpi-stat-grid').innerHTML = `
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)"><i class="fa fa-right-left"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)">${_icone('echange')}</div>
       <div>
         <div class="kpi-stat-val">${swapEffectuesMoi.toLocaleString('fr-FR')}</div>
         <div class="kpi-stat-lbl">Mes SWAP effectués (total)</div>
       </div>
     </div>
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)"><i class="fa fa-calendar-check"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)">${_icone('calendrier')}</div>
       <div>
         <div class="kpi-stat-val">${dernier ? (isoToFR(dernier.date) || dernier.date) : '—'}</div>
         <div class="kpi-stat-lbl">Dernier SWAP</div>
@@ -2848,7 +2859,9 @@ function _renderTuiles(isRa, myId) {
   const actifs   = lignesDfa.reduce((t, r) => t + (Number(r.dfaActif) || 0), 0);
   const taux     = totalDfa > 0 ? Math.round(actifs / totalDfa * 100) : 0;
   const sousTitre = isRa ? `${lignesDfa.length} superviseur${lignesDfa.length > 1 ? 's' : ''} actif${lignesDfa.length > 1 ? 's' : ''}` : 'ma zone';
-  const tEquipe = `<section class="adate" aria-label="Équipe">
+  const tEquipe = !lignesDfa.length
+    ? `<section class="adate" aria-label="Équipe">${tete('ÉQUIPE', 'Équipe', isRa ? 'aucun superviseur ce mois' : 'ma zone')}<div class="adate-chiffre">— <span>DFA actifs</span></div>${pastille({ cls: 'neutre', mot: 'Rapports en attente' })}</section>`
+    : `<section class="adate" aria-label="Équipe">
       ${tete('ÉQUIPE', 'Équipe', sousTitre)}
       <div class="adate-chiffre">${actifs.toLocaleString('fr-FR')} <span>DFA actifs sur ${totalDfa.toLocaleString('fr-FR')}</span></div>
       <div class="adate-barre" role="img" aria-label="Taux d'activité des DFA : ${taux} %"><div style="width:${taux}%"></div></div>
@@ -2895,18 +2908,18 @@ function _svgCumul(serie, cible, bornes, av) {
   let g = `<svg class="graphe-cumul" viewBox="0 0 800 230" width="100%" role="img" aria-label="Cumul des activations jour par jour : ${fmt(dernier)} au ${_jourCourt(serie[iD].jour)}${cible > 0 ? ', cible ' + fmt(cible) : ''}">`;
   g += `<line x1="40" y1="200" x2="760" y2="200" style="stroke:var(--bordure)" stroke-width="1"/>`;
   if (cible > 0) {
-    g += `<line x1="40" y1="${Y(cible).toFixed(1)}" x2="760" y2="${Y(cible).toFixed(1)}" style="stroke:var(--jaune)" stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`;
+    g += `<line x1="40" y1="${Y(cible).toFixed(1)}" x2="760" y2="${Y(cible).toFixed(1)}" style="stroke:var(--jaune-trait)" stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`;
     g += `<text x="760" y="${(Y(cible) - 8).toFixed(1)}" text-anchor="end" font-size="12" style="fill:var(--jaune-texte)">Cible ${fmt(cible)}</text>`;
     g += `<path d="M40,${Y(cible / total).toFixed(1)} L760,${Y(cible).toFixed(1)}" style="stroke:var(--texte-2)" stroke-width="2" stroke-dasharray="6 6" fill="none" opacity=".7"/>`;
     g += `<text x="520" y="${(Y(cible * 480 / 720) + 18).toFixed(1)}" font-size="12" class="lib-sec" style="fill:var(--texte-2)">rythme attendu</text>`;
   }
   if (av.enCours && iD < total - 1) {
-    g += `<path d="M${pts[iD]} L760,${Y(projection).toFixed(1)}" style="stroke:var(--jaune)" stroke-width="2" stroke-dasharray="2 5" fill="none" opacity=".75"/>`;
+    g += `<path d="M${pts[iD]} L760,${Y(projection).toFixed(1)}" style="stroke:var(--jaune-trait)" stroke-width="2" stroke-dasharray="2 5" fill="none" opacity=".75"/>`;
   }
-  g += `<path d="M${X(0).toFixed(1)},200 L${pts.join(' L')} L${X(iD).toFixed(1)},200 Z" style="fill:var(--jaune)" opacity=".14"/>`;
-  g += `<path d="M${pts.join(' L')}" style="stroke:var(--jaune)" stroke-width="3" fill="none" stroke-linejoin="round"/>`;
+  g += `<path d="M${X(0).toFixed(1)},200 L${pts.join(' L')} L${X(iD).toFixed(1)},200 Z" style="fill:var(--jaune-trait)" opacity=".14"/>`;
+  g += `<path d="M${pts.join(' L')}" style="stroke:var(--jaune-trait)" stroke-width="3" fill="none" stroke-linejoin="round"/>`;
   const xd = X(iD), yd = Y(dernier);
-  g += `<circle cx="${xd.toFixed(1)}" cy="${yd.toFixed(1)}" r="6" style="fill:var(--jaune);stroke:var(--surface-2)" stroke-width="3"/>`;
+  g += `<circle cx="${xd.toFixed(1)}" cy="${yd.toFixed(1)}" r="6" style="fill:var(--jaune-trait);stroke:var(--surface-2)" stroke-width="3"/>`;
   const aDroite = xd < 600;
   g += `<text x="${(xd + (aDroite ? 12 : -12)).toFixed(1)}" y="${(yd - 8).toFixed(1)}" text-anchor="${aDroite ? 'start' : 'end'}" font-size="13" font-weight="700" class="lib-sec" style="fill:var(--texte)">${_jourCourt(serie[iD].jour)} · ${fmt(dernier)}</text>`;
   g += `<text x="40" y="222" font-size="11" style="fill:var(--texte-2)">${_jourCourt(bornes.debut)}</text>`;
@@ -2925,19 +2938,59 @@ function _svgBarresJours(serie, cibleJour, bornes) {
   serie.forEach((p, i) => {
     const h = p.total > 0 ? Math.max(1.5, H(p.total)) : 0;
     const atteint = cibleJour > 0 && p.total >= cibleJour;
-    g += `<rect x="${(X(i) - larg / 2).toFixed(1)}" y="${(100 - h).toFixed(1)}" width="${larg.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${atteint ? 'var(--jaune)' : 'var(--texte-2)'}" opacity="${atteint ? 1 : .55}"><title>${_jourCourt(p.jour)} : ${p.total.toLocaleString('fr-FR')}</title></rect>`;
+    g += `<rect x="${(X(i) - larg / 2).toFixed(1)}" y="${(100 - h).toFixed(1)}" width="${larg.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${atteint ? 'var(--jaune-trait)' : 'var(--texte-2)'}" opacity="${atteint ? 1 : .55}"><title>${_jourCourt(p.jour)} : ${p.total.toLocaleString('fr-FR')}</title></rect>`;
   });
   if (cibleJour > 0) {
     const yc = (100 - H(cibleJour)).toFixed(1);
-    g += `<line x1="30" y1="${yc}" x2="770" y2="${yc}" style="stroke:var(--jaune)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    g += `<line x1="30" y1="${yc}" x2="770" y2="${yc}" style="stroke:var(--jaune-trait)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     g += `<text x="770" y="${(+yc - 6).toFixed(1)}" text-anchor="end" font-size="11" style="fill:var(--jaune-texte)">cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}</text>`;
   }
   return g + '</svg>';
 }
 
+/* Libellés des graphiques : le dessin (800 unités de large) est réduit ou agrandi selon
+   l'écran ; --ech compense pour garder une taille de lecture constante. */
+function _echelleGraphes() {
+  document.querySelectorAll('.rythme-graphes').forEach(fig => {
+    const l = fig.getBoundingClientRect().width;
+    if (l > 0) fig.style.setProperty('--ech', (800 / l).toFixed(3));
+  });
+}
+window.addEventListener('resize', _echelleGraphes);
+
+/* Toucher une barre (ou cliquer) affiche le total du jour : le survol n'existe pas au doigt. */
+function _toucheBarre(e) {
+  const svg = e.target.closest && e.target.closest('.barres-jours');
+  const s = window._serieRythme;
+  if (!svg || !s) return;
+  const r = svg.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * 800;
+  const i = Math.round((x - 40) / (720 / Math.max(s.total - 1, 1)));
+  const p = s.serie[i];
+  const el = document.getElementById('rythme-valeur');
+  if (!p || !el) return;
+  el.textContent = _jourCourt(p.jour) + ' : ' + p.total.toLocaleString('fr-FR') + ' activations';
+}
+document.addEventListener('click', _toucheBarre);
+
+/* Icônes du tableau de bord, dessinées sur place comme celles du menu. */
+function _icone(nom) {
+  const P = {
+    alerte: '<path d="M12 3L2 21h20L12 3z M12 10v5 M12 18h.01"></path>',
+    info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v6 M12 7.5h.01"></path>',
+    chargement: '<path d="M21 12a9 9 0 1 1-6.2-8.6"></path>',
+    moins: '<path d="M5 12h14"></path>',
+    hausse: '<path d="M3 17l6-6 4 4 8-8 M15 7h6v6"></path>',
+    baisse: '<path d="M3 7l6 6 4-4 8 8 M15 17h6v-6"></path>',
+    echange: '<path d="M4 8h14l-4-4 M20 16H6l4 4"></path>',
+    calendrier: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18 M8 3v4 M16 3v4 M9 15l2 2 4-4"></path>',
+  };
+  return `<svg class="ico${nom === 'chargement' ? ' tourne' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[nom] || ''}</svg>`;
+}
+
 /* ── CARTES SUPERVISEURS ──
    Jauge : part de la cible de la période atteinte ; trait : part attendue à date. */
-function _jaugeSvg(part, partAttendue, cls) {
+function _jaugeSvg(part, partAttendue, cls, libelle) {
   const C = 188.5, couleur = { bon: 'var(--bon-plein)', attention: 'var(--attention-plein)', critique: 'var(--critique-plein)' }[cls] || 'var(--texte-2)';
   const plein = Math.max(0, Math.min(1, part)) * C;
   let trait = '';
@@ -2948,17 +3001,21 @@ function _jaugeSvg(part, partAttendue, cls) {
   return `<svg viewBox="0 0 80 80" role="img" aria-label="${Math.round(part * 100)} % de la cible de la période">
     <circle cx="40" cy="40" r="30" fill="none" style="stroke:var(--surface-3)" stroke-width="10"/>
     <circle cx="40" cy="40" r="30" fill="none" style="stroke:${couleur}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${plein.toFixed(1)} ${C}" transform="rotate(-90 40 40)"/>
-    ${trait}<text x="40" y="46" text-anchor="middle" font-size="19" font-weight="700" style="fill:var(--texte);font-family:var(--police-chiffres)">${Math.round(part * 100)} %</text></svg>`;
+    ${trait}<text x="40" y="46" text-anchor="middle" font-size="19" font-weight="700" style="fill:var(--texte);font-family:var(--police-chiffres)">${libelle || Math.round(part * 100) + ' %'}</text></svg>`;
 }
 
-function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd) {
+/* Sans cible (poste « Hors liste »), la jauge porte le nombre d'activations au lieu d'un
+   pourcentage. momo : total New MoMo User de la période, signalé s'il s'écarte du GA. */
+function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo) {
   const part = cible > 0 ? ga / cible : 0;
   const pa = etat.rythme && cible > 0 ? etat.attendu / cible : null;
+  const ecart = momo === undefined ? 0 : momo - ga;
   return `<article class="carte-sup carte-${etat.cls}">
-    <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls)}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
+    <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls, cible > 0 ? '' : ga.toLocaleString('fr-FR'))}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
     <div class="carte-ligne carte-mtd"><span>MTD</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
     <div class="carte-ligne carte-wtd"><span>WTD</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
     <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
+    ${ecart ? `<span class="ecart-momo" style="margin-left:0">MoMo ≠ GA (${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')})</span>` : ''}
   </article>`;
 }
 
@@ -3065,9 +3122,9 @@ function renderDashboard() {
   let noteMomo;
   if (curMomo !== curGA) {
     const ecart = curMomo - curGA;
-    noteMomo = `<div class="rythme-alerte"><i class="fa fa-triangle-exclamation" aria-hidden="true"></i>
+    noteMomo = `<div class="rythme-alerte">${_icone('alerte')}
       <span>New MoMo User (${curMomo.toLocaleString('fr-FR')}) diffère des activations de ${(ecart > 0 ? '+' : '') + ecart.toLocaleString('fr-FR')}.
-      La norme veut l'égalité : vérifie les saisies signalées « MoMo ≠ GA » dans le tableau.</span></div>`;
+      La norme veut l'égalité : vérifie les saisies signalées « MoMo ≠ GA » sur les cartes.</span></div>`;
   } else if (curGA > 0) {
     const etatMomo = _etatCible(curMomo, targetMomo, av);
     noteMomo = `<div class="rythme-note">New MoMo User égal aux activations, conforme à la norme MTN.
@@ -3077,10 +3134,13 @@ function renderDashboard() {
   }
 
   const serie = _dashPeriod === 'jour' ? [] : _serieJours(filtered, bornes, av);
-  const cibleJour = targetGA > 0 && bornes ? targetGA / _nbJours(bornes.debut, bornes.fin) : 0;
+  /* Cible du jour : celle du mois réparti sur tous ses jours, comme la tuile Dernier jour
+     (l'onglet Semaine répartit autrement la cible de la semaine). */
+  const cibleJour = (isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap)) / dim;
   const graphes = serie.length
     ? `<figure class="rythme-graphes">${_svgCumul(serie, targetGA, bornes, av)}${_svgBarresJours(serie, cibleJour, bornes)}
-        <figcaption>Courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte)</figcaption></figure>`
+        <div class="rythme-valeur" id="rythme-valeur" aria-live="polite"></div>
+        <figcaption>Touche une barre pour lire son total · courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte)</figcaption></figure>`
     : '';
   const lignesDl = [];
   if (av && av.dernier && _dashPeriod !== 'jour') lignesDl.push(['Données jusqu\'au', _jourCourt(av.dernier)]);
@@ -3097,13 +3157,15 @@ function renderDashboard() {
       <div class="rythme-gauche">
         <div class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></div>
         <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">/ ${targetGA.toLocaleString('fr-FR')}</span></div>
-        <div><span class="etat etat-${etat.cls}">${esc(etat.mot)}${etat.rythme ? ' sur le rythme' : ''}</span></div>
+        <div><span class="etat etat-${etat.cls}">${esc(etat.mot)}${etat.rythme && !/rythme/i.test(etat.mot) ? ' sur le rythme' : ''}</span></div>
         ${dl ? `<dl class="rythme-dl">${dl}</dl>` : ''}
         ${noteMomo}
       </div>
       ${graphes}
     </section>`;
 
+  window._serieRythme = serie.length ? { serie, total: _nbJours(bornes.debut, bornes.fin) } : null;
+  _echelleGraphes();
   _renderTuiles(isRa, myId);
 
   /* Avertissement si aucune donnée pour cette période */
@@ -3114,13 +3176,13 @@ function renderDashboard() {
     const totalMySaisies = VALLEE_SAISIES.filter(r => isRa || sameId(r.supId, myId)).length;
     if (!_saisiesLoaded) {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-notch fa-spin"></i> Chargement des données…`;
+      noDataEl.innerHTML = `${_icone('chargement')} Chargement des données…`;
     } else if (_dashPeriod === 'periode' && (!_dashRangeDebut || !_dashRangeFin)) {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Choisis les dates de début et de fin, puis clique sur Appliquer.`;
+      noDataEl.innerHTML = `${_icone('info')} Choisis les dates de début et de fin, puis clique sur Appliquer.`;
     } else if (filtered.length === 0 && totalMySaisies > 0 && _dashPeriod === 'jour') {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Aucune saisie pour aujourd'hui.
+      noDataEl.innerHTML = `${_icone('info')} Aucune saisie pour aujourd'hui.
         <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="setDashPeriod('mois', document.querySelector('#dash-kpi-tabs .period-tab:nth-child(4)'))">
           Voir ce mois
         </button>`;
@@ -3181,20 +3243,26 @@ function renderDashboard() {
   const cartes = supsAffiches.map(sup => {
     const k = cle(sup.id);
     const ga = totals[k] ? totals[k].ga : 0;
+    const momo = totals[k] ? totals[k].momo : 0;
     const cible = isRa ? supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap) : targetGA;
-    return { sup, ga, cible, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
+    return { sup, ga, momo, cible, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
   });
   if (!supsAffiches.length && !isRa) {
     const k = cle(myId);
-    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, cible: targetGA,
+    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, momo: totals[k]?.momo || 0, cible: targetGA,
                   etat: _etatCible(totals[k]?.ga || 0, targetGA, av), ...aDateSup(k) });
   }
   /* Les plus en retard d'abord ; sans pourcentage (pas de cible, pas de rapport) : en fin de liste. */
   cartes.sort((a, b) => (a.etat.pct == null) - (b.etat.pct == null) || (a.etat.pct || 0) - (b.etat.pct || 0));
-  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd)).join('');
+  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo)).join('');
   if (isRa && (orphelins.ga || orphelins.momo)) {
-    html += _carteSuperviseur({ nom: 'Hors liste', zone: orphelins.ids.size + ' identifiant(s) inconnu(s)' }, orphelins.ga, 0,
-      { cls: 'neutre', mot: 'Identifiants à corriger', pct: null }, { val: 0, prev: null }, { val: 0, prev: null });
+    /* WTD et MTD des identifiants inconnus : tout ce qui ne correspond à aucun superviseur. */
+    const horsListe = m => m ? Object.entries(m).reduce((t, [k, v]) => t + (totals[k] === undefined ? v : 0), 0) : null;
+    const ids = [...orphelins.ids];
+    const zone = ids.length ? ids.slice(0, 3).join(', ') + (ids.length > 3 ? ' et ' + (ids.length - 3) + ' autre(s)' : '') : 'Identifiant vide';
+    html += _carteSuperviseur({ nom: 'Hors liste', zone }, orphelins.ga, 0,
+      { cls: 'neutre', mot: 'Identifiants à corriger', pct: null },
+      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo);
   }
   document.getElementById('dash-cartes').innerHTML = html;
 
@@ -4612,7 +4680,7 @@ function renderKpiReelCard() {
       <div><div style="font-size:12px;color:var(--text-muted)">KPI NEW ADD réel</div><div style="font-size:20px;font-weight:700">${reel.toLocaleString('fr-FR')}</div></div>
       <div><div style="font-size:12px;color:var(--text-muted)">Écart</div><div style="font-size:20px;font-weight:700;color:${ecartCol}">${ecartTxt}</div></div>
     </div>
-    ${alerte ? `<p style="margin-top:10px;font-size:12px;color:${ecartCol}"><i class="fa fa-triangle-exclamation"></i> Écart supérieur à 15 % entre le déclaratif et le réel validé — à vérifier.</p>` : ''}
+    ${alerte ? `<p style="margin-top:10px;font-size:12px;color:${ecartCol}">${_icone('alerte')} Écart supérieur à 15 % entre le déclaratif et le réel validé — à vérifier.</p>` : ''}
   `;
 }
 
