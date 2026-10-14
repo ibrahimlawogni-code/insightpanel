@@ -1292,10 +1292,11 @@ function getMonthTarget(year, month0) {
   return VALLEE_MONTHLY_TARGETS[key] || VALLEE_TEAM_TARGET;
 }
 
-/* Nombre de jours ouvrés par semaine. Le tableau de bord comptait 6 jours et le module
-   Rapport 7, ce qui donnait deux cibles hebdomadaires différentes pour la même semaine,
-   soit 17 % d'écart entre l'écran et le rapport envoyé. Valeur unique désormais. */
-const JOURS_SEMAINE_OUVRES = 6;
+/* Nombre de jours comptés dans la cible d'une semaine : 7, dimanche compris (décision
+   d'Ibrahim du 14/10/2026). Avec 6, la cible de la semaine valait 6 cibles du jour alors
+   que les activations des 7 jours y entraient : les pourcentages hebdomadaires étaient
+   gonflés d'environ 17 %. Valeur unique, partagée par le tableau de bord et le Rapport. */
+const JOURS_SEMAINE_OUVRES = 7;
 
 /* Cible équipe pour une période. Fonction unique, utilisée par le tableau de bord et
    par le module Rapport : les deux implémentations parallèles avaient déjà divergé. */
