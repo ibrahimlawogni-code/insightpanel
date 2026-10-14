@@ -21,7 +21,18 @@ const SHEET_ID = '1heK1_Gfv7BaaZ4k3I5oae7MQ8ueMG336-akYHUMLtgw';
 // ─────────────────────────────────────────────────────────────
 // POINT D'ENTRÉE PRINCIPAL
 // ─────────────────────────────────────────────────────────────
+/* FERMÉ depuis le 2026-10-14 : InsightPanel n'est plus utilisé, et ce serveur acceptait
+   des requêtes sans contrôle d'accès (rôle annoncé par la page, changement de mot de
+   passe de n'importe quel compte). Il refuse désormais tout. Les comptes ont été recopiés
+   dans TeamVallee (migrerComptesInsightPanel) ; les données du classeur restent intactes.
+   Le code ci-dessous n'est plus appelé. */
+const REPONSE_FERME = { success: false, code: 'FERME', error: 'InsightPanel est fermé. Utilise TeamVallee.' };
+
 function doPost(e) {
+  return jsonResponse(REPONSE_FERME);
+}
+
+function _ancienDoPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
 
@@ -59,7 +70,7 @@ function doPost(e) {
 
 function doGet(e) {
   return ContentService
-    .createTextOutput('InsightPanel API active — ' + new Date().toLocaleString('fr-FR'))
+    .createTextOutput(REPONSE_FERME.error)
     .setMimeType(ContentService.MimeType.TEXT);
 }
 
