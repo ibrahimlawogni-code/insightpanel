@@ -631,8 +631,7 @@
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard">
-          <!-- Dernier jour, WTD, MTD, Équipe : toujours visibles, quel que soit l'onglet choisi -->
-          <div class="tuiles-grid" id="dash-tuiles"></div>
+          <!-- Choix de la période, en haut de l'écran -->
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
             <div class="period-tabs" id="dash-kpi-tabs">
               <button class="period-tab active" onclick="setDashPeriod('jour',this)">Jour</button>
@@ -658,6 +657,8 @@
               <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg> Appliquer</button>
             </div>
           </div>
+          <!-- Dernier jour, WTD, MTD, Équipe : toujours visibles, quel que soit l'onglet choisi -->
+          <div class="tuiles-grid" id="dash-tuiles"></div>
           <!-- Bandeau info / chargement / données vides -->
           <div id="dash-no-data" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--text-muted);align-items:center;gap:8px"></div>
           <!-- KPI grandes cards -->
