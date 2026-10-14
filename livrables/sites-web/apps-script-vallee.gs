@@ -19,12 +19,149 @@
 const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← RENSEIGNER ICI l'ID du Google Sheets Team Vallée
 
 // ─────────────────────────────────────────────────────────────
+// SÉCURITÉ : jeton de session signé
+// À la connexion, le serveur remet un jeton qui porte l'identifiant, le nom, le rôle et
+// une date d'expiration, signé (HMAC-SHA256) avec une clé que seul ce script connaît.
+// Chaque requête le renvoie ; le serveur décide des droits à partir de lui, jamais à
+// partir de ce que la page annonce.
+// MISE EN PLACE : exécuter une fois initialiserSecurite() depuis l'éditeur.
+// ─────────────────────────────────────────────────────────────
+const DUREE_JETON_MS = 24 * 3600 * 1000;
+const MAX_ECHECS_CONNEXION = 5;
+const DUREE_BLOCAGE_S = 900;
+const INSIGHTPANEL_SHEET_ID = '1heK1_Gfv7BaaZ4k3I5oae7MQ8ueMG336-akYHUMLtgw';
+
+/* Identifiants de connexion qui désignent un autre compte (même table que la page). */
+const ALIAS_IDS = { dbah: 'Ghislain.Bah' };
+
+/* Crée la clé de signature si elle n'existe pas. Ne remplace jamais une clé existante :
+   cela déconnecterait tout le monde. La clé n'est jamais écrite dans le journal. */
+function initialiserSecurite() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('CLE_SESSION')) { Logger.log('Clé déjà présente : rien à faire.'); return; }
+  props.setProperty('CLE_SESSION', (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''));
+  Logger.log('Clé créée.');
+}
+
+function _cleSession() {
+  const cle = PropertiesService.getScriptProperties().getProperty('CLE_SESSION');
+  if (!cle) throw new Error('Sécurité non initialisée : lancer initialiserSecurite depuis l\'éditeur.');
+  return cle;
+}
+
+function _idCanonique(id) {
+  const brut = String(id === null || id === undefined ? '' : id).trim();
+  return ALIAS_IDS[brut.toLowerCase()] || brut;
+}
+
+function _signer(charge) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(charge, _cleSession()));
+}
+
+/* Comparaison en temps constant : le temps de réponse ne doit pas révéler combien de
+   caractères de la signature sont justes. */
+function _memeChaine(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function _emettreJeton(compte) {
+  /* UTF-8 explicite : les noms accentués (François) doivent revenir intacts du jeton. */
+  const charge = Utilities.base64EncodeWebSafe(JSON.stringify({
+    id: _idCanonique(compte.id), nom: String(compte.nom || ''), role: String(compte.role || '').toLowerCase(),
+    exp: Date.now() + DUREE_JETON_MS
+  }), Utilities.Charset.UTF_8);
+  return charge + '.' + _signer(charge);
+}
+
+/* Rend l'appelant { id, nom, role }, ou { erreur } si le jeton est absent, altéré,
+   signé avec une autre clé ou expiré. */
+function _verifierJeton(jeton) {
+  const invalide = { erreur: 'SESSION_INVALIDE' };
+  const parts = String(jeton || '').split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return invalide;
+  if (!_memeChaine(_signer(parts[0]), parts[1])) return invalide;
+  let c;
+  try { c = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString()); }
+  catch (_) { return invalide; }
+  if (!c || !c.id || !c.role || typeof c.exp !== 'number') return invalide;
+  if (Date.now() > c.exp) return { erreur: 'SESSION_EXPIREE' };
+  return { id: c.id, nom: c.nom, role: c.role };
+}
+
+/* Droits par rôle (mêmes règles que l'appli). ligneExistante : la saisie visée par une
+   modification, relue dans la feuille, pour qu'un superviseur ne touche qu'aux siennes. */
+function _autoriser(appelant, data, ligneExistante) {
+  const role = String(appelant && appelant.role || '').toLowerCase();
+  const estRa = role === 'ra' || role === 'admin';
+  const estSup = role === 'superviseur';
+  const estTerrain = role === 'agence' || role === 'care';
+  const estDirection = ['dg', 'dga', 'dc', 'dcc'].indexOf(role) >= 0;
+  if (!estRa && !estSup && !estTerrain && !estDirection) return false;
+  const aSoi = id => _idCanonique(id).toLowerCase() === String(appelant.id).toLowerCase();
+  const typeSwap = String(data.type || '').toLowerCase() === 'swap';
+
+  switch (data.action) {
+    case 'getSaisiesVallee': case 'getStockVallee': case 'getDysfVallee': case 'getKpiReelVallee':
+    case 'getEnlevementsVallee': case 'getSwapVallee': case 'getUtilisateursVallee': case 'getObjectifsVallee':
+      return true;
+    case 'getDemandesVallee': case 'saveDemandeVallee':
+    case 'saveObjectifVallee': case 'saveKpiReelVallee':
+      return estRa;
+    case 'saveSaisieVallee':
+      return estRa || (estSup && aSoi(data.supId));
+    case 'updateSaisieVallee':
+      return estRa || (estSup && aSoi(data.supId) && (!ligneExistante || aSoi(ligneExistante.supId)));
+    case 'saveDysfVallee':
+      return estRa || estSup;
+    case 'saveStockVallee': case 'saveEnlevementVallee':
+      return estRa || estSup || (estTerrain && typeSwap);
+    case 'saveSwapVallee':
+      return estRa || estSup || estTerrain;
+    case 'saveUtilisateurVallee':
+      /* Les comptes RA et admin ne se créent qu'à la main, dans la feuille. */
+      return estRa && ['superviseur', 'agence', 'care'].indexOf(String(data.role || '').toLowerCase()) >= 0;
+    default:
+      return false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // POINT D'ENTRÉE
 // ─────────────────────────────────────────────────────────────
 function doPost(e) {
   let data;
   try { data = JSON.parse(e.postData.contents); }
   catch (err) { return jsonResponse({ success: false, error: 'Requête illisible : ' + err.toString() }); }
+
+  /* Porte d'entrée : hors connexion, rien ne s'exécute sans jeton valide ni sans le droit
+     correspondant. Contrôlé avant le verrou : une requête refusée ne bloque personne. */
+  let appelant = null;
+  if (data.action !== 'loginVallee') {
+    if (!data.jeton) {
+      return jsonResponse({ success: false, code: 'SESSION_ABSENTE', error: 'Mise à jour nécessaire : recharge l\'application.' });
+    }
+    try { appelant = _verifierJeton(data.jeton); }
+    catch (err) { return jsonResponse({ success: false, error: err.toString() }); }
+    if (appelant.erreur) {
+      return jsonResponse({ success: false, code: appelant.erreur, error: 'Ta session a expiré, reconnecte-toi.' });
+    }
+    if (!_autoriser(appelant, data)) {
+      return jsonResponse({ success: false, code: 'INTERDIT', error: 'Action non autorisée pour ce compte.' });
+    }
+    /* L'auteur d'une écriture est celui du jeton, quoi que la page envoie. */
+    if (/^(save|update)/.test(String(data.action))) {
+      data.auteurId = appelant.id; data.auteurNom = appelant.nom; data.auteurRole = appelant.role;
+    }
+    /* Saisie d'un superviseur : enregistrée sous son identifiant canonique, quelle que
+       soit la forme envoyée (alias, casse). */
+    if (data.action === 'saveSaisieVallee' && String(appelant.role).toLowerCase() === 'superviseur') {
+      data.supId = appelant.id; data.supNom = appelant.nom;
+    }
+    delete data.jeton;
+  }
 
   /* Verrou sur les écritures seulement. Les upserts (KPI réel, objectifs) et la
      génération de référence de courrier lisent puis réécrivent, donc deux appels
@@ -44,7 +181,7 @@ function doPost(e) {
   try {
     if (data.action === 'getSaisiesVallee')    return handleGetSaisiesVallee(data);
     if (data.action === 'saveSaisieVallee')    return handleSaveSaisieVallee(data);
-    if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data);
+    if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data, appelant);
     if (data.action === 'getStockVallee')      return handleGetStockVallee(data);
     if (data.action === 'saveStockVallee')     return handleSaveStockVallee(data);
     if (data.action === 'getDysfVallee')       return handleGetDysfVallee(data);
@@ -242,7 +379,10 @@ function handleSaveSaisieVallee(data) {
 // ─────────────────────────────────────────────────────────────
 // SAISIES — mise à jour (identifiée par supId + horodatage)
 // ─────────────────────────────────────────────────────────────
-function handleUpdateSaisieVallee(data) {
+function handleUpdateSaisieVallee(data, appelant) {
+  /* La ligne visée doit appartenir à l'appelant (superviseur), relue dans la feuille. */
+  const refus = () => jsonResponse({ success: false, code: 'INTERDIT', error: 'Action non autorisée pour ce compte.' });
+  const autorise = supIdLigne => !appelant || _autoriser(appelant, data, { supId: _cellStr(supIdLigne) });
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateSaisiesVallee(ss);
   const rows  = sheet.getDataRange().getValues();
@@ -271,6 +411,7 @@ function handleUpdateSaisieVallee(data) {
   const ligneVisee = Number(data.row) || 0;
   if (ligneVisee > 1 && ligneVisee <= rows.length) {
     const r = rows[ligneVisee - 1];
+    if (!autorise(r[COL.supId])) return refus();
     const memeSup  = _cellStr(r[COL.supId]).toLowerCase() === idIn;
     const memeDate = cDate < 0 || !data.date || _dateKey(r[cDate]) === _dateKey(data.date);
     if (!memeSup || !memeDate) {
@@ -289,6 +430,7 @@ function handleUpdateSaisieVallee(data) {
     const rowId = _cellStr(rows[i][COL.supId]).toLowerCase();
     const rowTs = _tsStr(rows[i][COL.horodatage]);
     if (rowId === idIn && rowTs === data.horodatage) {
+      if (!autorise(rows[i][COL.supId])) return refus();
       const rowNum = i + 1;
       /* Toutes les colonnes sont testées avant écriture : un en-tête renommé
          produisait un getRange(ligne, 0) et une erreur brute côté client. */
@@ -840,7 +982,34 @@ function _getOrCreateSwapVallee(ss) {
 // (superviseurs, agences, services CARE). Ne s'ajoute PAS aux comptes
 // existants codés en dur côté client : système indépendant, en secours.
 // ─────────────────────────────────────────────────────────────
+/* Connexion. Après 5 échecs sur un identifiant, il est bloqué 15 minutes (compteur en
+   cache, remis à zéro par une connexion réussie) : on ne devine pas un mot de passe à
+   force d'essais. Le compteur est lu et mis à jour sous verrou : sans lui, des
+   tentatives simultanées liraient toutes la même valeur et le plafond ne tiendrait pas. */
 function handleLoginVallee(data) {
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (_) {
+    return jsonResponse({ success: false, error: 'Serveur occupé, réessayez dans un instant.' });
+  }
+  _verrouGlobalTenu = true;
+  try { return _connexionSousVerrou(data); }
+  finally { _verrouGlobalTenu = false; lock.releaseLock(); }
+}
+
+function _connexionSousVerrou(data) {
+  const cache     = CacheService.getScriptCache();
+  /* Clés bornées : CacheService refuse les clés de plus de 250 caractères. */
+  const cleEchecs = 'echecs:' + _cellStr(data.id).toLowerCase().slice(0, 100);
+  const echecs    = Number(cache.get(cleEchecs)) || 0;
+  /* La page retente une connexion quand Google perd la réponse : chaque nouvel essai
+     arrive ici avec le même identifiant de tentative et le même mot de passe, et ne
+     doit compter qu'une fois. La marque porte sur la paire (tentative, mot de passe),
+     signée : réutiliser l'identifiant avec un autre mot de passe compte bien un échec. */
+  const essai     = _cellStr(data.essai).slice(0, 64);
+  const cleEssai  = essai ? 'essai:' + _signer(essai + '|' + _cellStr(data.pwd)) : '';
+  if (echecs >= MAX_ECHECS_CONNEXION) {
+    return jsonResponse({ success: false, code: 'BLOQUE', error: 'Trop d\'essais : réessaie dans 15 minutes.' });
+  }
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateUtilisateursVallee(ss);
   const rows  = sheet.getDataRange().getValues();
@@ -861,20 +1030,66 @@ function handleLoginVallee(data) {
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (_cellStr(row[COL.id]).toLowerCase() === idIn && _cellStr(row[COL.password]) === pwdIn) {
-      return jsonResponse({
-        success: true,
-        user: {
-          id:        _cellStr(row[COL.id]),
-          nom:       _cellStr(row[COL.nom]),
-          role:      _cellStr(row[COL.role]),
-          libelle:   _cellStr(row[COL.libelle]),
-          initiales: _cellStr(row[COL.initiales])
-        }
-      });
+    if (pwdIn && _cellStr(row[COL.id]).toLowerCase() === idIn && _cellStr(row[COL.password]) === pwdIn) {
+      cache.remove(cleEchecs);
+      const user = {
+        id:        _idCanonique(_cellStr(row[COL.id])),
+        nom:       _cellStr(row[COL.nom]),
+        role:      _cellStr(row[COL.role]).toLowerCase(),
+        libelle:   _cellStr(row[COL.libelle]),
+        initiales: _cellStr(row[COL.initiales])
+      };
+      return jsonResponse({ success: true, user, jeton: _emettreJeton(user) });
     }
   }
+  if (!cleEssai || !cache.get(cleEssai)) {
+    cache.put(cleEchecs, String(echecs + 1), DUREE_BLOCAGE_S);
+    if (cleEssai) cache.put(cleEssai, '1', DUREE_BLOCAGE_S);
+  }
   return jsonResponse({ success: false, error: 'Identifiant ou mot de passe incorrect.' });
+}
+
+/* Recopie une fois, depuis le classeur InsightPanel, les comptes actifs RA, admin et
+   superviseurs absents de UtilisateursVallee, avec leurs mots de passe actuels.
+   À lancer depuis l'éditeur. Relancer ne crée pas de doublon. Le journal ne liste que
+   des identifiants, jamais de mot de passe. */
+function migrerComptesInsightPanel() {
+  const source = SpreadsheetApp.openById(INSIGHTPANEL_SHEET_ID).getSheetByName('Utilisateurs');
+  if (!source) throw new Error('Feuille « Utilisateurs » introuvable dans le classeur InsightPanel.');
+  const src = source.getDataRange().getValues();
+  const hs = src[0].map(h => h.toString().toLowerCase().trim());
+  const S = { id: hs.indexOf('id'), pwd: hs.indexOf('pwd'), nom: hs.indexOf('nom'), role: hs.indexOf('role'),
+              zone: hs.indexOf('zone'), init: hs.indexOf('initiales'), statut: hs.indexOf('statut') };
+
+  const sheet = _getOrCreateUtilisateursVallee(SpreadsheetApp.openById(VALLEE_SHEET_ID));
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => h.toString().toLowerCase().trim());
+  const existants = {};
+  sheet.getDataRange().getValues().slice(1).forEach(r => { existants[_cellStr(r[headers.indexOf('id')]).toLowerCase()] = true; });
+
+  const copies = [], ignores = [];
+  for (let i = 1; i < src.length; i++) {
+    const r = src[i];
+    const id = _cellStr(r[S.id]);
+    const role = _cellStr(r[S.role]).toLowerCase();
+    if (!id || _cellStr(r[S.statut]).toLowerCase() !== 'actif' || ['ra', 'admin', 'superviseur'].indexOf(role) < 0) continue;
+    if (existants[id.toLowerCase()]) { ignores.push(id); continue; }
+    const row = new Array(headers.length).fill('');
+    const set = (cle, val) => { const k = headers.indexOf(cle); if (k >= 0) row[k] = val; };
+    set('id', id);
+    set('password', _cellStr(r[S.pwd]));
+    set('nom', _cellStr(r[S.nom]));
+    set('role', role);
+    set('libelle', _cellStr(r[S.zone]));
+    set('initiales', _cellStr(r[S.init]));
+    set('creepar', 'migration');
+    set('horodatage', _nowTs());
+    _appendRowTexte(sheet, row, [_colNum(headers, 'id'), _colNum(headers, 'password')]);
+    existants[id.toLowerCase()] = true;
+    copies.push(id);
+  }
+  Logger.log('Comptes copiés (' + copies.length + ') : ' + (copies.join(', ') || 'aucun'));
+  Logger.log('Déjà présents (' + ignores.length + ') : ' + (ignores.join(', ') || 'aucun'));
+  return { copies, ignores };
 }
 
 // Liste des comptes SANS mot de passe (alimente VALLEE_SUPS et la liste en Paramètres).
