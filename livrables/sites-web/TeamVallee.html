@@ -303,6 +303,8 @@
   .rythme-infos { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .rythme-infos strong { color: var(--text); font-weight: 700; }
   .rythme-note { font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 10px; }
+  .rythme-comp { font-size: 14px; color: var(--texte-2); font-variant-numeric: tabular-nums; }
+  .rythme-comp .evol { font-size: 15px; }
   .rythme-alerte { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--etat-attention); background: var(--etat-attention-fond); border-radius: 8px; padding: 9px 12px; }
   .evol { font-weight: 700; white-space: nowrap; }
   .evol.hausse { color: var(--etat-bon); }
@@ -3001,14 +3003,20 @@ function _svgCumul(serie, cible, bornes, av) {
   return g + '</svg>';
 }
 
-function _svgBarresJours(serie, cibleJour, bornes) {
+/* prec : totaux des jours de la période précédente, alignés jour par jour (même rang),
+   dessinés en contour derrière chaque barre ; null sans comparaison. */
+function _svgBarresJours(serie, cibleJour, bornes, prec) {
   const total = _nbJours(bornes.debut, bornes.fin);
   const X = i => 40 + i * (720 / Math.max(total - 1, 1));
   const larg = Math.max(2, Math.min(18, (720 / Math.max(total - 1, 1)) * 0.6));
-  const max = Math.max(cibleJour, ...serie.map(p => p.total), 1) * 1.1;
+  const max = Math.max(cibleJour, ...serie.map(p => p.total), ...(prec || []), 1) * 1.1;
   const H = v => v * (90 / max);
   let g = `<svg class="barres-jours" viewBox="0 0 800 120" width="100%" role="img" aria-label="Activations de chaque jour, cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}">`;
   g += `<line x1="30" y1="100" x2="770" y2="100" style="stroke:var(--bordure)" stroke-width="1"/>`;
+  (prec || []).forEach((v, i) => {
+    const h = v > 0 ? Math.max(1.5, H(v)) : 0;
+    g += `<rect class="barre-prec" data-total="${v}" x="${(X(i) - larg / 2 - 2).toFixed(1)}" y="${(100 - h).toFixed(1)}" width="${(larg + 4).toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:none;stroke:var(--texte-2)" stroke-width="1" stroke-dasharray="3 2"/>`;
+  });
   serie.forEach((p, i) => {
     const h = p.total > 0 ? Math.max(1.5, H(p.total)) : 0;
     const atteint = cibleJour > 0 && p.total >= cibleJour;
@@ -3020,6 +3028,24 @@ function _svgBarresJours(serie, cibleJour, bornes) {
     g += `<text x="770" y="${(+yc - 6).toFixed(1)}" text-anchor="end" font-size="11" style="fill:var(--jaune-texte)">cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}</text>`;
   }
   return g + '</svg>';
+}
+
+/* Totaux jour par jour de la période précédente, du rang 0 au rang n - 1. */
+function _serieJoursPrec(lignes, debut, n) {
+  const t = new Array(n).fill(0);
+  lignes.forEach(r => {
+    const d = parseSaisieDate(r.date);
+    if (!d) return;
+    const i = Math.round((_debutJour(d) - _debutJour(debut)) / 86400000);
+    if (i >= 0 && i < n) t[i] += Number(r.grossAdd) || 0;
+  });
+  return t;
+}
+
+/* Libellé court de la comparaison : « vs S-1 » pour la semaine précédente entière. */
+function _libComparaison(comp) {
+  if (!comp) return '';
+  return comp.libelle === 'vs semaine précédente' ? 'vs S-1' : comp.libelle;
 }
 
 /* Libellés des graphiques : le dessin (800 unités de large) est réduit ou agrandi selon
@@ -3043,7 +3069,8 @@ function _toucheBarre(e) {
   const p = s.serie[i];
   const el = document.getElementById('rythme-valeur');
   if (!p || !el) return;
-  el.textContent = _jourCourt(p.jour) + ' : ' + p.total.toLocaleString('fr-FR') + ' activations';
+  el.textContent = _jourCourt(p.jour) + ' : ' + p.total.toLocaleString('fr-FR') + ' activations'
+    + (s.prec && s.prec[i] !== undefined ? ' · période préc. : ' + s.prec[i].toLocaleString('fr-FR') : '');
 }
 document.addEventListener('click', _toucheBarre);
 
@@ -3215,13 +3242,16 @@ function renderDashboard() {
   }
 
   const serie = _dashPeriod === 'jour' ? [] : _serieJours(filtered, bornes, av);
+  const precJours = comp && serie.length ? _serieJoursPrec(prevFiltered, _periodePrecedente(bornes, _dashPeriod).debut, serie.length) : null;
+  const prevGA = comp ? _sommeGA(prevFiltered) : null;
+  const tendance = comp ? _tendance(curGA, prevGA) : null;
   /* Cible du jour : celle du mois réparti sur tous ses jours, comme la tuile Dernier jour
      (l'onglet Semaine répartit autrement la cible de la semaine). */
   const cibleJour = (isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap)) / dim;
   const graphes = serie.length
-    ? `<figure class="rythme-graphes">${_svgCumul(serie, targetGA, bornes, av)}${_svgBarresJours(serie, cibleJour, bornes)}
+    ? `<figure class="rythme-graphes">${_svgCumul(serie, targetGA, bornes, av)}${_svgBarresJours(serie, cibleJour, bornes, precJours)}
         <div class="rythme-valeur" id="rythme-valeur" aria-live="polite"></div>
-        <figcaption>Touche une barre pour lire son total · courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte)</figcaption></figure>`
+        <figcaption>Touche une barre pour lire son total · courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte) · contours : même jour de la période précédente</figcaption></figure>`
     : '';
   const lignesDl = [];
   if (av && av.dernier && _dashPeriod !== 'jour') lignesDl.push(['Données jusqu\'au', _jourCourt(av.dernier)]);
@@ -3231,21 +3261,21 @@ function renderDashboard() {
     lignesDl.push([`Attendu au ${_jourCourt(av.dernier)}`, Math.round(etat.attendu).toLocaleString('fr-FR')]);
     lignesDl.push([`Projection fin ${finDe}`, `~${projection.toLocaleString('fr-FR')} (${Math.round(projection / targetGA * 100)} %)`]);
   }
-  const dl = lignesDl.map(([t, v]) => `<dt>${esc(t)}</dt><dd>${esc(v)}</dd>`).join('')
-    + (comp ? `<dt>${esc(comp.libelle)}</dt><dd>${_evolutionHtml(curGA, _sommeGA(prevFiltered), '')}</dd>` : '');
+  const dl = lignesDl.map(([t, v]) => `<dt>${esc(t)}</dt><dd>${esc(v)}</dd>`).join('');
   document.getElementById('kpi-big-grid').innerHTML = `
     <section class="rythme${graphes ? '' : ' sans-graphe'}" id="dash-rythme" aria-label="${esc(titre)}">
       <div class="rythme-gauche">
         <div class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></div>
         <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">/ ${targetGA.toLocaleString('fr-FR')}</span></div>
         <div><span class="etat etat-${etat.cls}">${esc(etat.mot)}${etat.rythme && !/rythme/i.test(etat.mot) ? ' sur le rythme' : ''}</span></div>
+        ${comp ? `<div class="rythme-comp">${_ecartPeriode(curGA, prevGA)} ${esc(_libComparaison(comp))} · <strong class="evol ${tendance.cls}">${tendance.mot}</strong></div>` : ''}
         ${dl ? `<dl class="rythme-dl">${dl}</dl>` : ''}
         ${noteMomo}
       </div>
       ${graphes}
     </section>`;
 
-  window._serieRythme = serie.length ? { serie, total: _nbJours(bornes.debut, bornes.fin) } : null;
+  window._serieRythme = serie.length ? { serie, total: _nbJours(bornes.debut, bornes.fin), prec: precJours } : null;
   _echelleGraphes();
   _renderTuiles(isRa, myId);
 
@@ -3338,7 +3368,7 @@ function renderDashboard() {
   const libPeriode = !bornes ? _periodLabel()
     : +bornes.debut === +bornes.fin ? _jourCourt(bornes.debut)
     : _jourCourt(bornes.debut) + ' au ' + _jourCourt(bornes.fin);
-  const libComp = comp ? (comp.libelle === 'vs semaine précédente' ? 'vs S-1' : comp.libelle) : '';
+  const libComp = _libComparaison(comp);
   const per = prec => ({ libelle: libPeriode, prec, libComp });
   let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo, per(c.prec))).join('');
   if (isRa && (orphelins.ga || orphelins.momo)) {
