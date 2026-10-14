@@ -347,6 +347,8 @@
   .carte-periode { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--bordure); }
   .carte-periode > span:first-child { color: var(--texte); font-weight: 600; }
   .carte-periode strong { font-size: 17px; }
+  .carte-comp { font-size: 12px; color: var(--texte-2); font-variant-numeric: tabular-nums; }
+  .carte-periode .carte-comp strong { font-size: 12px; white-space: nowrap; }
   .carte-sup .etat { align-self: flex-start; }
   @media (max-width: 768px) {
     .cartes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
@@ -2826,13 +2828,37 @@ function _libelleADate(code, x) {
   return x.comp ? 'vs L' + code + ' (' + x.comp.libelle.replace(/^vs /, '') + ')' : '';
 }
 
-/* Évolution courte, pour les cellules du tableau : pourcentage seul. */
+/* Évolution courte, pour les lignes MTD et WTD des cartes : pourcentage si la base de
+   comparaison est significative (50 activations ou plus), écart en nombre sinon. Sur une
+   petite base, le pourcentage trompait : 25 → 659 s'affichait « +2 536 % ». */
 function _evolPct(cur, prev) {
   if (prev === null || prev === undefined) return '<span class="evol stable">—</span>';
   const diff = cur - prev;
   const cls  = diff > 0 ? 'hausse' : diff < 0 ? 'baisse' : 'stable';
-  const txt  = prev > 0 ? `${diff > 0 ? '+' : ''}${Math.round(diff / prev * 100)} %` : `${diff > 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}`;
+  const txt  = prev >= 50 ? `${diff > 0 ? '+' : ''}${Math.round(diff / prev * 100)} %` : `${diff > 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}`;
   return `<span class="evol ${cls}">${txt}</span>`;
+}
+
+/* Tendance en mots, sur l'évolution réelle (même quand le pourcentage n'est pas affiché) :
+   ±5 % = stable, au-delà de ±20 % = forte. */
+function _tendance(cur, prev) {
+  if (!prev) return cur > 0 ? { mot: 'Progression', cls: 'hausse' } : { mot: 'Stable', cls: 'stable' };
+  const pct = (cur - prev) / prev * 100;
+  if (pct >= 20)  return { mot: 'Forte progression', cls: 'hausse' };
+  if (pct >= 5)   return { mot: 'Progression',       cls: 'hausse' };
+  if (pct > -5)   return { mot: 'Stable',            cls: 'stable' };
+  if (pct > -20)  return { mot: 'Régression',        cls: 'baisse' };
+  return            { mot: 'Forte régression',  cls: 'baisse' };
+}
+
+/* Écart à la période précédente : en nombre, avec le pourcentage si la base compte au
+   moins 50 activations. */
+function _ecartPeriode(cur, prev) {
+  const diff = cur - prev;
+  const cls  = diff > 0 ? 'hausse' : diff < 0 ? 'baisse' : 'stable';
+  const signe = n => (n > 0 ? '+' : '') + n.toLocaleString('fr-FR');
+  const pct  = prev >= 50 ? ` (${diff > 0 ? '+' : ''}${Math.round(diff / prev * 100)} %)` : '';
+  return `<span class="evol ${cls}">${signe(diff)}${pct}</span>`;
 }
 
 function _gaParSup(lignes) {
@@ -3053,16 +3079,19 @@ function _jaugeSvg(part, partAttendue, cls, libelle) {
 
 /* Sans cible (poste « Hors liste »), la jauge porte le nombre d'activations au lieu d'un
    pourcentage. momo : total New MoMo User de la période, signalé s'il s'écarte du GA. */
-/* libPeriode : dates de l'onglet choisi. La première ligne suit cet onglet ; MTD et WTD
+/* per : { libelle (dates de l'onglet choisi), prec (total de la période précédente de même
+   durée, null sans comparaison), libComp }. Sur l'onglet Semaine, c'est le WoW.
+   Ancien en-tête : libPeriode : dates de l'onglet choisi. La première ligne suit cet onglet ; MTD et WTD
    restent sur le mois et la semaine en cours, d'où leurs libellés explicites (sans eux,
    le MTD se lisait comme le chiffre de la semaine choisie). */
-function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo, libPeriode) {
+function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo, per) {
+  per = per || {};
   const part = cible > 0 ? ga / cible : 0;
   const pa = etat.rythme && cible > 0 ? etat.attendu / cible : null;
   const ecart = momo === undefined ? 0 : momo - ga;
   return `<article class="carte-sup carte-${etat.cls}">
     <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls, cible > 0 ? '' : ga.toLocaleString('fr-FR'))}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
-    <div class="carte-ligne carte-periode"><span>${esc(libPeriode || 'Période')}</span><span><strong>${ga.toLocaleString('fr-FR')}</strong>${cible > 0 ? ' / ' + cible.toLocaleString('fr-FR') : ''}</span></div>
+    <div class="carte-ligne carte-periode"><span>${esc(per.libelle || 'Période')}</span><span><strong>${ga.toLocaleString('fr-FR')}</strong>${cible > 0 ? ' / ' + cible.toLocaleString('fr-FR') : ''}</span>${per.prec === null || per.prec === undefined ? '' : `<span class="carte-comp">${_ecartPeriode(ga, per.prec)} ${esc(per.libComp || '')} · <strong class="evol ${_tendance(ga, per.prec).cls}">${_tendance(ga, per.prec).mot}</strong></span>`}</div>
     <div class="carte-ligne carte-mtd"><span>Mois en cours (MTD)</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
     <div class="carte-ligne carte-wtd"><span>Semaine en cours (WTD)</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
     <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
@@ -3296,11 +3325,11 @@ function renderDashboard() {
     const ga = totals[k] ? totals[k].ga : 0;
     const momo = totals[k] ? totals[k].momo : 0;
     const cible = isRa ? supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap) : targetGA;
-    return { sup, ga, momo, cible, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
+    return { sup, ga, momo, cible, prec: comp ? (prevTotals[k] ? prevTotals[k].ga : 0) : null, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
   });
   if (!supsAffiches.length && !isRa) {
     const k = cle(myId);
-    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, momo: totals[k]?.momo || 0, cible: targetGA,
+    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, momo: totals[k]?.momo || 0, cible: targetGA, prec: comp ? (prevTotals[k]?.ga || 0) : null,
                   etat: _etatCible(totals[k]?.ga || 0, targetGA, av), ...aDateSup(k) });
   }
   /* Les plus en retard d'abord ; sans pourcentage (pas de cible, pas de rapport) : en fin de liste. */
@@ -3308,7 +3337,9 @@ function renderDashboard() {
   const libPeriode = !bornes ? _periodLabel()
     : +bornes.debut === +bornes.fin ? _jourCourt(bornes.debut)
     : _jourCourt(bornes.debut) + ' au ' + _jourCourt(bornes.fin);
-  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo, libPeriode)).join('');
+  const libComp = comp ? (comp.libelle === 'vs semaine précédente' ? 'vs S-1' : comp.libelle) : '';
+  const per = prec => ({ libelle: libPeriode, prec, libComp });
+  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo, per(c.prec))).join('');
   if (isRa && (orphelins.ga || orphelins.momo)) {
     /* WTD et MTD des identifiants inconnus : tout ce qui ne correspond à aucun superviseur. */
     const horsListe = m => m ? Object.entries(m).reduce((t, [k, v]) => t + (totals[k] === undefined ? v : 0), 0) : null;
@@ -3316,7 +3347,7 @@ function renderDashboard() {
     const zone = ids.length ? ids.slice(0, 3).join(', ') + (ids.length > 3 ? ' et ' + (ids.length - 3) + ' autre(s)' : '') : 'Identifiant vide';
     html += _carteSuperviseur({ nom: 'Hors liste', zone }, orphelins.ga, 0,
       { cls: 'neutre', mot: 'Identifiants à corriger', pct: null },
-      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo, libPeriode);
+      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo, per(comp ? orphelinsPrev.ga : null));
   }
   document.getElementById('dash-cartes').innerHTML = html;
 
