@@ -87,6 +87,43 @@ function _verifierJeton(jeton) {
   return { id: c.id, nom: c.nom, role: c.role };
 }
 
+/* Droits par rôle (mêmes règles que l'appli). ligneExistante : la saisie visée par une
+   modification, relue dans la feuille, pour qu'un superviseur ne touche qu'aux siennes. */
+function _autoriser(appelant, data, ligneExistante) {
+  const role = String(appelant && appelant.role || '').toLowerCase();
+  const estRa = role === 'ra' || role === 'admin';
+  const estSup = role === 'superviseur';
+  const estTerrain = role === 'agence' || role === 'care';
+  const estDirection = ['dg', 'dga', 'dc', 'dcc'].indexOf(role) >= 0;
+  if (!estRa && !estSup && !estTerrain && !estDirection) return false;
+  const aSoi = id => _idCanonique(id).toLowerCase() === String(appelant.id).toLowerCase();
+  const typeSwap = String(data.type || '').toLowerCase() === 'swap';
+
+  switch (data.action) {
+    case 'getSaisiesVallee': case 'getStockVallee': case 'getDysfVallee': case 'getKpiReelVallee':
+    case 'getEnlevementsVallee': case 'getSwapVallee': case 'getUtilisateursVallee': case 'getObjectifsVallee':
+      return true;
+    case 'getDemandesVallee': case 'saveDemandeVallee':
+    case 'saveObjectifVallee': case 'saveKpiReelVallee':
+      return estRa;
+    case 'saveSaisieVallee':
+      return estRa || (estSup && aSoi(data.supId));
+    case 'updateSaisieVallee':
+      return estRa || (estSup && aSoi(data.supId) && (!ligneExistante || aSoi(ligneExistante.supId)));
+    case 'saveDysfVallee':
+      return estRa || estSup;
+    case 'saveStockVallee': case 'saveEnlevementVallee':
+      return estRa || estSup || (estTerrain && typeSwap);
+    case 'saveSwapVallee':
+      return estRa || estSup || estTerrain;
+    case 'saveUtilisateurVallee':
+      /* Les comptes RA et admin ne se créent qu'à la main, dans la feuille. */
+      return estRa && ['superviseur', 'agence', 'care'].indexOf(String(data.role || '').toLowerCase()) >= 0;
+    default:
+      return false;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // POINT D'ENTRÉE
 // ─────────────────────────────────────────────────────────────
@@ -94,6 +131,28 @@ function doPost(e) {
   let data;
   try { data = JSON.parse(e.postData.contents); }
   catch (err) { return jsonResponse({ success: false, error: 'Requête illisible : ' + err.toString() }); }
+
+  /* Porte d'entrée : hors connexion, rien ne s'exécute sans jeton valide ni sans le droit
+     correspondant. Contrôlé avant le verrou : une requête refusée ne bloque personne. */
+  let appelant = null;
+  if (data.action !== 'loginVallee') {
+    if (!data.jeton) {
+      return jsonResponse({ success: false, code: 'SESSION_ABSENTE', error: 'Mise à jour nécessaire : recharge l\'application.' });
+    }
+    try { appelant = _verifierJeton(data.jeton); }
+    catch (err) { return jsonResponse({ success: false, error: err.toString() }); }
+    if (appelant.erreur) {
+      return jsonResponse({ success: false, code: appelant.erreur, error: 'Ta session a expiré, reconnecte-toi.' });
+    }
+    if (!_autoriser(appelant, data)) {
+      return jsonResponse({ success: false, code: 'INTERDIT', error: 'Action non autorisée pour ce compte.' });
+    }
+    /* L'auteur d'une écriture est celui du jeton, quoi que la page envoie. */
+    if (/^(save|update)/.test(String(data.action))) {
+      data.auteurId = appelant.id; data.auteurNom = appelant.nom; data.auteurRole = appelant.role;
+    }
+    delete data.jeton;
+  }
 
   /* Verrou sur les écritures seulement. Les upserts (KPI réel, objectifs) et la
      génération de référence de courrier lisent puis réécrivent, donc deux appels
@@ -113,7 +172,7 @@ function doPost(e) {
   try {
     if (data.action === 'getSaisiesVallee')    return handleGetSaisiesVallee(data);
     if (data.action === 'saveSaisieVallee')    return handleSaveSaisieVallee(data);
-    if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data);
+    if (data.action === 'updateSaisieVallee')  return handleUpdateSaisieVallee(data, appelant);
     if (data.action === 'getStockVallee')      return handleGetStockVallee(data);
     if (data.action === 'saveStockVallee')     return handleSaveStockVallee(data);
     if (data.action === 'getDysfVallee')       return handleGetDysfVallee(data);
@@ -311,7 +370,10 @@ function handleSaveSaisieVallee(data) {
 // ─────────────────────────────────────────────────────────────
 // SAISIES — mise à jour (identifiée par supId + horodatage)
 // ─────────────────────────────────────────────────────────────
-function handleUpdateSaisieVallee(data) {
+function handleUpdateSaisieVallee(data, appelant) {
+  /* La ligne visée doit appartenir à l'appelant (superviseur), relue dans la feuille. */
+  const refus = () => jsonResponse({ success: false, code: 'INTERDIT', error: 'Action non autorisée pour ce compte.' });
+  const autorise = supIdLigne => !appelant || _autoriser(appelant, data, { supId: _cellStr(supIdLigne) });
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateSaisiesVallee(ss);
   const rows  = sheet.getDataRange().getValues();
@@ -340,6 +402,7 @@ function handleUpdateSaisieVallee(data) {
   const ligneVisee = Number(data.row) || 0;
   if (ligneVisee > 1 && ligneVisee <= rows.length) {
     const r = rows[ligneVisee - 1];
+    if (!autorise(r[COL.supId])) return refus();
     const memeSup  = _cellStr(r[COL.supId]).toLowerCase() === idIn;
     const memeDate = cDate < 0 || !data.date || _dateKey(r[cDate]) === _dateKey(data.date);
     if (!memeSup || !memeDate) {
@@ -358,6 +421,7 @@ function handleUpdateSaisieVallee(data) {
     const rowId = _cellStr(rows[i][COL.supId]).toLowerCase();
     const rowTs = _tsStr(rows[i][COL.horodatage]);
     if (rowId === idIn && rowTs === data.horodatage) {
+      if (!autorise(rows[i][COL.supId])) return refus();
       const rowNum = i + 1;
       /* Toutes les colonnes sont testées avant écriture : un en-tête renommé
          produisait un getRange(ligne, 0) et une erreur brute côté client. */
