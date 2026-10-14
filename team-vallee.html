@@ -657,18 +657,6 @@
           <div class="kpi-big-grid" id="kpi-big-grid"></div>
           <!-- Stats secondaires -->
           <div class="kpi-stat-grid" id="kpi-stat-grid"></div>
-          <!-- Objectifs Journalier / Hebdo / Mensuel -->
-          <div class="card" style="margin-bottom:16px" id="card-dash-objectifs">
-            <div class="card-title" style="margin-bottom:0">
-              <i class="fa fa-bullseye"></i> Objectifs
-            </div>
-            <div id="objectifs-body" style="margin-top:16px"></div>
-          </div>
-          <!-- KPI NEW ADD réel vs déclaratif -->
-          <div class="card" style="margin-bottom:16px" id="card-dash-kpireel">
-            <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD : déclaré contre réel MTN</div>
-            <div id="kpi-reel-body" style="margin-top:16px"></div>
-          </div>
           <!-- Table superviseurs -->
           <section id="card-dash-supperf" class="bloc-cartes" aria-label="Superviseurs">
             <div class="bloc-cartes-tete">
@@ -677,6 +665,11 @@
             </div>
             <div class="cartes-grid" id="dash-cartes"></div>
           </section>
+          <!-- KPI NEW ADD réel vs déclaratif -->
+          <div class="card" style="margin-bottom:16px" id="card-dash-kpireel">
+            <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD : déclaré contre réel MTN</div>
+            <div id="kpi-reel-body" style="margin-top:16px"></div>
+          </div>
         </div>
 
         <!-- VUE SAISIE -->
@@ -2582,7 +2575,6 @@ function _stockSwapAlloue(auteurId) {
 }
 
 function renderDashboardSwap() {
-  document.getElementById('card-dash-objectifs').style.display = 'none';
   document.getElementById('card-dash-kpireel').style.display   = 'none';
   document.getElementById('card-dash-supperf').style.display   = 'none';
 
@@ -3000,7 +2992,6 @@ function renderDashboard() {
   if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { blocADate.style.display = 'none'; renderDashboardSwap(); return; }
   blocADate.style.display = '';
 
-  document.getElementById('card-dash-objectifs').style.display = '';
   document.getElementById('card-dash-kpireel').style.display   = '';
   document.getElementById('card-dash-supperf').style.display   = '';
 
@@ -3134,82 +3125,9 @@ function renderDashboard() {
     }
   }
 
-  /* ── 2. Stat cards ── */
-  document.getElementById('kpi-stat-grid').innerHTML = `
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:var(--jaune-fond);color:var(--jaune-texte)"><i class="fa fa-users"></i></div>
-      <div>
-        <div class="kpi-stat-val">${isRa ? activeSups.size + ' / ' + VALLEE_SUPS.length : (activeSups.size > 0 ? 'Actif' : 'En attente')}</div>
-        <div class="kpi-stat-lbl">Superviseurs actifs</div>
-      </div>
-    </div>
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)"><i class="fa fa-sim-card"></i></div>
-      <div>
-        <div class="kpi-stat-val">${curTotalDfa.toLocaleString('fr-FR')}</div>
-        <div class="kpi-stat-lbl">Total DFA</div>
-      </div>
-    </div>
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)"><i class="fa fa-circle-check"></i></div>
-      <div>
-        <div class="kpi-stat-val">${curDfaActif.toLocaleString('fr-FR')}</div>
-        <div class="kpi-stat-lbl">DFA Actifs</div>
-      </div>
-    </div>`;
-
-  /* ── 3. Objectifs Journalier / Hebdo / Mensuel ──
-     Une seule mesure (activations), jugée comme le haut de page : au rythme pour une
-     période en cours, « Rapports en attente » pour un jour pas encore renseigné. */
-  const objRef  = new Date(_dashRefDate);
-  const objDim  = new Date(objRef.getFullYear(), objRef.getMonth()+1, 0).getDate();
-  const baseGA  = isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap);
-  const srcObj  = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
-
-  function objCarte(titre, sousTitre, iconCls, iconBg, iconColor, periode, cible) {
-    const b       = _bornesPeriode(periode, objRef);
-    const lignes  = srcObj.filter(r => { const d = parseSaisieDate(r.date); return d && d >= b.debut && d <= b.fin; });
-    const a       = _avancement(b);
-    const realise = _sommeGA(lignes);
-    const e       = _etatCible(realise, cible, a);
-    const rempli  = cible > 0 ? Math.min(100, realise / cible * 100) : 0;
-    const rep     = e.rythme ? Math.min(100, e.attendu / cible * 100) : null;
-    let evol = '';
-    if (periode === 'semaine') {
-      const c = _comparaison(srcObj, b, 'semaine', a);
-      if (c) evol = `<div class="objp-detail">${_evolutionHtml(realise, _sommeGA(c.lignes), c.libelle)}</div>`;
-    }
-    return `<div class="objectif-period">
-      <div class="objp-header">
-        <div class="objp-icon" style="background:${iconBg};color:${iconColor}"><i class="fa ${iconCls}" aria-hidden="true"></i></div>
-        <div><div class="objp-title">${titre}</div><div class="objp-sub">${sousTitre}</div></div>
-      </div>
-      <div class="objp-metrics">
-        <div class="objp-ligne">
-          <span class="objp-chiffre">${realise.toLocaleString('fr-FR')}</span>
-          <span class="objp-detail">cible ${cible.toLocaleString('fr-FR')}</span>
-        </div>
-        <div class="rythme-barre" style="height:6px">
-          <div class="rythme-rempli fond-${e.cls}" style="width:${rempli}%"></div>
-          ${rep !== null ? `<div class="rythme-repere" style="left:${rep}%;top:-4px;bottom:-4px;width:2px" title="Attendu à date"></div>` : ''}
-        </div>
-        <div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>
-        ${evol}
-      </div>
-    </div>`;
-  }
-
-  const lunObj = _bornesPeriode('semaine', objRef).debut;
-  const hebSub = _jourCourt(lunObj) + ' au ' + _jourCourt(_ajouterJours(lunObj, 6));
-
-  document.getElementById('objectifs-body').innerHTML = `<div class="objectifs-grid">
-    ${objCarte('Journalier', objRef.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-        'fa-calendar-day', 'var(--jaune-fond)', 'var(--jaune-texte)', 'jour', Math.round(baseGA / objDim))}
-    ${objCarte('Hebdomadaire', hebSub,
-        'fa-calendar-week', 'var(--info-fond)', 'var(--info)', 'semaine', Math.round(baseGA / objDim * weekDays))}
-    ${objCarte('Mensuel', objRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-        'fa-calendar', 'var(--bon-fond)', 'var(--bon)', 'mois', baseGA)}
-  </div>`;
+  /* Petites tuiles : remplacées par la tuile Équipe. L'emplacement reste, il sert au
+     tableau de bord SWAP des comptes Agence et CARE. */
+  document.getElementById('kpi-stat-grid').innerHTML = '';
 
   /* ── 4. Table performance ── */
   /* Cumuls par superviseur. Clés en minuscules et poste « Hors liste » pour les saisies
@@ -3250,9 +3168,6 @@ function renderDashboard() {
   const xW = _aDate('semaine', VALLEE_SAISIES), xM = _aDate('mois', VALLEE_SAISIES);
   const wtd  = _gaParSup(xW.lignes), lwtd = xW.comp ? _gaParSup(xW.comp.lignes) : null;
   const mtd  = _gaParSup(xM.lignes), lmtd = xM.comp ? _gaParSup(xM.comp.lignes) : null;
-  const celluleADate = (cur, prev) =>
-    `<td class="num"><strong>${cur.toLocaleString('fr-FR')}</strong><div class="sous">${_evolPct(cur, prev)}</div></td>`;
-  const adateSup = k => celluleADate(wtd[k] || 0, lwtd ? (lwtd[k] || 0) : null) + celluleADate(mtd[k] || 0, lmtd ? (lmtd[k] || 0) : null);
 
   const aDateSup = k => ({
     wtd: { val: wtd[k] || 0, prev: lwtd ? (lwtd[k] || 0) : null },
