@@ -19,6 +19,75 @@
 const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← RENSEIGNER ICI l'ID du Google Sheets Team Vallée
 
 // ─────────────────────────────────────────────────────────────
+// SÉCURITÉ : jeton de session signé
+// À la connexion, le serveur remet un jeton qui porte l'identifiant, le nom, le rôle et
+// une date d'expiration, signé (HMAC-SHA256) avec une clé que seul ce script connaît.
+// Chaque requête le renvoie ; le serveur décide des droits à partir de lui, jamais à
+// partir de ce que la page annonce.
+// MISE EN PLACE : exécuter une fois initialiserSecurite() depuis l'éditeur.
+// ─────────────────────────────────────────────────────────────
+const DUREE_JETON_MS = 24 * 3600 * 1000;
+
+/* Identifiants de connexion qui désignent un autre compte (même table que la page). */
+const ALIAS_IDS = { dbah: 'Ghislain.Bah' };
+
+/* Crée la clé de signature si elle n'existe pas. Ne remplace jamais une clé existante :
+   cela déconnecterait tout le monde. La clé n'est jamais écrite dans le journal. */
+function initialiserSecurite() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('CLE_SESSION')) { Logger.log('Clé déjà présente : rien à faire.'); return; }
+  props.setProperty('CLE_SESSION', (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, ''));
+  Logger.log('Clé créée.');
+}
+
+function _cleSession() {
+  const cle = PropertiesService.getScriptProperties().getProperty('CLE_SESSION');
+  if (!cle) throw new Error('Sécurité non initialisée : lancer initialiserSecurite depuis l\'éditeur.');
+  return cle;
+}
+
+function _idCanonique(id) {
+  const brut = String(id === null || id === undefined ? '' : id).trim();
+  return ALIAS_IDS[brut.toLowerCase()] || brut;
+}
+
+function _signer(charge) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(charge, _cleSession()));
+}
+
+/* Comparaison en temps constant : le temps de réponse ne doit pas révéler combien de
+   caractères de la signature sont justes. */
+function _memeChaine(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function _emettreJeton(compte) {
+  const charge = Utilities.base64EncodeWebSafe(JSON.stringify({
+    id: _idCanonique(compte.id), nom: String(compte.nom || ''), role: String(compte.role || '').toLowerCase(),
+    exp: Date.now() + DUREE_JETON_MS
+  }));
+  return charge + '.' + _signer(charge);
+}
+
+/* Rend l'appelant { id, nom, role }, ou { erreur } si le jeton est absent, altéré,
+   signé avec une autre clé ou expiré. */
+function _verifierJeton(jeton) {
+  const invalide = { erreur: 'SESSION_INVALIDE' };
+  const parts = String(jeton || '').split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return invalide;
+  if (!_memeChaine(_signer(parts[0]), parts[1])) return invalide;
+  let c;
+  try { c = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString()); }
+  catch (_) { return invalide; }
+  if (!c || !c.id || !c.role || typeof c.exp !== 'number') return invalide;
+  if (Date.now() > c.exp) return { erreur: 'SESSION_EXPIREE' };
+  return { id: c.id, nom: c.nom, role: c.role };
+}
+
+// ─────────────────────────────────────────────────────────────
 // POINT D'ENTRÉE
 // ─────────────────────────────────────────────────────────────
 function doPost(e) {
