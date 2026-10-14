@@ -317,6 +317,28 @@
   .objp-ligne { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
   .objp-detail { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   #card-dash-supperf td.num, #card-dash-supperf th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bloc-cartes { margin-bottom: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .bloc-cartes-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  .bloc-cartes-note { font-size: 12px; color: var(--texte-2); }
+  .cartes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .carte-sup { background: var(--surface); border: 1px solid var(--bordure); border-top: 4px solid var(--texte-2); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .carte-sup.carte-bon { border-top-color: var(--bon-plein); }
+  .carte-sup.carte-attention { border-top-color: var(--attention-plein); }
+  .carte-sup.carte-critique { border-top-color: var(--critique-plein); }
+  .carte-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .carte-tete svg { width: 72px; height: 72px; flex-shrink: 0; }
+  .carte-id { min-width: 0; }
+  .carte-nom { font-weight: 700; line-height: 1.25; }
+  .carte-zone { font-size: 12px; color: var(--texte-2); }
+  .carte-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .carte-ligne > span:first-child { color: var(--texte-2); }
+  .carte-sup .etat { align-self: flex-start; }
+  @media (max-width: 768px) {
+    .cartes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .carte-sup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; padding: 12px 14px; }
+    .carte-tete { display: contents; }
+    .carte-tete svg { grid-row: span 4; width: 62px; height: 62px; }
+  }
   .ecart-momo { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--etat-attention); }
 
   /* WTD / MTD : cumul de la semaine et du mois en cours, comparé aux mêmes jours de la
@@ -648,22 +670,13 @@
             <div id="kpi-reel-body" style="margin-top:16px"></div>
           </div>
           <!-- Table superviseurs -->
-          <div class="card" id="card-dash-supperf">
-            <div class="card-title"><i class="fa fa-table"></i> Performance par superviseur</div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr>
-                  <th>Superviseur</th>
-                  <th class="num" id="dash-th-evol">Activations</th>
-                  <th class="num">Cible</th><th>État</th>
-                  <th class="num">WTD<span class="th-sous">vs LWTD</span></th>
-                  <th class="num">MTD<span class="th-sous">vs LMTD</span></th>
-                </tr></thead>
-                <tbody id="dash-tbody"></tbody>
-                <tfoot><tr class="tfoot-total" id="dash-tfoot"></tr></tfoot>
-              </table>
+          <section id="card-dash-supperf" class="bloc-cartes" aria-label="Superviseurs">
+            <div class="bloc-cartes-tete">
+              <h2 class="card-title" style="margin:0">Superviseurs</h2>
+              <span class="bloc-cartes-note">Jauge : part de la cible de la période · trait : attendu à date · les plus en retard d'abord</span>
             </div>
-          </div>
+            <div class="cartes-grid" id="dash-cartes"></div>
+          </section>
         </div>
 
         <!-- VUE SAISIE -->
@@ -2926,6 +2939,33 @@ function _svgBarresJours(serie, cibleJour, bornes) {
   return g + '</svg>';
 }
 
+/* ── CARTES SUPERVISEURS ──
+   Jauge : part de la cible de la période atteinte ; trait : part attendue à date. */
+function _jaugeSvg(part, partAttendue, cls) {
+  const C = 188.5, couleur = { bon: 'var(--bon-plein)', attention: 'var(--attention-plein)', critique: 'var(--critique-plein)' }[cls] || 'var(--texte-2)';
+  const plein = Math.max(0, Math.min(1, part)) * C;
+  let trait = '';
+  if (partAttendue !== null && partAttendue > 0) {
+    const a = (-90 + 360 * Math.min(1, partAttendue)) * Math.PI / 180;
+    trait = `<line x1="${(40 + 24 * Math.cos(a)).toFixed(2)}" y1="${(40 + 24 * Math.sin(a)).toFixed(2)}" x2="${(40 + 36 * Math.cos(a)).toFixed(2)}" y2="${(40 + 36 * Math.sin(a)).toFixed(2)}" style="stroke:var(--texte)" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 80 80" role="img" aria-label="${Math.round(part * 100)} % de la cible de la période">
+    <circle cx="40" cy="40" r="30" fill="none" style="stroke:var(--surface-3)" stroke-width="10"/>
+    <circle cx="40" cy="40" r="30" fill="none" style="stroke:${couleur}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${plein.toFixed(1)} ${C}" transform="rotate(-90 40 40)"/>
+    ${trait}<text x="40" y="46" text-anchor="middle" font-size="19" font-weight="700" style="fill:var(--texte);font-family:var(--police-chiffres)">${Math.round(part * 100)} %</text></svg>`;
+}
+
+function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd) {
+  const part = cible > 0 ? ga / cible : 0;
+  const pa = etat.rythme && cible > 0 ? etat.attendu / cible : null;
+  return `<article class="carte-sup carte-${etat.cls}">
+    <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls)}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
+    <div class="carte-ligne carte-mtd"><span>MTD</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
+    <div class="carte-ligne carte-wtd"><span>WTD</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
+    <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
+  </article>`;
+}
+
 /* Déclarations de fonction et non constantes : renderDashboard peut tourner pendant
    l'évaluation du script (restauration de session), avant ces lignes. */
 function _sommeGA(lignes)   { return lignes.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0); }
@@ -3214,57 +3254,30 @@ function renderDashboard() {
     `<td class="num"><strong>${cur.toLocaleString('fr-FR')}</strong><div class="sous">${_evolPct(cur, prev)}</div></td>`;
   const adateSup = k => celluleADate(wtd[k] || 0, lwtd ? (lwtd[k] || 0) : null) + celluleADate(mtd[k] || 0, lmtd ? (lmtd[k] || 0) : null);
 
-  /* L'en-tête dit à quoi l'évolution se compare ; sans comparaison possible, « — ». */
-  document.getElementById('dash-th-evol').innerHTML = 'Activations'
-    + `<span class="th-sous">${comp ? esc(comp.libelle) : 'période'}</span>`;
-  const evol      = (cur, prev) => _evolutionHtml(cur, comp ? prev : null, '');
-  const pastille  = e => `<span class="etat etat-${e.cls}">${esc(e.mot)}</span>`;
-  const ecartMoMo = (ga, momo) => momo !== ga
-    ? `<span class="ecart-momo" title="New MoMo User : ${momo.toLocaleString('fr-FR')}">MoMo ≠ GA (${momo.toLocaleString('fr-FR')})</span>` : '';
-  const celluleSup = (nom, zone) => `<td><strong>${esc(nom)}</strong><div class="sous">${esc(zone)}</div></td>`;
-  const cellulePeriode = (ga, momo, prev) =>
-    `<td class="num"><strong>${ga.toLocaleString('fr-FR')}</strong>${ecartMoMo(ga, momo)}<div class="sous">${evol(ga, prev)}</div></td>`;
-
-  if (isRa) {
-    document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
-      const k = cle(sup.id);
-      const { ga, momo } = totals[k];
-      /* Cible individuelle pondérée par DFA Actifs */
-      const tGASup = supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap);
-      return `<tr>
-        ${celluleSup(sup.nom, sup.zone)}
-        ${cellulePeriode(ga, momo, prevTotals[k].ga)}
-        <td class="num">${tGASup.toLocaleString('fr-FR')}</td>
-        <td>${pastille(_etatCible(ga, tGASup, av))}</td>
-        ${adateSup(k)}
-      </tr>`;
-    }).join('')
-    + ((orphelins.ga || orphelins.momo) ? `<tr>
-        <td><strong>Hors liste</strong><div class="sous" style="color:var(--danger)" title="${esc([...orphelins.ids].join(', '))}">${orphelins.ids.size} identifiant(s) inconnu(s)</div></td>
-        ${cellulePeriode(orphelins.ga, orphelins.momo, orphelinsPrev.ga)}
-        <td class="num">—</td><td>—</td><td class="num">—</td><td class="num">—</td>
-      </tr>` : '');
-    document.getElementById('dash-tfoot').innerHTML = `
-      <td><strong>TOTAL ÉQUIPE</strong></td>
-      ${cellulePeriode(curGA, curMomo, _sommeGA(prevFiltered))}
-      <td class="num" title="${totalMonthDfa > 0 ? 'Cible répartie entre superviseurs selon leurs DFA actifs' : 'Cible répartie à parts égales (aucun DFA actif connu)'}"><strong>${teamTargetGA.toLocaleString('fr-FR')}</strong></td>
-      <td>${pastille(_etatCible(curGA, teamTargetGA, av))}</td>
-      ${celluleADate(_sommeGA(xW.lignes), xW.comp ? _sommeGA(xW.comp.lignes) : null)}
-      ${celluleADate(_sommeGA(xM.lignes), xM.comp ? _sommeGA(xM.comp.lignes) : null)}`;
-  } else {
-    const mySup  = VALLEE_SUPS.find(s => sameId(s.id, myId)) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
-    const k      = cle(myId);
-    const myGA   = totals[k]?.ga   || 0;
-    const myMomo = totals[k]?.momo || 0;
-    document.getElementById('dash-tbody').innerHTML = `<tr>
-      ${celluleSup(mySup.nom, mySup.zone)}
-      ${cellulePeriode(myGA, myMomo, prevTotals[k]?.ga || 0)}
-      <td class="num">${targetGA.toLocaleString('fr-FR')}</td>
-      <td>${pastille(_etatCible(myGA, targetGA, av))}</td>
-      ${adateSup(k)}
-    </tr>`;
-    document.getElementById('dash-tfoot').innerHTML = '';
+  const aDateSup = k => ({
+    wtd: { val: wtd[k] || 0, prev: lwtd ? (lwtd[k] || 0) : null },
+    mtd: { val: mtd[k] || 0, prev: lmtd ? (lmtd[k] || 0) : null },
+  });
+  const supsAffiches = isRa ? VALLEE_SUPS : VALLEE_SUPS.filter(sp => sameId(sp.id, myId));
+  const cartes = supsAffiches.map(sup => {
+    const k = cle(sup.id);
+    const ga = totals[k] ? totals[k].ga : 0;
+    const cible = isRa ? supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap) : targetGA;
+    return { sup, ga, cible, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
+  });
+  if (!supsAffiches.length && !isRa) {
+    const k = cle(myId);
+    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, cible: targetGA,
+                  etat: _etatCible(totals[k]?.ga || 0, targetGA, av), ...aDateSup(k) });
   }
+  /* Les plus en retard d'abord ; sans pourcentage (pas de cible, pas de rapport) : en fin de liste. */
+  cartes.sort((a, b) => (a.etat.pct == null) - (b.etat.pct == null) || (a.etat.pct || 0) - (b.etat.pct || 0));
+  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd)).join('');
+  if (isRa && (orphelins.ga || orphelins.momo)) {
+    html += _carteSuperviseur({ nom: 'Hors liste', zone: orphelins.ids.size + ' identifiant(s) inconnu(s)' }, orphelins.ga, 0,
+      { cls: 'neutre', mot: 'Identifiants à corriger', pct: null }, { val: 0, prev: null }, { val: 0, prev: null });
+  }
+  document.getElementById('dash-cartes').innerHTML = html;
 
   renderKpiReelCard();
 }
