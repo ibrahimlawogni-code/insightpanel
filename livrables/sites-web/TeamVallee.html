@@ -1511,7 +1511,10 @@ async function doLogin() {
 
   let messageServeur = '';
   try {
-    const json = await _appelSansEffet(VALLEE_URL, { action: 'loginVallee', id: identifiant, pwd: password });
+    /* Les nouveaux essais automatiques reprennent ce même identifiant : le serveur ne
+       compte alors qu'un échec par tentative réelle. */
+    const essai = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    const json = await _appelSansEffet(VALLEE_URL, { action: 'loginVallee', id: identifiant, pwd: password, essai });
     if (json.success && json.user && json.jeton) {
       user = { ...json.user, zone: json.user.libelle, jeton: json.jeton };
     } else if (json.code === 'BLOQUE') {
@@ -1607,6 +1610,11 @@ function _majBandeauEchec() {
    qui restent affichés plutôt que des zéros.
    La copie appartient au compte connecté : elle est ignorée pour un autre compte et
    effacée à la déconnexion. */
+/* Courriers : réservés au RA et à l'admin, le serveur les refuse aux autres comptes. */
+function _voitCourriers() {
+  return !!currentUser && ['ra', 'admin'].includes(currentUser.role);
+}
+
 function _modulesDonnees() {
   return [
     { charger: loadSaisies,                action: 'getSaisiesVallee',      libelle: 'Saisies' },
@@ -1618,7 +1626,7 @@ function _modulesDonnees() {
     { charger: loadObjectifs,              action: 'getObjectifsVallee',    libelle: 'Objectifs mensuels' },
     { charger: loadUtilisateursDynamiques, action: 'getUtilisateursVallee', libelle: 'Comptes utilisateurs' },
     { charger: loadDemandesVallee,         action: 'getDemandesVallee',     libelle: 'Courriers' }
-  ];
+  ].filter(m => m.action !== 'getDemandesVallee' || _voitCourriers());
 }
 
 function _lireCache(action) {
@@ -1748,9 +1756,14 @@ async function _lireReponse(res) {
 }
 
 async function _appelSansEffet(url, corps) {
+  /* Session d'origine : si elle a pris fin entre-temps (déconnexion, session refusée),
+     l'appel s'arrête au lieu de partir sans jeton ou d'être retenté. */
+  const session = currentUser;
+  const sessionClose = () => Object.assign(new Error('Session close'), { sessionClose: true });
   for (let essai = 0; ; essai++) {
     await _prendreCreneau();
     try {
+      if (currentUser !== session) throw sessionClose();
       const res = await fetch(url, { method: 'POST', body: _corpsAvecJeton(corps) });
       /* Lu en texte d'abord : la page d'erreur de Google fait échouer res.json() avec un
          message illisible, alors qu'il s'agit d'un refus passager à retenter. */
@@ -1761,6 +1774,7 @@ async function _appelSansEffet(url, corps) {
       return _controleSession(json);
     } catch (err) {
       /* Hors ligne, retenter ne sert à rien : on échoue tout de suite. */
+      if (err.sessionClose || currentUser !== session) throw err.sessionClose ? err : sessionClose();
       if (essai >= DELAIS_NOUVEL_ESSAI.length || !navigator.onLine) throw err;
       console.warn('[' + corps.action + '] essai ' + (essai + 1) + ' échoué, nouvel essai :', err);
     } finally {
@@ -1772,6 +1786,8 @@ async function _appelSansEffet(url, corps) {
 }
 
 function _echecChargement(libelle, detail) {
+  /* Déconnecté entre-temps : rien à signaler, l'écran de connexion est affiché. */
+  if (!currentUser) return;
   MODULES_EN_ECHEC.add(libelle);
   console.error('[' + libelle + ']', detail);
   /* Pas de notification quand la copie locale prend le relais : les chiffres affichés
@@ -1899,6 +1915,12 @@ function _appliquerDroits() {
     enlvType.innerHTML = optionsType;
     if (typeChoisi && [...enlvType.options].some(o => o.value === typeChoisi)) enlvType.value = typeChoisi;
   }
+  const stockType = document.getElementById('stock-type');
+  const stockChoisi = stockType?.value;
+  if (stockType && stockType.innerHTML !== optionsType) {
+    stockType.innerHTML = optionsType;
+    if (stockChoisi && [...stockType.options].some(o => o.value === stockChoisi)) stockType.value = stockChoisi;
+  }
   document.getElementById('card-users-form').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('card-users-hist').style.display = isRaAdmin ? '' : 'none';
   document.getElementById('nav-demandes').style.display    = isRaAdmin ? '' : 'none';
@@ -1922,6 +1944,7 @@ function startSession(user) {
   currentUser = { ...user, id: seed?.id || user.id, nom: seed?.nom || user.nom, initiales: seed?.initiales || user.initiales || '?', role: seed?.role || user.role, zone: seed?.zone || user.zone };
 
   try { sessionStorage.setItem('tv_session', JSON.stringify(currentUser)); } catch (_) {}
+  MODULES_EN_ECHEC.clear();
 
   document.getElementById('screen-login').style.display = 'none';
   document.getElementById('screen-app').style.display = 'block';
@@ -5117,7 +5140,7 @@ function _chargerTout(force) {
   _chargementGlobal = Promise.allSettled([
     loadSaisies(force), loadStock(force), loadDysf(force), loadKpiReel(force),
     loadEnlevements(force), loadSwap(force), loadObjectifs(force),
-    loadUtilisateursDynamiques(force), loadDemandesVallee(force)
+    loadUtilisateursDynamiques(force), ...(_voitCourriers() ? [loadDemandesVallee(force)] : [])
   ]).then(() => {
     _derniereActualisation = Date.now();
     _majBoutonActualiser();

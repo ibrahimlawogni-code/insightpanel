@@ -68,10 +68,11 @@ function _memeChaine(a, b) {
 }
 
 function _emettreJeton(compte) {
+  /* UTF-8 explicite : les noms accentués (François) doivent revenir intacts du jeton. */
   const charge = Utilities.base64EncodeWebSafe(JSON.stringify({
     id: _idCanonique(compte.id), nom: String(compte.nom || ''), role: String(compte.role || '').toLowerCase(),
     exp: Date.now() + DUREE_JETON_MS
-  }));
+  }), Utilities.Charset.UTF_8);
   return charge + '.' + _signer(charge);
 }
 
@@ -153,6 +154,11 @@ function doPost(e) {
     /* L'auteur d'une écriture est celui du jeton, quoi que la page envoie. */
     if (/^(save|update)/.test(String(data.action))) {
       data.auteurId = appelant.id; data.auteurNom = appelant.nom; data.auteurRole = appelant.role;
+    }
+    /* Saisie d'un superviseur : enregistrée sous son identifiant canonique, quelle que
+       soit la forme envoyée (alias, casse). */
+    if (data.action === 'saveSaisieVallee' && String(appelant.role).toLowerCase() === 'superviseur') {
+      data.supId = appelant.id; data.supNom = appelant.nom;
     }
     delete data.jeton;
   }
@@ -978,11 +984,29 @@ function _getOrCreateSwapVallee(ss) {
 // ─────────────────────────────────────────────────────────────
 /* Connexion. Après 5 échecs sur un identifiant, il est bloqué 15 minutes (compteur en
    cache, remis à zéro par une connexion réussie) : on ne devine pas un mot de passe à
-   force d'essais. */
+   force d'essais. Le compteur est lu et mis à jour sous verrou : sans lui, des
+   tentatives simultanées liraient toutes la même valeur et le plafond ne tiendrait pas. */
 function handleLoginVallee(data) {
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(10000); } catch (_) {
+    return jsonResponse({ success: false, error: 'Serveur occupé, réessayez dans un instant.' });
+  }
+  _verrouGlobalTenu = true;
+  try { return _connexionSousVerrou(data); }
+  finally { _verrouGlobalTenu = false; lock.releaseLock(); }
+}
+
+function _connexionSousVerrou(data) {
   const cache     = CacheService.getScriptCache();
-  const cleEchecs = 'echecs:' + _cellStr(data.id).toLowerCase();
+  /* Clés bornées : CacheService refuse les clés de plus de 250 caractères. */
+  const cleEchecs = 'echecs:' + _cellStr(data.id).toLowerCase().slice(0, 100);
   const echecs    = Number(cache.get(cleEchecs)) || 0;
+  /* La page retente une connexion quand Google perd la réponse : chaque nouvel essai
+     arrive ici avec le même identifiant de tentative et le même mot de passe, et ne
+     doit compter qu'une fois. La marque porte sur la paire (tentative, mot de passe),
+     signée : réutiliser l'identifiant avec un autre mot de passe compte bien un échec. */
+  const essai     = _cellStr(data.essai).slice(0, 64);
+  const cleEssai  = essai ? 'essai:' + _signer(essai + '|' + _cellStr(data.pwd)) : '';
   if (echecs >= MAX_ECHECS_CONNEXION) {
     return jsonResponse({ success: false, code: 'BLOQUE', error: 'Trop d\'essais : réessaie dans 15 minutes.' });
   }
@@ -1018,7 +1042,10 @@ function handleLoginVallee(data) {
       return jsonResponse({ success: true, user, jeton: _emettreJeton(user) });
     }
   }
-  cache.put(cleEchecs, String(echecs + 1), DUREE_BLOCAGE_S);
+  if (!cleEssai || !cache.get(cleEssai)) {
+    cache.put(cleEchecs, String(echecs + 1), DUREE_BLOCAGE_S);
+    if (cleEssai) cache.put(cleEssai, '1', DUREE_BLOCAGE_S);
+  }
   return jsonResponse({ success: false, error: 'Identifiant ou mot de passe incorrect.' });
 }
 
