@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Thème appliqué avant le premier rendu : sans ce script, un appareil en mode soleil
+     verrait la page s'afficher sombre puis basculer. Stockage bloqué : thème nuit. -->
+<script>
+(function () { try { if (localStorage.getItem('tv_theme') === 'clair') document.documentElement.setAttribute('data-theme', 'clair'); } catch (_) {} })();
+</script>
 <title>Performance Team Vallée — ZEPHIR GROUP</title>
 
 <!-- Installation sur ordinateur et téléphone. Le manifeste, le service worker et les
@@ -21,30 +26,83 @@
      repli (Arial Narrow, puis la police système) prend le relais sans rien casser. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
+  /* ── THÈME ──
+     « Nuit opérationnelle » par défaut ; « clair » (mode soleil) sous [data-theme="clair"],
+     posé avant le premier rendu par le script en tête de <head>. Toute couleur de l'appli
+     passe par ces jetons : un seul endroit à modifier. */
   :root {
-    --mtn-yellow: #f8c200;
-    --mtn-dark:   #1a1a1a;
-    --mtn-gray:   #2d2d2d;
-    --mtn-light:  #f5f5f5;
-    --success:    #16a34a;
-    --danger:     #dc2626;
-    --warning:    #d97706;
-    --info:       #2563eb;
-    --text:       #1a1a1a;
-    --text-muted: #6b7280;
-    --border:     #e5e7eb;
-    --card-bg:    #ffffff;
-    --bg:         #f3f4f6;
+    color-scheme: dark;
+    --fond:          #101113;
+    --surface:       #18191C;
+    --surface-2:     #1B1C1F;
+    --surface-3:     #26272B;
+    --bordure:       #26272B;
+    --lateral:       #0B0C0D;
+    --texte:         #F3F1EA;
+    --texte-2:       #A3A097;
+    --jaune:         #F8C200;
+    --jaune-texte:   #F8C200;
+    --jaune-fond:    #2A2510;
+    --sur-jaune:     #101113;
+    --jaune-trait:   #F8C200;
+    --bon:           #6EE09A;  --bon-fond:       #17331F;  --bon-plein:       #4CC97A;
+    --attention:     #FFC46B;  --attention-fond: #3A2C14;  --attention-plein: #F2A93B;
+    --critique:      #FF9A90;  --critique-fond:  #3A1D1B;  --critique-plein:  #F06A5F;
+    --info:          #9CC0FF;  --info-fond:      #1B2A44;  --info-plein:      #5B8DEF;
+    --neutre-fond:   #2A2B30;
+    --sur-info:      #0B1220;
+    --sur-critique:  #101113;
+    --sur-attention: #101113;
+    --police-texte:  Manrope, "Segoe UI", system-ui, sans-serif;
+
+    /* Alias historiques : le reste du fichier les utilise encore. */
+    --mtn-yellow: var(--jaune);
+    --mtn-dark:   var(--texte);
+    --mtn-gray:   var(--surface-3);
+    --mtn-light:  var(--surface-2);
+    --success:    var(--bon-plein);
+    --danger:     var(--critique-plein);
+    --warning:    var(--attention-plein);
+    --info-lien:  var(--info-plein);
+    --text:       var(--texte);
+    --text-muted: var(--texte-2);
+    --border:     var(--bordure);
+    --card-bg:    var(--surface);
+    --bg:         var(--fond);
     --sidebar-w:  240px;
   }
+  :root[data-theme="clair"] {
+    color-scheme: light;
+    --fond:          #F4F1EA;
+    --surface:       #FFFFFF;
+    --surface-2:     #FBFAF6;
+    --surface-3:     #ECE8DE;
+    --bordure:       #E2DED3;
+    --lateral:       #16150F;
+    --texte:         #16150F;
+    --texte-2:       #5F5B52;
+    --jaune:         #F8C200;
+    --jaune-texte:   #8A6A00;
+    --jaune-fond:    #FFF4CC;
+    --sur-jaune:     #16150F;
+    --jaune-trait:   #A87E00;
+    --bon:           #15803D;  --bon-fond:       #DCFCE7;  --bon-plein:       #15803D;
+    --attention:     #92400E;  --attention-fond: #FEF3C7;  --attention-plein: #B45309;
+    --critique:      #991B1B;  --critique-fond:  #FEE2E2;  --critique-plein:  #DC2626;
+    --info:          #1E40AF;  --info-fond:      #DBEAFE;  --info-plein:      #2563EB;
+    --neutre-fond:   #EDEAE2;
+    --sur-info:      #FFFFFF;
+    --sur-critique:  #FFFFFF;
+    --sur-attention: #FFFFFF;
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  body { font-family: var(--police-texte); background: var(--bg); color: var(--text); min-height: 100vh; }
 
   /* ── TOAST ── */
   #toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-  .toast { display: flex; align-items: flex-start; gap: 10px; background: #fff; border-left: 4px solid var(--mtn-yellow); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,.18); min-width: 280px; max-width: 380px; animation: slideIn .25s ease; }
+  .toast { display: flex; align-items: flex-start; gap: 10px; background: var(--surface-2); color: var(--texte); border: 1px solid var(--bordure); border-left: 4px solid var(--mtn-yellow); border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,.18); min-width: 280px; max-width: 380px; animation: slideIn .25s ease; }
   .toast.error { border-left-color: var(--danger); }
   .toast-icon { font-size: 18px; margin-top: 1px; color: var(--mtn-yellow); }
   .toast.error .toast-icon { color: var(--danger); }
@@ -55,13 +113,13 @@
 
   /* ── LOGIN ── */
   #screen-login { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background-color: var(--mtn-dark);
+    background-color: var(--lateral);
     background-image: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url('bg-team-vallee.jpg');
     background-size: cover;
     background-position: center; }
-  .login-card { background: #fff; border-radius: 16px; padding: 40px 36px; width: 360px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .login-card { background: var(--surface); color: var(--texte); border-radius: 16px; padding: 40px 36px; width: 360px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
   .login-logo { text-align: center; margin-bottom: 24px; }
-  .brand-mark { width: 44px; height: 44px; border-radius: 22%; background: var(--mtn-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .brand-mark { width: 44px; height: 44px; border-radius: 22%; background: var(--lateral); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .brand-mark svg { width: 66%; height: 66%; }
   .login-logo .brand-mark { margin: 0 auto 10px; }
   .login-logo .brand { font-size: 22px; font-weight: 900; color: var(--mtn-dark); letter-spacing: -0.5px; }
@@ -74,30 +132,30 @@
   .pwd-wrap { position: relative; }
   .pwd-wrap input { padding-right: 40px; }
   .toggle-pwd { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 15px; }
-  .btn-login { width: 100%; padding: 12px; background: var(--mtn-yellow); border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--mtn-dark); transition: opacity .2s; }
+  .btn-login { width: 100%; padding: 12px; background: var(--mtn-yellow); border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--sur-jaune); transition: opacity .2s; }
   .btn-login:hover { opacity: .9; }
   .btn-login:disabled { opacity: .6; cursor: not-allowed; }
-  .login-error { display: none; background: #fef2f2; color: var(--danger); border: 1px solid #fca5a5; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 12px; }
+  .login-error { display: none; background: var(--critique-fond); color: var(--critique); border: 1px solid var(--critique); border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 12px; }
 
   /* ── APP SHELL ── */
   #screen-app { display: none; min-height: 100vh; }
   .app-layout { display: flex; min-height: 100vh; }
 
   /* ── SIDEBAR ── */
-  .sidebar { width: var(--sidebar-w); background: var(--mtn-dark); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; transition: transform .3s; }
+  .sidebar { width: var(--sidebar-w); background: var(--lateral); color: #fff; display: flex; flex-direction: column; flex-shrink: 0; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; transition: transform .3s; }
   .sidebar-brand { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; gap: 10px; }
   .sidebar-brand .brand-mark { background: rgba(255,255,255,.08); }
   .sidebar-brand .app-name { font-size: 15px; font-weight: 900; color: var(--mtn-yellow); line-height: 1.2; }
   .sidebar-brand .app-sub { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 3px; }
   .sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
-  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--mtn-yellow); color: var(--mtn-dark); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--mtn-yellow); color: var(--sur-jaune); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .user-info { overflow: hidden; }
   .user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .user-role { font-size: 11px; color: rgba(255,255,255,.5); }
   nav.sidebar-nav { flex: 1; padding: 12px 8px; }
   .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; color: rgba(255,255,255,.75); transition: background .15s, color .15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
   .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
-  .nav-item.active { background: var(--mtn-yellow); color: var(--mtn-dark); font-weight: 700; }
+  .nav-item.active { background: var(--mtn-yellow); color: var(--sur-jaune); font-weight: 700; }
   .nav-item i { width: 18px; text-align: center; }
   .sidebar-footer { padding: 12px 8px; border-top: 1px solid rgba(255,255,255,.1); }
 
@@ -106,27 +164,33 @@
      l'écran (la rangée d'onglets de période, un tableau) élargit toute la colonne, et
      sur téléphone c'est l'écran entier qui déborde à droite au lieu de ce seul élément. */
   .main-content { flex: 1; min-width: 0; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; }
-  .topbar { background: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
-  .topbar-title { font-size: 17px; font-weight: 700; }
+  .topbar { background: var(--fond); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .topbar-title { font-family: var(--police-chiffres); font-size: 22px; font-weight: 700; letter-spacing: .01em; }
   .topbar-date { font-size: 13px; color: var(--text-muted); }
   .topbar-droite { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   /* Icône en caractère texte plutôt qu'en FontAwesome : sur réseau lent, la police
      d'icônes peut ne jamais arriver et le bouton deviendrait invisible. */
-  .btn-actualiser { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .btn-actualiser { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
   .btn-actualiser:hover { border-color: var(--mtn-yellow); }
   .btn-actualiser:disabled { cursor: wait; opacity: .7; }
+  .btn-theme { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; min-height: 34px; }
+  .btn-theme:hover { border-color: var(--jaune); }
+  .btn-theme svg { width: 16px; height: 16px; }
+  .btn-theme .ico-lune { display: none; }
+  :root[data-theme="clair"] .btn-theme .ico-soleil { display: none; }
+  :root[data-theme="clair"] .btn-theme .ico-lune { display: inline; }
   .btn-actualiser-icone { font-size: 15px; line-height: 1; display: inline-block; }
   .btn-actualiser.en-cours .btn-actualiser-icone { animation: spin .8s linear infinite; }
   .page-body { padding: 24px; flex: 1; }
 
   /* ── CARDS ── */
-  .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 16px; }
-  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card { background: var(--card-bg); border-radius: 18px; padding: 20px; border: 1px solid var(--bordure); margin-bottom: 16px; }
+  .card-title { font-family: var(--police-chiffres); font-size: 18px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   .card-title i { color: var(--mtn-yellow); }
 
   /* ── KPI ROW ── */
   .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .kpi-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border-top: 3px solid var(--mtn-yellow); }
+  .kpi-card { background: var(--surface); border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border-top: 3px solid var(--mtn-yellow); }
   .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
   .kpi-value { font-size: 28px; font-weight: 800; margin: 4px 0; color: var(--mtn-dark); }
   .kpi-target { font-size: 12px; color: var(--text-muted); }
@@ -141,16 +205,16 @@
   .period-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 8px; padding: 3px; margin-bottom: 16px; width: fit-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .period-tabs::-webkit-scrollbar { display: none; }
   .period-tab { padding: 6px 14px; border-radius: 6px; border: none; background: none; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); transition: background .15s; white-space: nowrap; flex-shrink: 0; }
-  .period-tab.active { background: #fff; color: var(--mtn-dark); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .period-tab.active { background: var(--surface-3); color: var(--texte); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 
   /* ── TABLES ── */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead th { background: #f9fafb; padding: 10px 12px; text-align: left; font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  thead th { background: var(--surface-2); padding: 10px 12px; text-align: left; font-weight: 700; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid var(--border); white-space: nowrap; }
   tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: #fafafa; }
-  .tfoot-total td { font-weight: 700; background: #fffbeb; border-top: 2px solid var(--mtn-yellow); }
+  tbody tr:hover { background: var(--surface-2); }
+  .tfoot-total td { font-weight: 700; background: var(--jaune-fond); border-top: 2px solid var(--mtn-yellow); }
 
   /* ── FORM ── */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -159,20 +223,20 @@
   .form-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .form-group.full { grid-column: 1 / -1; }
   .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-  .form-group input, .form-group select, .form-group textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color .2s; font-family: inherit; }
+  .form-group input, .form-group select, .form-group textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; background: var(--surface-2); color: var(--texte); transition: border-color .2s; font-family: inherit; }
   .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--mtn-yellow); }
   .form-group textarea { resize: vertical; min-height: 72px; }
-  .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .2s; }
+  .btn { padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; transition: opacity .2s; }
   .btn:hover { opacity: .88; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .btn-primary { background: var(--mtn-yellow); color: var(--mtn-dark); }
-  .btn-secondary { background: #e5e7eb; color: var(--text); }
-  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-primary { background: var(--mtn-yellow); color: var(--sur-jaune); }
+  .btn-secondary { background: var(--surface-3); color: var(--text); }
+  .btn-danger { background: var(--danger); color: var(--sur-critique); }
   .btn-sm { padding: 5px 10px; font-size: 12px; }
   .form-actions { display: flex; gap: 8px; margin-top: 8px; }
 
   /* ── PROGRESS BAR ── */
-  .prog-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
+  .prog-bar { background: var(--surface-3); border-radius: 99px; height: 8px; overflow: hidden; }
   .prog-bar-fill { height: 100%; border-radius: 99px; background: var(--mtn-yellow); transition: width .4s; }
   .prog-bar-fill.good { background: var(--success); }
   .prog-bar-fill.warn { background: var(--warning); }
@@ -180,15 +244,15 @@
 
   /* ── BADGE ── */
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
-  .badge-yellow { background: #fef9c3; color: #854d0e; }
-  .badge-green  { background: #dcfce7; color: #15803d; }
-  .badge-red    { background: #fee2e2; color: #991b1b; }
-  .badge-gray   { background: #f3f4f6; color: #6b7280; }
-  .badge-blue   { background: #dbeafe; color: #1e40af; }
+  .badge-yellow { background: var(--jaune-fond); color: var(--jaune-texte); }
+  .badge-green  { background: var(--bon-fond); color: var(--bon); }
+  .badge-red    { background: var(--critique-fond); color: var(--critique); }
+  .badge-gray   { background: var(--neutre-fond); color: var(--texte-2); }
+  .badge-blue   { background: var(--info-fond); color: var(--info); }
 
   /* ── KPI GRANDES CARDS ── */
   .kpi-big-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
-  .kpi-big { background: #fff; border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.07); border-left: 4px solid var(--mtn-yellow); }
+  .kpi-big { background: var(--surface); border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.07); border-left: 4px solid var(--mtn-yellow); }
   .kpi-big-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; }
   .kpi-big-value { font-size: 40px; font-weight: 900; color: var(--mtn-dark); line-height: 1.1; margin: 6px 0 4px; }
   .kpi-big-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
@@ -199,18 +263,41 @@
      mots, la couleur ne fait que le doubler. */
   :root {
     --police-chiffres: "Barlow Semi Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
-    --etat-bon: #15803d;       --etat-bon-fond: #dcfce7;
-    --etat-attention: #92400e; --etat-attention-fond: #fef3c7;
-    --etat-critique: #991b1b;  --etat-critique-fond: #fee2e2;
-    --etat-neutre: #4b5563;    --etat-neutre-fond: #f3f4f6;
+    --etat-bon: var(--bon);             --etat-bon-fond: var(--bon-fond);
+    --etat-attention: var(--attention); --etat-attention-fond: var(--attention-fond);
+    --etat-critique: var(--critique);   --etat-critique-fond: var(--critique-fond);
+    --etat-neutre: var(--texte-2);      --etat-neutre-fond: var(--neutre-fond);
   }
-  .rythme { grid-column: 1 / -1; background: var(--card-bg); border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: grid; gap: 12px; min-width: 0; }
+  .rythme { grid-column: 1 / -1; background: var(--surface-2); border: 1px solid var(--bordure); border-radius: 22px; padding: 22px 24px; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 26px; align-items: center; min-width: 0; }
+  .rythme.sans-graphe { grid-template-columns: minmax(0, 1fr); }
+  .rythme-gauche { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .rythme-dl { margin: 2px 0 0; display: grid; grid-template-columns: auto auto; gap: 8px 16px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rythme-dl dt { color: var(--texte-2); }
+  .rythme-dl dd { margin: 0; text-align: right; font-weight: 700; color: var(--texte); }
+  .rythme-graphes { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rythme-graphes svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .rythme-graphes figcaption { font-size: 11px; color: var(--texte-2); margin-top: 4px; }
+  /* Traits d'épaisseur constante à toutes les tailles d'écran. */
+  .rythme-graphes svg * { vector-effect: non-scaling-stroke; }
+  /* Sur téléphone, le dessin est réduit d'environ trois fois : libellés agrandis, secondaires masqués. */
+  /* Le dessin est mis à l'échelle de sa largeur : --ech (800 / largeur affichée, posé en JS)
+     garde les libellés à 12 px réels quelle que soit la taille d'écran. */
+  .rythme-graphes svg text { font-size: calc(12px * var(--ech, 1)); }
+  .rythme-graphes svg text[font-weight="700"] { font-size: calc(13px * var(--ech, 1)); }
+  .rythme-valeur { min-height: 1.4em; font-size: 13px; font-weight: 700; color: var(--texte); font-variant-numeric: tabular-nums; }
+  .barres-jours { cursor: pointer; }
+  /* Sur téléphone, les libellés secondaires masqués. */
+  @media (max-width: 600px) {
+    .rythme-graphes svg .lib-sec { display: none; }
+  }
+  @media (max-width: 900px) { .rythme { grid-template-columns: minmax(0, 1fr); padding: 18px; } }
   .rythme-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
   .rythme-titre { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
   .rythme-titre span { font-weight: 400; color: var(--text-muted); }
-  .rythme-chiffre { font-family: var(--police-chiffres); font-size: 52px; font-weight: 700; line-height: 1; color: var(--mtn-dark); letter-spacing: -0.01em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-  .rythme-cible { font-family: inherit; font-size: 20px; font-weight: 600; color: var(--text-muted); letter-spacing: 0; }
-  .rythme-barre { position: relative; height: 10px; border-radius: 99px; background: #e9e7e1; }
+  .rythme-chiffre { font-family: var(--police-chiffres); font-size: 68px; font-weight: 700; line-height: .9; color: var(--jaune); letter-spacing: -0.01em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  :root[data-theme="clair"] .rythme-chiffre { color: var(--texte); }
+  .rythme-cible { font-family: var(--police-texte); font-size: 18px; font-weight: 600; color: var(--texte-2); letter-spacing: 0; }
+  .rythme-barre { position: relative; height: 10px; border-radius: 99px; background: var(--surface-3); }
   .rythme-rempli { position: absolute; inset: 0 auto 0 0; border-radius: 99px; }
   .rythme-repere { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--mtn-dark); }
   .rythme-infos { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
@@ -235,43 +322,71 @@
   .etat-neutre    { color: var(--etat-neutre);    background: var(--etat-neutre-fond); }
   .etat-neutre::before { width: 8px; height: 2px; }
   .fond-bon { background: var(--success); } .fond-attention { background: var(--warning); }
-  .fond-critique { background: var(--danger); } .fond-neutre { background: #9ca3af; }
+  .fond-critique { background: var(--danger); } .fond-neutre { background: var(--texte-2); }
 
   /* Cartes Objectifs : une seule mesure, l'activation */
   .objp-chiffre { font-family: var(--police-chiffres); font-size: 30px; font-weight: 700; line-height: 1; color: var(--mtn-dark); }
   .objp-ligne { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
   .objp-detail { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   #card-dash-supperf td.num, #card-dash-supperf th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bloc-cartes { margin-bottom: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .bloc-cartes-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  .bloc-cartes-note { font-size: 12px; color: var(--texte-2); }
+  .cartes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+  .carte-sup { background: var(--surface); border: 1px solid var(--bordure); border-top: 4px solid var(--texte-2); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .carte-sup.carte-bon { border-top-color: var(--bon-plein); }
+  .carte-sup.carte-attention { border-top-color: var(--attention-plein); }
+  .carte-sup.carte-critique { border-top-color: var(--critique-plein); }
+  .carte-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .carte-tete svg { width: 72px; height: 72px; flex-shrink: 0; }
+  .carte-id { min-width: 0; }
+  .carte-nom { font-weight: 700; line-height: 1.25; }
+  .carte-zone { font-size: 12px; color: var(--texte-2); }
+  .carte-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .carte-ligne > span:first-child { color: var(--texte-2); }
+  .carte-sup .etat { align-self: flex-start; }
+  @media (max-width: 768px) {
+    .cartes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .carte-sup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; padding: 12px 14px; }
+    .carte-tete { display: contents; }
+    .carte-tete svg { grid-row: span 4; width: 62px; height: 62px; }
+  }
   .ecart-momo { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--etat-attention); }
 
   /* WTD / MTD : cumul de la semaine et du mois en cours, comparé aux mêmes jours de la
      semaine et du mois précédents (LWTD, LMTD). */
-  .adate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .adate { background: var(--card-bg); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: grid; gap: 8px; min-width: 0; }
+  .tuiles-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 900px) { .tuiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+  /* Très petits téléphones : deux tuiles côte à côte ne tiennent plus. */
+  @media (max-width: 359px) { .tuiles-grid { grid-template-columns: 1fr; } }
+  .adate-tete { flex-wrap: wrap; }
+  .adate { background: var(--surface); border: 1px solid var(--bordure); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; min-width: 0; align-content: start; }
+  .adate-barre { height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  .adate-barre div { height: 100%; border-radius: 99px; background: var(--jaune); }
   .adate-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
-  .adate-code { font-family: var(--police-chiffres); font-size: 18px; font-weight: 700; color: var(--mtn-dark); letter-spacing: .02em; }
+  .adate-code { font-family: var(--police-chiffres); font-size: 16px; font-weight: 700; color: var(--jaune-texte); letter-spacing: .08em; }
   .adate-periode { font-size: 12px; color: var(--text-muted); }
-  .adate-chiffre { font-family: var(--police-chiffres); font-size: 36px; font-weight: 700; line-height: 1; color: var(--mtn-dark); }
+  .adate-chiffre { font-family: var(--police-chiffres); font-size: 40px; font-weight: 700; line-height: 1; color: var(--texte); display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
   .adate-chiffre span { font-family: inherit; font-size: 15px; font-weight: 600; color: var(--text-muted); }
   .adate-comp { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .th-sous { display: block; font-size: 9px; font-weight: 600; letter-spacing: .3px; color: var(--text-muted); opacity: .8; }
   .sous { font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
-  @media (max-width: 560px) { .adate-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .adate { padding: 12px; } .adate-chiffre { font-size: 32px; } .adate-chiffre span { font-size: 12px; } }
   .kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
-  .kpi-delta.up   { background: #dcfce7; color: #15803d; }
-  .kpi-delta.down { background: #fee2e2; color: #dc2626; }
-  .kpi-delta.neutral { background: #f3f4f6; color: #6b7280; }
+  .kpi-delta.up   { background: var(--bon-fond); color: var(--bon); }
+  .kpi-delta.down { background: var(--critique-fond); color: var(--critique); }
+  .kpi-delta.neutral { background: var(--neutre-fond); color: var(--texte-2); }
 
   /* ── KPI STAT ROW ── */
   .kpi-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
-  .kpi-stat { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: flex; align-items: center; gap: 14px; }
+  .kpi-stat { background: var(--surface); border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: flex; align-items: center; gap: 14px; }
   .kpi-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
   .kpi-stat-val { font-size: 26px; font-weight: 900; color: var(--mtn-dark); line-height: 1; }
   .kpi-stat-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
 
   /* ── OBJECTIFS ── */
   .objectifs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .objectif-period { background: #f9fafb; border-radius: 12px; padding: 16px; }
+  .objectif-period { background: var(--surface-2); border-radius: 12px; padding: 16px; }
   .objp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .objp-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; }
   .objp-title { font-weight: 700; font-size: 14px; }
@@ -282,11 +397,11 @@
   .objp-actual { font-size: 22px; font-weight: 800; }
   .objp-sep { color: var(--text-muted); font-size: 13px; }
   .objp-target { font-size: 13px; color: var(--text-muted); }
-  .objp-bar { background: #e5e7eb; border-radius: 99px; height: 6px; overflow: hidden; }
+  .objp-bar { background: var(--surface-3); border-radius: 99px; height: 6px; overflow: hidden; }
   .objp-bar div { height: 100%; border-radius: 99px; transition: width .4s; }
 
   /* ── SPINNER ── */
-  .spinner { display: inline-block; width: 20px; height: 20px; border: 2.5px solid #e5e7eb; border-top-color: var(--mtn-yellow); border-radius: 50%; animation: spin .6s linear infinite; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2.5px solid var(--surface-3); border-top-color: var(--mtn-yellow); border-radius: 50%; animation: spin .6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading-row { text-align: center; padding: 30px; color: var(--text-muted); }
 
@@ -304,7 +419,7 @@
 
   #barre-hors-ligne {
     display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9998;
-    background: var(--warning); color: #fff;
+    background: var(--warning); color: var(--sur-attention);
     padding: 9px 16px; font-size: 13px; font-weight: 600; text-align: center;
     box-shadow: 0 -2px 12px rgba(0,0,0,.25);
   }
@@ -312,7 +427,7 @@
 
   #barre-maj {
     display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9997;
-    background: var(--mtn-dark); color: #fff;
+    background: var(--lateral); color: #fff;
     padding: 10px 16px; font-size: 13px; font-weight: 600;
     align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
     box-shadow: 0 -2px 12px rgba(0,0,0,.35);
@@ -328,9 +443,25 @@
   }
 
   /* ── MOBILE ── */
+  .ico { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item .ico { width: 18px; }
+  .btn-actualiser-icone .ico { width: 15px; height: 15px; }
+  .barre-bas { display: none; }
+  .ico.tourne { animation: tourne 1s linear infinite; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .ico.tourne { animation: none; } }
   .hamburger { display: none; background: none; border: none; cursor: pointer; font-size: 22px; padding: 4px; }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
   @media (max-width: 768px) {
+    /* Barre du bas : remplace la barre latérale sur téléphone. */
+    .barre-bas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 90; background: var(--lateral); border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 7px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    .bb-item { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 48px; justify-content: center; border: 0; border-radius: 15px; background: transparent; color: rgba(255,255,255,.72); font: 600 11px var(--police-texte); cursor: pointer; }
+    .bb-item .ico { width: 20px; height: 20px; }
+    .bb-item[hidden] { display: none; }
+    .bb-item.actif { background: var(--jaune); color: var(--sur-jaune); font-weight: 700; }
+    .page-body { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
+    #barre-hors-ligne, #barre-maj { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+    .hamburger { display: none !important; }
     .sidebar { transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
     .sidebar-overlay.open { display: block; }
@@ -347,7 +478,8 @@
   @media (max-width: 480px) {
     .topbar { padding: 12px 14px; }
     .topbar-date { display: none; }
-    .page-body { padding: 14px 12px; }
+    .btn-theme-texte { display: none; }
+    .page-body { padding: 14px 12px calc(96px + env(safe-area-inset-bottom, 0px)); }
     .card { padding: 16px 14px; }
     .period-tab { padding: 6px 11px; }
     .kpi-big { padding: 16px 16px; }
@@ -373,7 +505,7 @@
 <div id="barre-maj">
   <span><i class="fa fa-arrows-rotate"></i> Une nouvelle version est disponible.</span>
   <span style="display:flex;gap:8px">
-    <button onclick="appliquerMiseAJour()" style="background:#fff;color:var(--mtn-dark);border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Recharger</button>
+    <button onclick="appliquerMiseAJour()" style="background:var(--jaune);color:var(--sur-jaune);border:none;border-radius:6px;padding:5px 12px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Recharger</button>
     <button onclick="document.getElementById('barre-maj').classList.remove('visible')" style="background:none;border:none;color:rgba(255,255,255,.75);font-size:12px;cursor:pointer;font-family:inherit">Plus tard</button>
   </span>
 </div>
@@ -441,36 +573,36 @@
       </div>
       <nav class="sidebar-nav">
         <button class="nav-item active" id="nav-dashboard" onclick="showView('dashboard', this)">
-          <i class="fa fa-chart-line"></i> Tableau de bord
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg> Tableau de bord
         </button>
         <button class="nav-item" id="nav-saisie" onclick="showView('saisie', this)">
-          <i class="fa fa-pen-to-square"></i> Saisie du jour
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg> Saisie du jour
         </button>
         <button class="nav-item" id="nav-stocks" onclick="showView('stocks', this)">
-          <i class="fa fa-boxes-stacked"></i> Stocks SIM
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg> Stocks SIM
         </button>
         <button class="nav-item" id="nav-dysf" onclick="showView('dysfonctionnement', this)">
-          <i class="fa fa-triangle-exclamation"></i> Dysfonctionnements
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z M12 10v5 M12 18v.01"></path></svg> Dysfonctionnements
         </button>
         <button class="nav-item" id="nav-swap" onclick="showView('swap', this)">
-          <i class="fa fa-right-left"></i> SWAP
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg> SWAP
         </button>
         <button class="nav-item" id="nav-rapport" onclick="showView('rapport', this)">
-          <i class="fa fa-share-nodes"></i> Rapport
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8 M12 3v13 M7 8l5-5 5 5"></path></svg> Rapport
         </button>
         <button class="nav-item" id="nav-demandes" onclick="showView('demandes', this)" style="display:none">
-          <i class="fa fa-file-signature"></i> Courriers
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg> Courriers
         </button>
         <button class="nav-item" id="nav-parametres" onclick="showView('parametres', this)" style="display:none">
-          <i class="fa fa-gear"></i> Paramètres
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2"></path></svg> Paramètres
         </button>
       </nav>
       <div class="sidebar-footer">
         <button class="btn-installer" id="btn-installer" onclick="installerApplication()">
-          <i class="fa fa-circle-down"></i> <span id="btn-installer-texte">Installer l'application</span>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v9 M8 12l4 4 4-4"></path></svg> <span id="btn-installer-texte">Installer l'application</span>
         </button>
         <button class="nav-item" onclick="doLogout()" style="color:rgba(255,255,255,.5)">
-          <i class="fa fa-right-from-bracket"></i> Déconnexion
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H5v16h5 M15 8l4 4-4 4 M19 12H9"></path></svg> Déconnexion
         </button>
       </div>
     </aside>
@@ -479,13 +611,18 @@
     <div class="main-content">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:12px">
-          <button class="hamburger" onclick="openSidebar()"><i class="fa fa-bars"></i></button>
+          <button class="hamburger" onclick="openSidebar()" aria-label="Ouvrir le menu"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg></button>
           <span class="topbar-title" id="topbar-title">Tableau de bord</span>
         </div>
         <div class="topbar-droite">
           <span class="topbar-date" id="topbar-date"></span>
+          <button class="btn-theme" id="btn-theme" onclick="basculerTheme()" aria-label="Passer en mode soleil, pour lire en plein soleil">
+            <svg class="ico-soleil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"></path></svg>
+            <svg class="ico-lune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+            <span class="btn-theme-texte">Mode soleil</span>
+          </button>
           <button class="btn-actualiser" id="btn-actualiser" onclick="actualiserDonnees()" title="Recharger les chiffres depuis le serveur">
-            <span class="btn-actualiser-icone" aria-hidden="true">↻</span>
+            <span class="btn-actualiser-icone" aria-hidden="true"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7 M20 4v7h-7"></path></svg></span>
             <span id="maj-heure">Actualiser</span>
           </button>
         </div>
@@ -494,8 +631,8 @@
 
         <!-- VUE DASHBOARD -->
         <div id="view-dashboard">
-          <!-- WTD / MTD : toujours la semaine et le mois en cours, quel que soit l'onglet choisi -->
-          <div class="adate-grid" id="dash-adate"></div>
+          <!-- Dernier jour, WTD, MTD, Équipe : toujours visibles, quel que soit l'onglet choisi -->
+          <div class="tuiles-grid" id="dash-tuiles"></div>
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px">
             <div class="period-tabs" id="dash-kpi-tabs">
               <button class="period-tab active" onclick="setDashPeriod('jour',this)">Jour</button>
@@ -506,19 +643,19 @@
               <button class="period-tab" onclick="setDashPeriod('annee',this)">Année</button>
             </div>
             <div id="dash-ctrl-date" style="display:flex;align-items:center;gap:5px">
-              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)"><i class="fa fa-chevron-left"></i></button>
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(-1)" aria-label="Période précédente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
               <input type="date"   id="dash-input-jour"      style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashRefDateChanged()">
               <input type="month"  id="dash-input-mois"      style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none" onchange="dashMonthChanged()">
-              <span                id="dash-input-trimestre"  style="display:none;padding:5px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-weight:600;min-width:110px;text-align:center"></span>
+              <span                id="dash-input-trimestre"  style="display:none;padding:5px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--texte);font-weight:600;min-width:110px;text-align:center"></span>
               <input type="number" id="dash-input-annee"     style="display:none;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;width:76px;text-align:center" min="2020" max="2035" onchange="dashYearChanged()">
-              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)"><i class="fa fa-chevron-right"></i></button>
+              <button class="btn btn-secondary btn-sm" onclick="dashNavDate(1)" aria-label="Période suivante"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"></path></svg></button>
             </div>
             <div id="dash-ctrl-range" style="display:none;align-items:center;flex-wrap:wrap;gap:5px">
               <span style="font-size:12px;color:var(--text-muted)">Du</span>
               <input type="date" id="dash-range-debut" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
               <span style="font-size:12px;color:var(--text-muted)">au</span>
               <input type="date" id="dash-range-fin" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none">
-              <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><i class="fa fa-check"></i> Appliquer</button>
+              <button class="btn btn-primary btn-sm" onclick="applyDashRange()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg> Appliquer</button>
             </div>
           </div>
           <!-- Bandeau info / chargement / données vides -->
@@ -527,34 +664,18 @@
           <div class="kpi-big-grid" id="kpi-big-grid"></div>
           <!-- Stats secondaires -->
           <div class="kpi-stat-grid" id="kpi-stat-grid"></div>
-          <!-- Objectifs Journalier / Hebdo / Mensuel -->
-          <div class="card" style="margin-bottom:16px" id="card-dash-objectifs">
-            <div class="card-title" style="margin-bottom:0">
-              <i class="fa fa-bullseye"></i> Objectifs
+          <!-- Table superviseurs -->
+          <section id="card-dash-supperf" class="bloc-cartes" aria-label="Superviseurs">
+            <div class="bloc-cartes-tete">
+              <h2 class="card-title" style="margin:0">Superviseurs</h2>
+              <span class="bloc-cartes-note">Jauge : part de la cible de la période · trait : attendu à date · les plus en retard d'abord</span>
             </div>
-            <div id="objectifs-body" style="margin-top:16px"></div>
-          </div>
+            <div class="cartes-grid" id="dash-cartes"></div>
+          </section>
           <!-- KPI NEW ADD réel vs déclaratif -->
           <div class="card" style="margin-bottom:16px" id="card-dash-kpireel">
-            <div class="card-title"><i class="fa fa-scale-balanced"></i> KPI NEW ADD : déclaré contre réel MTN</div>
+            <div class="card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18 M5 21h14 M6 7h12 M6 7l-3 7a3 3 0 0 0 6 0z M18 7l-3 7a3 3 0 0 0 6 0z"></path></svg> KPI NEW ADD : déclaré contre réel MTN</div>
             <div id="kpi-reel-body" style="margin-top:16px"></div>
-          </div>
-          <!-- Table superviseurs -->
-          <div class="card" id="card-dash-supperf">
-            <div class="card-title"><i class="fa fa-table"></i> Performance par superviseur</div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr>
-                  <th>Superviseur</th>
-                  <th class="num" id="dash-th-evol">Activations</th>
-                  <th class="num">Cible</th><th>État</th>
-                  <th class="num">WTD<span class="th-sous">vs LWTD</span></th>
-                  <th class="num">MTD<span class="th-sous">vs LMTD</span></th>
-                </tr></thead>
-                <tbody id="dash-tbody"></tbody>
-                <tfoot><tr class="tfoot-total" id="dash-tfoot"></tr></tfoot>
-              </table>
-            </div>
           </div>
         </div>
 
@@ -892,7 +1013,7 @@
             <div class="form-actions" style="margin-top:12px">
               <button class="btn btn-secondary" onclick="copyRapportVallee()" id="rap-copy-btn">📋 Copier</button>
               <button onclick="sendRapportWhatsAppVallee()" style="padding:9px 16px;background:#25D366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">📱 WhatsApp</button>
-              <button onclick="sendRapportEmailVallee()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Email</button>
+              <button onclick="sendRapportEmailVallee()" style="padding:9px 16px;background:var(--info-plein);color:var(--sur-info);border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Email</button>
             </div>
           </div>
         </div>
@@ -974,7 +1095,7 @@
               </div>
             </div>
             <div class="form-actions">
-              <button onclick="sendDemandeEmail()" style="padding:9px 16px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Envoyer par Email</button>
+              <button onclick="sendDemandeEmail()" style="padding:9px 16px;background:var(--info-plein);color:var(--sur-info);border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">✉️ Envoyer par Email</button>
             </div>
           </div>
           <div class="card">
@@ -1096,7 +1217,7 @@
                 </div>
               </div>
             </div>
-            <div id="user-new-confirm" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:#fef9c3;color:#854d0e;font-size:13px"></div>
+            <div id="user-new-confirm" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;background:var(--jaune-fond);color:var(--jaune-texte);font-size:13px"></div>
             <div class="form-actions">
               <button class="btn btn-primary" onclick="saveUtilisateur()" id="btn-save-user">
                 <i class="fa fa-floppy-disk"></i> Créer le compte
@@ -1119,6 +1240,14 @@
       </div><!-- /page-body -->
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
+<!-- Barre de navigation du téléphone, à portée de pouce. « Plus » ouvre le menu complet. -->
+<nav class="barre-bas" id="barre-bas" aria-label="Navigation principale">
+  <button class="bb-item" data-vue="dashboard" onclick="showView('dashboard', document.getElementById('nav-dashboard'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg><span>Accueil</span></button>
+  <button class="bb-item" data-vue="saisie" onclick="showView('saisie', document.getElementById('nav-saisie'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z"></path></svg><span>Saisie</span></button>
+  <button class="bb-item" data-vue="stocks" onclick="showView('stocks', document.getElementById('nav-stocks'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z M3 7l9 4 9-4 M12 11v10"></path></svg><span>Stocks</span></button>
+  <button class="bb-item" data-vue="swap" onclick="showView('swap', document.getElementById('nav-swap'))"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-4-4 M20 16H6l4 4"></path></svg><span>SWAP</span></button>
+  <button class="bb-item" data-vue="plus" onclick="openSidebar()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16 M4 12h16 M4 18h16"></path></svg><span>Plus</span></button>
+</nav>
 </div><!-- /screen-app -->
 
 <script>
@@ -1939,12 +2068,12 @@ function renderParametres() {
         <input type="number" class="param-month-ga" data-key="${key}" min="1" step="1"
                value="${saved ? saved.ga : ''}" placeholder="${VALLEE_TEAM_TARGET.ga}"
                oninput="(function(inp){const m=inp.closest('tr').querySelector('.param-month-momo');m.value=inp.value?Math.round(inp.value*0.9):''})(this)"
-               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
       <td style="padding:8px 0 8px 6px;text-align:right">
         <input type="number" class="param-month-momo" data-key="${key}" min="1" step="1"
                value="${saved ? saved.momo : ''}" placeholder="${Math.round(VALLEE_TEAM_TARGET.ga * 0.9)}"
-               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:90px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
     </tr>`;
   }).join('');
@@ -1995,7 +2124,7 @@ function _renderDfaWeights() {
           const cMomo = Math.round(tgt.momo * part);
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:7px 8px 7px 0">${esc(sup.nom)}</td>
-            <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger,#e74c3c)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
+            <td style="text-align:right;padding:7px 6px;color:${dfa === 0 ? 'var(--danger)' : 'inherit'}">${dfa !== null ? dfa.toLocaleString('fr-FR') : '—'}</td>
             <td style="text-align:right;padding:7px 6px;color:var(--text-muted)">${(part * 100).toFixed(1)}%</td>
             <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cGa.toLocaleString('fr-FR')}</td>
             <td style="text-align:right;padding:7px 0 7px 6px;font-weight:600">${cMomo.toLocaleString('fr-FR')}</td>
@@ -2104,6 +2233,7 @@ function showView(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
   try { sessionStorage.setItem('tv_last_view', name); } catch(_) {}
+  _majBarreBas(name);
   const titles = { dashboard: 'Tableau de bord', saisie: 'Saisie du jour', stocks: 'Stocks SIM', dysfonctionnement: 'Dysfonctionnements', swap: 'SWAP', rapport: 'Rapport', demandes: 'Courriers', parametres: 'Paramètres' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   closeSidebar();
@@ -2460,7 +2590,6 @@ function _stockSwapAlloue(auteurId) {
 }
 
 function renderDashboardSwap() {
-  document.getElementById('card-dash-objectifs').style.display = 'none';
   document.getElementById('card-dash-kpireel').style.display   = 'none';
   document.getElementById('card-dash-supperf').style.display   = 'none';
 
@@ -2483,10 +2612,10 @@ function renderDashboardSwap() {
 
   const diff = effectuesPeriode - prevEffectues;
   const deltaHtml = !prevEffectues && !effectuesPeriode
-    ? `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> —</span>`
-    : diff > 0 ? `<span class="kpi-delta up"><i class="fa fa-arrow-trend-up"></i> +${diff}</span>`
-    : diff < 0 ? `<span class="kpi-delta down"><i class="fa fa-arrow-trend-down"></i> ${diff}</span>`
-    : `<span class="kpi-delta neutral"><i class="fa fa-minus"></i> 0</span>`;
+    ? `<span class="kpi-delta neutral">${_icone('moins')} —</span>`
+    : diff > 0 ? `<span class="kpi-delta up">${_icone('hausse')} +${diff}</span>`
+    : diff < 0 ? `<span class="kpi-delta down">${_icone('baisse')} ${diff}</span>`
+    : `<span class="kpi-delta neutral">${_icone('moins')} 0</span>`;
 
   const restantCol = stockSwapMoi <= 0 ? 'inherit' : restantMoi <= 0 ? 'var(--danger)' : restantMoi < stockSwapMoi * 0.15 ? 'var(--warning)' : 'var(--success)';
 
@@ -2507,14 +2636,14 @@ function renderDashboardSwap() {
 
   document.getElementById('kpi-stat-grid').innerHTML = `
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-right-left"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--info-fond);color:var(--info)">${_icone('echange')}</div>
       <div>
         <div class="kpi-stat-val">${swapEffectuesMoi.toLocaleString('fr-FR')}</div>
         <div class="kpi-stat-lbl">Mes SWAP effectués (total)</div>
       </div>
     </div>
     <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dcfce7;color:#16a34a"><i class="fa fa-calendar-check"></i></div>
+      <div class="kpi-stat-icon" style="background:var(--bon-fond);color:var(--bon)">${_icone('calendrier')}</div>
       <div>
         <div class="kpi-stat-val">${dernier ? (isoToFR(dernier.date) || dernier.date) : '—'}</div>
         <div class="kpi-stat-lbl">Dernier SWAP</div>
@@ -2665,16 +2794,46 @@ function _gaParSup(lignes) {
   return m;
 }
 
-function _renderADate(isRa, myId) {
+/* Dernier jour renseigné (les rapports arrivent le lendemain), comparé au même jour de
+   la semaine précédente : un dimanche se compare à un dimanche. */
+function _dernierJour(src, isRa, myId) {
+  let dernier = null;
+  VALLEE_SAISIES.forEach(r => { const x = parseSaisieDate(r.date); if (x && (!dernier || x > dernier)) dernier = _debutJour(x); });
+  if (!dernier) return { date: null, total: 0, cible: 0, prec: null };
+  const totalLe = jour => src.reduce((t, r) => { const x = parseSaisieDate(r.date); return t + (x && +_debutJour(x) === +jour ? (Number(r.grossAdd) || 0) : 0); }, 0);
+  const mois  = getMonthTarget(dernier.getFullYear(), dernier.getMonth()).ga;
+  const jours = new Date(dernier.getFullYear(), dernier.getMonth() + 1, 0).getDate();
+  const equipe = Math.round(mois / jours);
+  const cible = isRa ? equipe : supPropTarget(equipe, myId, dernier, _dfaSnapshot(dernier));
+  const precJour = _ajouterJours(dernier, -7);
+  return { date: dernier, total: totalLe(dernier), cible, prec: { date: precJour, total: totalLe(precJour) } };
+}
+
+function _renderTuiles(isRa, myId) {
   const src  = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
   const auj  = new Date();
   const snap = _dfaSnapshot(auj);
-  const tuile = (code, nom, period) => {
+  const jourCourt = x => x.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const pastille = e => `<div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>`;
+  const tete = (code, nom, plage) => `<div class="adate-tete"><span class="adate-code" title="${esc(nom)}">${code}</span><span class="adate-periode">${esc(plage)}</span></div>`;
+
+  // Dernier jour
+  const dj = _dernierJour(src, isRa, myId);
+  const tDernier = dj.date
+    ? `<section class="adate" aria-label="Dernier jour renseigné">
+        ${tete('DERNIER JOUR', 'Dernier jour renseigné', jourCourt(dj.date))}
+        <div class="adate-chiffre">${dj.total.toLocaleString('fr-FR')} <span>activations · cible ${dj.cible.toLocaleString('fr-FR')}</span></div>
+        <div class="adate-comp">${_evolutionHtml(dj.total, dj.prec.total, 'vs ' + jourCourt(dj.prec.date))}</div>
+        ${pastille(_etatCible(dj.total, dj.cible, { total: 1, ecoules: 1, enCours: false }))}
+      </section>`
+    : `<section class="adate" aria-label="Dernier jour renseigné">${tete('DERNIER JOUR', 'Dernier jour renseigné', 'aucun rapport reçu')}<div class="adate-chiffre">0</div>${pastille({ cls: 'neutre', mot: 'Rapports en attente' })}</section>`;
+
+  // WTD et MTD
+  const tuileADate = (code, nom, period) => {
     const x       = _aDate(period, src);
     const equipe  = teamPeriodTarget('ga', period, auj);
     const cible   = isRa ? equipe : supPropTarget(equipe, myId, auj, snap);
     const realise = _sommeGA(x.lignes);
-    const e       = _etatCible(realise, cible, x.av);
     const plage   = !x.av || !x.av.dernier ? 'aucun rapport reçu'
       : +x.av.dernier === +x.b.debut ? _jourCourt(x.b.debut)
       : _jourCourt(x.b.debut) + ' au ' + _jourCourt(x.av.dernier);
@@ -2682,14 +2841,182 @@ function _renderADate(isRa, myId) {
       ? _evolutionHtml(realise, _sommeGA(x.comp.lignes), _libelleADate(code, x))
       : 'Comparaison disponible dès le premier rapport';
     return `<section class="adate" aria-label="${esc(nom)}">
-      <div class="adate-tete"><span class="adate-code" title="${esc(nom)}">${code}</span><span class="adate-periode">${esc(plage)}</span></div>
+      ${tete(code, nom, plage)}
       <div class="adate-chiffre">${realise.toLocaleString('fr-FR')} <span>activations · cible ${cible.toLocaleString('fr-FR')}</span></div>
       <div class="adate-comp">${comp}</div>
-      <div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>
+      ${pastille(_etatCible(realise, cible, x.av))}
     </section>`;
   };
-  document.getElementById('dash-adate').innerHTML =
-    tuile('WTD', 'Semaine en cours (Week to Date)', 'semaine') + tuile('MTD', 'Mois en cours (Month to Date)', 'mois');
+
+  // Équipe : DFA de la dernière saisie du mois de chaque superviseur
+  const bm = _bornesPeriode('mois', auj);
+  const derniers = {};
+  [...src].filter(r => { const x = parseSaisieDate(r.date); return x && x >= bm.debut && x <= bm.fin; })
+    .sort((a, b) => (parseSaisieDate(b.date) - parseSaisieDate(a.date)))
+    .forEach(r => { const k = String(r.supId || '').trim().toLowerCase(); if (k && !derniers[k]) derniers[k] = r; });
+  const lignesDfa = Object.values(derniers);
+  const totalDfa = lignesDfa.reduce((t, r) => t + (Number(r.totalDfa) || 0), 0);
+  const actifs   = lignesDfa.reduce((t, r) => t + (Number(r.dfaActif) || 0), 0);
+  const taux     = totalDfa > 0 ? Math.round(actifs / totalDfa * 100) : 0;
+  const sousTitre = isRa ? `${lignesDfa.length} superviseur${lignesDfa.length > 1 ? 's' : ''} actif${lignesDfa.length > 1 ? 's' : ''}` : 'ma zone';
+  const tEquipe = !lignesDfa.length
+    ? `<section class="adate" aria-label="Équipe">${tete('ÉQUIPE', 'Équipe', isRa ? 'aucun superviseur ce mois' : 'ma zone')}<div class="adate-chiffre">— <span>DFA actifs</span></div>${pastille({ cls: 'neutre', mot: 'Rapports en attente' })}</section>`
+    : `<section class="adate" aria-label="Équipe">
+      ${tete('ÉQUIPE', 'Équipe', sousTitre)}
+      <div class="adate-chiffre">${actifs.toLocaleString('fr-FR')} <span>DFA actifs sur ${totalDfa.toLocaleString('fr-FR')}</span></div>
+      <div class="adate-barre" role="img" aria-label="Taux d'activité des DFA : ${taux} %"><div style="width:${taux}%"></div></div>
+      <div class="adate-comp">Taux d'activité <strong>${taux} %</strong></div>
+    </section>`;
+
+  document.getElementById('dash-tuiles').innerHTML = tDernier
+    + tuileADate('WTD', 'Semaine en cours (Week to Date)', 'semaine')
+    + tuileADate('MTD', 'Mois en cours (Month to Date)', 'mois')
+    + tEquipe;
+}
+
+/* ── COURBE DU CUMUL ET BARRES QUOTIDIENNES ──
+   Deux graphiques distincts, alignés jour par jour sur le même axe des dates : le cumul
+   face au rythme attendu, et en dessous le total de chaque jour. Deux échelles sur un
+   même graphique se liraient de travers. Couleurs passées par style (var(--…)), pour
+   suivre le thème. */
+function _serieJours(lignes, bornes, av) {
+  if (!bornes || !av || !av.dernier) return [];
+  const parJour = {};
+  lignes.forEach(r => {
+    const d = parseSaisieDate(r.date);
+    if (d) { const k = +_debutJour(d); parJour[k] = (parJour[k] || 0) + (Number(r.grossAdd) || 0); }
+  });
+  const serie = [];
+  let cumul = 0;
+  for (let j = _debutJour(bornes.debut); j <= av.dernier; j = _ajouterJours(j, 1)) {
+    const total = parJour[+j] || 0;
+    cumul += total;
+    serie.push({ jour: j, total, cumul });
+  }
+  return serie;
+}
+
+function _svgCumul(serie, cible, bornes, av) {
+  const total = _nbJours(bornes.debut, bornes.fin);
+  const X = i => 40 + i * (720 / Math.max(total - 1, 1));
+  const iD = serie.length - 1, dernier = serie[iD].cumul;
+  const projection = av.enCours ? dernier / serie.length * total : dernier;
+  const max = Math.max(cible, projection, dernier, 1) * 1.08;
+  const Y = v => 200 - v * (180 / max);
+  const fmt = n => Math.round(n).toLocaleString('fr-FR');
+  const pts = serie.map((p, i) => X(i).toFixed(1) + ',' + Y(p.cumul).toFixed(1));
+  let g = `<svg class="graphe-cumul" viewBox="0 0 800 230" width="100%" role="img" aria-label="Cumul des activations jour par jour : ${fmt(dernier)} au ${_jourCourt(serie[iD].jour)}${cible > 0 ? ', cible ' + fmt(cible) : ''}">`;
+  g += `<line x1="40" y1="200" x2="760" y2="200" style="stroke:var(--bordure)" stroke-width="1"/>`;
+  if (cible > 0) {
+    g += `<line x1="40" y1="${Y(cible).toFixed(1)}" x2="760" y2="${Y(cible).toFixed(1)}" style="stroke:var(--jaune-trait)" stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`;
+    g += `<text x="760" y="${(Y(cible) - 8).toFixed(1)}" text-anchor="end" font-size="12" style="fill:var(--jaune-texte)">Cible ${fmt(cible)}</text>`;
+    g += `<path d="M40,${Y(cible / total).toFixed(1)} L760,${Y(cible).toFixed(1)}" style="stroke:var(--texte-2)" stroke-width="2" stroke-dasharray="6 6" fill="none" opacity=".7"/>`;
+    g += `<text x="520" y="${(Y(cible * 480 / 720) + 18).toFixed(1)}" font-size="12" class="lib-sec" style="fill:var(--texte-2)">rythme attendu</text>`;
+  }
+  if (av.enCours && iD < total - 1) {
+    g += `<path d="M${pts[iD]} L760,${Y(projection).toFixed(1)}" style="stroke:var(--jaune-trait)" stroke-width="2" stroke-dasharray="2 5" fill="none" opacity=".75"/>`;
+  }
+  g += `<path d="M${X(0).toFixed(1)},200 L${pts.join(' L')} L${X(iD).toFixed(1)},200 Z" style="fill:var(--jaune-trait)" opacity=".14"/>`;
+  g += `<path d="M${pts.join(' L')}" style="stroke:var(--jaune-trait)" stroke-width="3" fill="none" stroke-linejoin="round"/>`;
+  const xd = X(iD), yd = Y(dernier);
+  g += `<circle cx="${xd.toFixed(1)}" cy="${yd.toFixed(1)}" r="6" style="fill:var(--jaune-trait);stroke:var(--surface-2)" stroke-width="3"/>`;
+  const aDroite = xd < 600;
+  g += `<text x="${(xd + (aDroite ? 12 : -12)).toFixed(1)}" y="${(yd - 8).toFixed(1)}" text-anchor="${aDroite ? 'start' : 'end'}" font-size="13" font-weight="700" class="lib-sec" style="fill:var(--texte)">${_jourCourt(serie[iD].jour)} · ${fmt(dernier)}</text>`;
+  g += `<text x="40" y="222" font-size="11" style="fill:var(--texte-2)">${_jourCourt(bornes.debut)}</text>`;
+  g += `<text x="760" y="222" text-anchor="end" font-size="11" style="fill:var(--texte-2)">${_jourCourt(bornes.fin)}</text>`;
+  return g + '</svg>';
+}
+
+function _svgBarresJours(serie, cibleJour, bornes) {
+  const total = _nbJours(bornes.debut, bornes.fin);
+  const X = i => 40 + i * (720 / Math.max(total - 1, 1));
+  const larg = Math.max(2, Math.min(18, (720 / Math.max(total - 1, 1)) * 0.6));
+  const max = Math.max(cibleJour, ...serie.map(p => p.total), 1) * 1.1;
+  const H = v => v * (90 / max);
+  let g = `<svg class="barres-jours" viewBox="0 0 800 120" width="100%" role="img" aria-label="Activations de chaque jour, cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}">`;
+  g += `<line x1="30" y1="100" x2="770" y2="100" style="stroke:var(--bordure)" stroke-width="1"/>`;
+  serie.forEach((p, i) => {
+    const h = p.total > 0 ? Math.max(1.5, H(p.total)) : 0;
+    const atteint = cibleJour > 0 && p.total >= cibleJour;
+    g += `<rect x="${(X(i) - larg / 2).toFixed(1)}" y="${(100 - h).toFixed(1)}" width="${larg.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${atteint ? 'var(--jaune-trait)' : 'var(--texte-2)'}" opacity="${atteint ? 1 : .55}"><title>${_jourCourt(p.jour)} : ${p.total.toLocaleString('fr-FR')}</title></rect>`;
+  });
+  if (cibleJour > 0) {
+    const yc = (100 - H(cibleJour)).toFixed(1);
+    g += `<line x1="30" y1="${yc}" x2="770" y2="${yc}" style="stroke:var(--jaune-trait)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    g += `<text x="770" y="${(+yc - 6).toFixed(1)}" text-anchor="end" font-size="11" style="fill:var(--jaune-texte)">cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}</text>`;
+  }
+  return g + '</svg>';
+}
+
+/* Libellés des graphiques : le dessin (800 unités de large) est réduit ou agrandi selon
+   l'écran ; --ech compense pour garder une taille de lecture constante. */
+function _echelleGraphes() {
+  document.querySelectorAll('.rythme-graphes').forEach(fig => {
+    const l = fig.getBoundingClientRect().width;
+    if (l > 0) fig.style.setProperty('--ech', (800 / l).toFixed(3));
+  });
+}
+window.addEventListener('resize', _echelleGraphes);
+
+/* Toucher une barre (ou cliquer) affiche le total du jour : le survol n'existe pas au doigt. */
+function _toucheBarre(e) {
+  const svg = e.target.closest && e.target.closest('.barres-jours');
+  const s = window._serieRythme;
+  if (!svg || !s) return;
+  const r = svg.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * 800;
+  const i = Math.round((x - 40) / (720 / Math.max(s.total - 1, 1)));
+  const p = s.serie[i];
+  const el = document.getElementById('rythme-valeur');
+  if (!p || !el) return;
+  el.textContent = _jourCourt(p.jour) + ' : ' + p.total.toLocaleString('fr-FR') + ' activations';
+}
+document.addEventListener('click', _toucheBarre);
+
+/* Icônes du tableau de bord, dessinées sur place comme celles du menu. */
+function _icone(nom) {
+  const P = {
+    alerte: '<path d="M12 3L2 21h20L12 3z M12 10v5 M12 18h.01"></path>',
+    info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v6 M12 7.5h.01"></path>',
+    chargement: '<path d="M21 12a9 9 0 1 1-6.2-8.6"></path>',
+    moins: '<path d="M5 12h14"></path>',
+    hausse: '<path d="M3 17l6-6 4 4 8-8 M15 7h6v6"></path>',
+    baisse: '<path d="M3 7l6 6 4-4 8 8 M15 17h6v-6"></path>',
+    echange: '<path d="M4 8h14l-4-4 M20 16H6l4 4"></path>',
+    calendrier: '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18 M8 3v4 M16 3v4 M9 15l2 2 4-4"></path>',
+  };
+  return `<svg class="ico${nom === 'chargement' ? ' tourne' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[nom] || ''}</svg>`;
+}
+
+/* ── CARTES SUPERVISEURS ──
+   Jauge : part de la cible de la période atteinte ; trait : part attendue à date. */
+function _jaugeSvg(part, partAttendue, cls, libelle) {
+  const C = 188.5, couleur = { bon: 'var(--bon-plein)', attention: 'var(--attention-plein)', critique: 'var(--critique-plein)' }[cls] || 'var(--texte-2)';
+  const plein = Math.max(0, Math.min(1, part)) * C;
+  let trait = '';
+  if (partAttendue !== null && partAttendue > 0) {
+    const a = (-90 + 360 * Math.min(1, partAttendue)) * Math.PI / 180;
+    trait = `<line x1="${(40 + 24 * Math.cos(a)).toFixed(2)}" y1="${(40 + 24 * Math.sin(a)).toFixed(2)}" x2="${(40 + 36 * Math.cos(a)).toFixed(2)}" y2="${(40 + 36 * Math.sin(a)).toFixed(2)}" style="stroke:var(--texte)" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 80 80" role="img" aria-label="${Math.round(part * 100)} % de la cible de la période">
+    <circle cx="40" cy="40" r="30" fill="none" style="stroke:var(--surface-3)" stroke-width="10"/>
+    <circle cx="40" cy="40" r="30" fill="none" style="stroke:${couleur}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${plein.toFixed(1)} ${C}" transform="rotate(-90 40 40)"/>
+    ${trait}<text x="40" y="46" text-anchor="middle" font-size="19" font-weight="700" style="fill:var(--texte);font-family:var(--police-chiffres)">${libelle || Math.round(part * 100) + ' %'}</text></svg>`;
+}
+
+/* Sans cible (poste « Hors liste »), la jauge porte le nombre d'activations au lieu d'un
+   pourcentage. momo : total New MoMo User de la période, signalé s'il s'écarte du GA. */
+function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo) {
+  const part = cible > 0 ? ga / cible : 0;
+  const pa = etat.rythme && cible > 0 ? etat.attendu / cible : null;
+  const ecart = momo === undefined ? 0 : momo - ga;
+  return `<article class="carte-sup carte-${etat.cls}">
+    <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls, cible > 0 ? '' : ga.toLocaleString('fr-FR'))}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
+    <div class="carte-ligne carte-mtd"><span>MTD</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
+    <div class="carte-ligne carte-wtd"><span>WTD</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
+    <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
+    ${ecart ? `<span class="ecart-momo" style="margin-left:0">MoMo ≠ GA (${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')})</span>` : ''}
+  </article>`;
 }
 
 /* Déclarations de fonction et non constantes : renderDashboard peut tourner pendant
@@ -2697,13 +3024,35 @@ function _renderADate(isRa, myId) {
 function _sommeGA(lignes)   { return lignes.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0); }
 function _sommeMoMo(lignes) { return lignes.reduce((s, r) => s + (Number(r.momoUser) || 0), 0); }
 
+/* Date des derniers rapports reçus, dans la barre du haut : c'est elle qui compte, pas la
+   date du jour (les rapports arrivent le lendemain). */
+function _majDateDonnees() {
+  const el = document.getElementById('topbar-date');
+  if (!el) return;
+  let dernier = null;
+  VALLEE_SAISIES.forEach(r => { const d = parseSaisieDate(r.date); if (d && (!dernier || d > dernier)) dernier = d; });
+  el.textContent = dernier
+    ? "Rapports reçus jusqu'au " + dernier.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    : 'Rapports en cours de chargement';
+}
+
+/* Barre du bas : Saisie pour les comptes qui saisissent, SWAP pour Agence et CARE. */
+function _majBarreBas(nomVue) {
+  const restreint = FIELD_RESTRICTED_ROLES.includes(currentUser?.role);
+  document.querySelectorAll('#barre-bas .bb-item').forEach(b => {
+    const v = b.dataset.vue;
+    b.hidden = (v === 'saisie' && restreint) || (v === 'swap' && !restreint);
+    b.classList.toggle('actif', v === nomVue);
+  });
+}
+
 function renderDashboard() {
+  _majDateDonnees();
   // Agence/Service CARE : dashboard dédié SWAP uniquement, pas de GA/MoMo/équipe.
-  const blocADate = document.getElementById('dash-adate');
+  const blocADate = document.getElementById('dash-tuiles');
   if (FIELD_RESTRICTED_ROLES.includes(currentUser?.role)) { blocADate.style.display = 'none'; renderDashboardSwap(); return; }
   blocADate.style.display = '';
 
-  document.getElementById('card-dash-objectifs').style.display = '';
   document.getElementById('card-dash-kpireel').style.display   = '';
   document.getElementById('card-dash-supperf').style.display   = '';
 
@@ -2769,25 +3118,13 @@ function renderDashboard() {
      au lieu de deux cartes identiques. MoMo ne réapparaît que s'il s'en écarte. */
   const etat   = _etatCible(curGA, targetGA, av);
   const titre  = isRa ? 'Activations de l\'équipe' : 'Mes activations';
-  const rempli = targetGA > 0 ? Math.min(100, curGA / targetGA * 100) : 0;
-  const repere = etat.rythme ? Math.min(100, etat.attendu / targetGA * 100) : null;
-
-  const infos = [];
-  if (av && av.dernier && _dashPeriod !== 'jour') infos.push(`Données jusqu'au <strong>${_jourCourt(av.dernier)}</strong>`);
-  if (etat.rythme) {
-    infos.push(`Attendu à date : <strong>${Math.round(etat.attendu).toLocaleString('fr-FR')}</strong>`);
-    const projection = Math.round(curGA / av.ecoules * av.total);
-    const finDe = { semaine: 'de semaine', mois: 'de mois', trimestre: 'de trimestre', annee: 'd\'année' }[_dashPeriod] || 'de période';
-    infos.push(`Projection fin ${finDe} : <strong>~${projection.toLocaleString('fr-FR')}</strong> (${Math.round(projection / targetGA * 100)} % de la cible)`);
-  }
-  if (comp) infos.push(_evolutionHtml(curGA, _sommeGA(prevFiltered), comp.libelle));
 
   let noteMomo;
   if (curMomo !== curGA) {
     const ecart = curMomo - curGA;
-    noteMomo = `<div class="rythme-alerte"><i class="fa fa-triangle-exclamation" aria-hidden="true"></i>
+    noteMomo = `<div class="rythme-alerte">${_icone('alerte')}
       <span>New MoMo User (${curMomo.toLocaleString('fr-FR')}) diffère des activations de ${(ecart > 0 ? '+' : '') + ecart.toLocaleString('fr-FR')}.
-      La norme veut l'égalité : vérifie les saisies signalées « MoMo ≠ GA » dans le tableau.</span></div>`;
+      La norme veut l'égalité : vérifie les saisies signalées « MoMo ≠ GA » sur les cartes.</span></div>`;
   } else if (curGA > 0) {
     const etatMomo = _etatCible(curMomo, targetMomo, av);
     noteMomo = `<div class="rythme-note">New MoMo User égal aux activations, conforme à la norme MTN.
@@ -2796,24 +3133,40 @@ function renderDashboard() {
     noteMomo = '';
   }
 
-  const descBarre = `${curGA.toLocaleString('fr-FR')} activations sur une cible de ${targetGA.toLocaleString('fr-FR')}`
-    + (etat.rythme ? `, ${Math.round(etat.attendu).toLocaleString('fr-FR')} attendues à date` : '');
+  const serie = _dashPeriod === 'jour' ? [] : _serieJours(filtered, bornes, av);
+  /* Cible du jour : celle du mois réparti sur tous ses jours, comme la tuile Dernier jour
+     (l'onglet Semaine répartit autrement la cible de la semaine). */
+  const cibleJour = (isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap)) / dim;
+  const graphes = serie.length
+    ? `<figure class="rythme-graphes">${_svgCumul(serie, targetGA, bornes, av)}${_svgBarresJours(serie, cibleJour, bornes)}
+        <div class="rythme-valeur" id="rythme-valeur" aria-live="polite"></div>
+        <figcaption>Touche une barre pour lire son total · courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte)</figcaption></figure>`
+    : '';
+  const lignesDl = [];
+  if (av && av.dernier && _dashPeriod !== 'jour') lignesDl.push(['Données jusqu\'au', _jourCourt(av.dernier)]);
+  if (etat.rythme) {
+    const projection = Math.round(curGA / av.ecoules * av.total);
+    const finDe = { semaine: 'de semaine', mois: 'de mois', trimestre: 'de trimestre', annee: 'd\'année' }[_dashPeriod] || 'de période';
+    lignesDl.push([`Attendu au ${_jourCourt(av.dernier)}`, Math.round(etat.attendu).toLocaleString('fr-FR')]);
+    lignesDl.push([`Projection fin ${finDe}`, `~${projection.toLocaleString('fr-FR')} (${Math.round(projection / targetGA * 100)} %)`]);
+  }
+  const dl = lignesDl.map(([t, v]) => `<dt>${esc(t)}</dt><dd>${esc(v)}</dd>`).join('')
+    + (comp ? `<dt>${esc(comp.libelle)}</dt><dd>${_evolutionHtml(curGA, _sommeGA(prevFiltered), '')}</dd>` : '');
   document.getElementById('kpi-big-grid').innerHTML = `
-    <section class="rythme" aria-label="${esc(titre)}">
-      <div class="rythme-tete">
-        <h2 class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></h2>
-        <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
+    <section class="rythme${graphes ? '' : ' sans-graphe'}" id="dash-rythme" aria-label="${esc(titre)}">
+      <div class="rythme-gauche">
+        <div class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></div>
+        <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">/ ${targetGA.toLocaleString('fr-FR')}</span></div>
+        <div><span class="etat etat-${etat.cls}">${esc(etat.mot)}${etat.rythme && !/rythme/i.test(etat.mot) ? ' sur le rythme' : ''}</span></div>
+        ${dl ? `<dl class="rythme-dl">${dl}</dl>` : ''}
+        ${noteMomo}
       </div>
-      <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">sur une cible de ${targetGA.toLocaleString('fr-FR')}</span></div>
-      <div class="rythme-barre" role="img" aria-label="${esc(descBarre)}">
-        <div class="rythme-rempli fond-${etat.cls}" style="width:${rempli}%"></div>
-        ${repere !== null ? `<div class="rythme-repere" style="left:${repere}%" title="Attendu à date"></div>` : ''}
-      </div>
-      ${infos.length ? `<div class="rythme-infos">${infos.map(i => `<span>${i}</span>`).join('')}</div>` : ''}
-      ${noteMomo}
+      ${graphes}
     </section>`;
 
-  _renderADate(isRa, myId);
+  window._serieRythme = serie.length ? { serie, total: _nbJours(bornes.debut, bornes.fin) } : null;
+  _echelleGraphes();
+  _renderTuiles(isRa, myId);
 
   /* Avertissement si aucune donnée pour cette période */
   const noDataEl = document.getElementById('dash-no-data');
@@ -2823,13 +3176,13 @@ function renderDashboard() {
     const totalMySaisies = VALLEE_SAISIES.filter(r => isRa || sameId(r.supId, myId)).length;
     if (!_saisiesLoaded) {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-notch fa-spin"></i> Chargement des données…`;
+      noDataEl.innerHTML = `${_icone('chargement')} Chargement des données…`;
     } else if (_dashPeriod === 'periode' && (!_dashRangeDebut || !_dashRangeFin)) {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Choisis les dates de début et de fin, puis clique sur Appliquer.`;
+      noDataEl.innerHTML = `${_icone('info')} Choisis les dates de début et de fin, puis clique sur Appliquer.`;
     } else if (filtered.length === 0 && totalMySaisies > 0 && _dashPeriod === 'jour') {
       noDataEl.style.display = 'flex';
-      noDataEl.innerHTML = `<i class="fa fa-circle-info"></i> Aucune saisie pour aujourd'hui.
+      noDataEl.innerHTML = `${_icone('info')} Aucune saisie pour aujourd'hui.
         <button class="btn btn-sm btn-secondary" style="margin-left:10px" onclick="setDashPeriod('mois', document.querySelector('#dash-kpi-tabs .period-tab:nth-child(4)'))">
           Voir ce mois
         </button>`;
@@ -2838,82 +3191,9 @@ function renderDashboard() {
     }
   }
 
-  /* ── 2. Stat cards ── */
-  document.getElementById('kpi-stat-grid').innerHTML = `
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#fef9c3;color:#ca8a04"><i class="fa fa-users"></i></div>
-      <div>
-        <div class="kpi-stat-val">${isRa ? activeSups.size + ' / ' + VALLEE_SUPS.length : (activeSups.size > 0 ? 'Actif' : 'En attente')}</div>
-        <div class="kpi-stat-lbl">Superviseurs actifs</div>
-      </div>
-    </div>
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dbeafe;color:#2563eb"><i class="fa fa-sim-card"></i></div>
-      <div>
-        <div class="kpi-stat-val">${curTotalDfa.toLocaleString('fr-FR')}</div>
-        <div class="kpi-stat-lbl">Total DFA</div>
-      </div>
-    </div>
-    <div class="kpi-stat">
-      <div class="kpi-stat-icon" style="background:#dcfce7;color:#16a34a"><i class="fa fa-circle-check"></i></div>
-      <div>
-        <div class="kpi-stat-val">${curDfaActif.toLocaleString('fr-FR')}</div>
-        <div class="kpi-stat-lbl">DFA Actifs</div>
-      </div>
-    </div>`;
-
-  /* ── 3. Objectifs Journalier / Hebdo / Mensuel ──
-     Une seule mesure (activations), jugée comme le haut de page : au rythme pour une
-     période en cours, « Rapports en attente » pour un jour pas encore renseigné. */
-  const objRef  = new Date(_dashRefDate);
-  const objDim  = new Date(objRef.getFullYear(), objRef.getMonth()+1, 0).getDate();
-  const baseGA  = isRa ? teamMonthGA : supPropTarget(teamMonthGA, myId, refDate, dfaSnap);
-  const srcObj  = isRa ? VALLEE_SAISIES : VALLEE_SAISIES.filter(r => sameId(r.supId, myId));
-
-  function objCarte(titre, sousTitre, iconCls, iconBg, iconColor, periode, cible) {
-    const b       = _bornesPeriode(periode, objRef);
-    const lignes  = srcObj.filter(r => { const d = parseSaisieDate(r.date); return d && d >= b.debut && d <= b.fin; });
-    const a       = _avancement(b);
-    const realise = _sommeGA(lignes);
-    const e       = _etatCible(realise, cible, a);
-    const rempli  = cible > 0 ? Math.min(100, realise / cible * 100) : 0;
-    const rep     = e.rythme ? Math.min(100, e.attendu / cible * 100) : null;
-    let evol = '';
-    if (periode === 'semaine') {
-      const c = _comparaison(srcObj, b, 'semaine', a);
-      if (c) evol = `<div class="objp-detail">${_evolutionHtml(realise, _sommeGA(c.lignes), c.libelle)}</div>`;
-    }
-    return `<div class="objectif-period">
-      <div class="objp-header">
-        <div class="objp-icon" style="background:${iconBg};color:${iconColor}"><i class="fa ${iconCls}" aria-hidden="true"></i></div>
-        <div><div class="objp-title">${titre}</div><div class="objp-sub">${sousTitre}</div></div>
-      </div>
-      <div class="objp-metrics">
-        <div class="objp-ligne">
-          <span class="objp-chiffre">${realise.toLocaleString('fr-FR')}</span>
-          <span class="objp-detail">cible ${cible.toLocaleString('fr-FR')}</span>
-        </div>
-        <div class="rythme-barre" style="height:6px">
-          <div class="rythme-rempli fond-${e.cls}" style="width:${rempli}%"></div>
-          ${rep !== null ? `<div class="rythme-repere" style="left:${rep}%;top:-4px;bottom:-4px;width:2px" title="Attendu à date"></div>` : ''}
-        </div>
-        <div><span class="etat etat-${e.cls}">${esc(e.mot)}</span></div>
-        ${evol}
-      </div>
-    </div>`;
-  }
-
-  const lunObj = _bornesPeriode('semaine', objRef).debut;
-  const hebSub = _jourCourt(lunObj) + ' au ' + _jourCourt(_ajouterJours(lunObj, 6));
-
-  document.getElementById('objectifs-body').innerHTML = `<div class="objectifs-grid">
-    ${objCarte('Journalier', objRef.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-        'fa-calendar-day', '#fef9c3', '#ca8a04', 'jour', Math.round(baseGA / objDim))}
-    ${objCarte('Hebdomadaire', hebSub,
-        'fa-calendar-week', '#dbeafe', '#2563eb', 'semaine', Math.round(baseGA / objDim * weekDays))}
-    ${objCarte('Mensuel', objRef.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-        'fa-calendar', '#dcfce7', '#16a34a', 'mois', baseGA)}
-  </div>`;
+  /* Petites tuiles : remplacées par la tuile Équipe. L'emplacement reste, il sert au
+     tableau de bord SWAP des comptes Agence et CARE. */
+  document.getElementById('kpi-stat-grid').innerHTML = '';
 
   /* ── 4. Table performance ── */
   /* Cumuls par superviseur. Clés en minuscules et poste « Hors liste » pour les saisies
@@ -2954,61 +3234,37 @@ function renderDashboard() {
   const xW = _aDate('semaine', VALLEE_SAISIES), xM = _aDate('mois', VALLEE_SAISIES);
   const wtd  = _gaParSup(xW.lignes), lwtd = xW.comp ? _gaParSup(xW.comp.lignes) : null;
   const mtd  = _gaParSup(xM.lignes), lmtd = xM.comp ? _gaParSup(xM.comp.lignes) : null;
-  const celluleADate = (cur, prev) =>
-    `<td class="num"><strong>${cur.toLocaleString('fr-FR')}</strong><div class="sous">${_evolPct(cur, prev)}</div></td>`;
-  const adateSup = k => celluleADate(wtd[k] || 0, lwtd ? (lwtd[k] || 0) : null) + celluleADate(mtd[k] || 0, lmtd ? (lmtd[k] || 0) : null);
 
-  /* L'en-tête dit à quoi l'évolution se compare ; sans comparaison possible, « — ». */
-  document.getElementById('dash-th-evol').innerHTML = 'Activations'
-    + `<span class="th-sous">${comp ? esc(comp.libelle) : 'période'}</span>`;
-  const evol      = (cur, prev) => _evolutionHtml(cur, comp ? prev : null, '');
-  const pastille  = e => `<span class="etat etat-${e.cls}">${esc(e.mot)}</span>`;
-  const ecartMoMo = (ga, momo) => momo !== ga
-    ? `<span class="ecart-momo" title="New MoMo User : ${momo.toLocaleString('fr-FR')}">MoMo ≠ GA (${momo.toLocaleString('fr-FR')})</span>` : '';
-  const celluleSup = (nom, zone) => `<td><strong>${esc(nom)}</strong><div class="sous">${esc(zone)}</div></td>`;
-  const cellulePeriode = (ga, momo, prev) =>
-    `<td class="num"><strong>${ga.toLocaleString('fr-FR')}</strong>${ecartMoMo(ga, momo)}<div class="sous">${evol(ga, prev)}</div></td>`;
-
-  if (isRa) {
-    document.getElementById('dash-tbody').innerHTML = VALLEE_SUPS.map(sup => {
-      const k = cle(sup.id);
-      const { ga, momo } = totals[k];
-      /* Cible individuelle pondérée par DFA Actifs */
-      const tGASup = supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap);
-      return `<tr>
-        ${celluleSup(sup.nom, sup.zone)}
-        ${cellulePeriode(ga, momo, prevTotals[k].ga)}
-        <td class="num">${tGASup.toLocaleString('fr-FR')}</td>
-        <td>${pastille(_etatCible(ga, tGASup, av))}</td>
-        ${adateSup(k)}
-      </tr>`;
-    }).join('')
-    + ((orphelins.ga || orphelins.momo) ? `<tr>
-        <td><strong>Hors liste</strong><div class="sous" style="color:var(--danger)" title="${esc([...orphelins.ids].join(', '))}">${orphelins.ids.size} identifiant(s) inconnu(s)</div></td>
-        ${cellulePeriode(orphelins.ga, orphelins.momo, orphelinsPrev.ga)}
-        <td class="num">—</td><td>—</td><td class="num">—</td><td class="num">—</td>
-      </tr>` : '');
-    document.getElementById('dash-tfoot').innerHTML = `
-      <td><strong>TOTAL ÉQUIPE</strong></td>
-      ${cellulePeriode(curGA, curMomo, _sommeGA(prevFiltered))}
-      <td class="num" title="${totalMonthDfa > 0 ? 'Cible répartie entre superviseurs selon leurs DFA actifs' : 'Cible répartie à parts égales (aucun DFA actif connu)'}"><strong>${teamTargetGA.toLocaleString('fr-FR')}</strong></td>
-      <td>${pastille(_etatCible(curGA, teamTargetGA, av))}</td>
-      ${celluleADate(_sommeGA(xW.lignes), xW.comp ? _sommeGA(xW.comp.lignes) : null)}
-      ${celluleADate(_sommeGA(xM.lignes), xM.comp ? _sommeGA(xM.comp.lignes) : null)}`;
-  } else {
-    const mySup  = VALLEE_SUPS.find(s => sameId(s.id, myId)) || { nom: currentUser?.nom || '—', zone: currentUser?.zone || '—' };
-    const k      = cle(myId);
-    const myGA   = totals[k]?.ga   || 0;
-    const myMomo = totals[k]?.momo || 0;
-    document.getElementById('dash-tbody').innerHTML = `<tr>
-      ${celluleSup(mySup.nom, mySup.zone)}
-      ${cellulePeriode(myGA, myMomo, prevTotals[k]?.ga || 0)}
-      <td class="num">${targetGA.toLocaleString('fr-FR')}</td>
-      <td>${pastille(_etatCible(myGA, targetGA, av))}</td>
-      ${adateSup(k)}
-    </tr>`;
-    document.getElementById('dash-tfoot').innerHTML = '';
+  const aDateSup = k => ({
+    wtd: { val: wtd[k] || 0, prev: lwtd ? (lwtd[k] || 0) : null },
+    mtd: { val: mtd[k] || 0, prev: lmtd ? (lmtd[k] || 0) : null },
+  });
+  const supsAffiches = isRa ? VALLEE_SUPS : VALLEE_SUPS.filter(sp => sameId(sp.id, myId));
+  const cartes = supsAffiches.map(sup => {
+    const k = cle(sup.id);
+    const ga = totals[k] ? totals[k].ga : 0;
+    const momo = totals[k] ? totals[k].momo : 0;
+    const cible = isRa ? supPropTarget(teamTargetGA, sup.id, refDate, dfaSnap) : targetGA;
+    return { sup, ga, momo, cible, etat: _etatCible(ga, cible, av), ...aDateSup(k) };
+  });
+  if (!supsAffiches.length && !isRa) {
+    const k = cle(myId);
+    cartes.push({ sup: { nom: currentUser?.nom || '—', zone: currentUser?.zone || '' }, ga: totals[k]?.ga || 0, momo: totals[k]?.momo || 0, cible: targetGA,
+                  etat: _etatCible(totals[k]?.ga || 0, targetGA, av), ...aDateSup(k) });
   }
+  /* Les plus en retard d'abord ; sans pourcentage (pas de cible, pas de rapport) : en fin de liste. */
+  cartes.sort((a, b) => (a.etat.pct == null) - (b.etat.pct == null) || (a.etat.pct || 0) - (b.etat.pct || 0));
+  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo)).join('');
+  if (isRa && (orphelins.ga || orphelins.momo)) {
+    /* WTD et MTD des identifiants inconnus : tout ce qui ne correspond à aucun superviseur. */
+    const horsListe = m => m ? Object.entries(m).reduce((t, [k, v]) => t + (totals[k] === undefined ? v : 0), 0) : null;
+    const ids = [...orphelins.ids];
+    const zone = ids.length ? ids.slice(0, 3).join(', ') + (ids.length > 3 ? ' et ' + (ids.length - 3) + ' autre(s)' : '') : 'Identifiant vide';
+    html += _carteSuperviseur({ nom: 'Hors liste', zone }, orphelins.ga, 0,
+      { cls: 'neutre', mot: 'Identifiants à corriger', pct: null },
+      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo);
+  }
+  document.getElementById('dash-cartes').innerHTML = html;
 
   renderKpiReelCard();
 }
@@ -3279,8 +3535,8 @@ function _updateStockCoverageHint() {
   if (!d || !f || d.length < 8 || f.length < 8) { hint.innerHTML = ''; return; }
   const covering = _findCoveringEnlevement(d, f, type);
   hint.innerHTML = covering
-    ? `<span style="color:var(--success,#2ecc71)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
-    : `<span style="color:var(--danger,#e74c3c)"><i class="fa fa-triangle-exclamation"></i> Hors plage — aucun enlèvement global ne couvre cette plage</span>`;
+    ? `<span style="color:var(--success)"><i class="fa fa-check"></i> Incluse dans l'enlèvement du ${isoToFR(covering.date) || covering.date}</span>`
+    : `<span style="color:var(--danger)"><i class="fa fa-triangle-exclamation"></i> Hors plage — aucun enlèvement global ne couvre cette plage</span>`;
 }
 
 async function saveStock() {
@@ -4414,7 +4670,7 @@ function renderKpiReelCard() {
   const ecart    = decl - reel;
   const ecartPct = reel > 0 ? Math.round(ecart / reel * 100) : 0;
   const alerte   = Math.abs(ecartPct) > 15;
-  const ecartCol = alerte ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)';
+  const ecartCol = alerte ? 'var(--danger)' : 'var(--success)';
   const ecartTxt = `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')} (${ecartPct > 0 ? '+' : ''}${ecartPct}%)`;
 
   el.innerHTML = `
@@ -4424,7 +4680,7 @@ function renderKpiReelCard() {
       <div><div style="font-size:12px;color:var(--text-muted)">KPI NEW ADD réel</div><div style="font-size:20px;font-weight:700">${reel.toLocaleString('fr-FR')}</div></div>
       <div><div style="font-size:12px;color:var(--text-muted)">Écart</div><div style="font-size:20px;font-weight:700;color:${ecartCol}">${ecartTxt}</div></div>
     </div>
-    ${alerte ? `<p style="margin-top:10px;font-size:12px;color:${ecartCol}"><i class="fa fa-triangle-exclamation"></i> Écart supérieur à 15 % entre le déclaratif et le réel validé — à vérifier.</p>` : ''}
+    ${alerte ? `<p style="margin-top:10px;font-size:12px;color:${ecartCol}">${_icone('alerte')} Écart supérieur à 15 % entre le déclaratif et le réel validé — à vérifier.</p>` : ''}
   `;
 }
 
@@ -4445,7 +4701,7 @@ function _renderKpiReelTable() {
     const reel     = _kpiReelForMonth(key);
     const ecart    = reel !== null ? decl - reel : null;
     const ecartTxt = ecart === null ? '—' : `${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')}`;
-    const ecartCol = ecart === null ? 'var(--text-muted)' : (reel > 0 && Math.abs(ecart / reel) > 0.15 ? 'var(--danger,#e74c3c)' : 'var(--success,#2ecc71)');
+    const ecartCol = ecart === null ? 'var(--text-muted)' : (reel > 0 && Math.abs(ecart / reel) > 0.15 ? 'var(--danger)' : 'var(--success)');
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 12px 8px 0;font-size:13px;white-space:nowrap">
         ${FR_MONTHS[month0]} ${year}${isCur ? ' <span style="font-size:11px;color:var(--primary);font-weight:600">← actuel</span>' : ''}
@@ -4454,7 +4710,7 @@ function _renderKpiReelTable() {
       <td style="padding:8px 6px;text-align:right">
         <input type="number" class="param-month-kpireel" data-key="${key}" min="0" step="1"
                value="${reel !== null ? reel : ''}" placeholder="—"
-               style="width:100px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,#fff);color:var(--text)">
+               style="width:100px;text-align:right;padding:4px 8px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text)">
       </td>
       <td style="padding:8px 0 8px 6px;text-align:right;font-weight:600;color:${ecartCol}">${ecartTxt}</td>
     </tr>`;
@@ -4795,6 +5051,29 @@ window.addEventListener('online', () => {
   actualiserDonnees({ silencieux: true });
 });
 window.addEventListener('offline', _majEtatConnexion);
+
+/* ── THÈME ──
+   Nuit par défaut ; « clair » (mode soleil) pour lire dehors. Le choix est retenu sur
+   l'appareil. Sans stockage (navigation privée), la bascule vaut pour la session. */
+function _appliquerTheme(theme) {
+  const clair = theme === 'clair';
+  if (clair) document.documentElement.setAttribute('data-theme', 'clair');
+  else document.documentElement.removeAttribute('data-theme');
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.querySelector('.btn-theme-texte').textContent = clair ? 'Mode nuit' : 'Mode soleil';
+    btn.setAttribute('aria-label', clair ? 'Revenir au mode nuit' : 'Passer en mode soleil, pour lire en plein soleil');
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', clair ? '#F4F1EA' : '#101113');
+}
+
+function basculerTheme() {
+  const theme = document.documentElement.getAttribute('data-theme') === 'clair' ? 'nuit' : 'clair';
+  _appliquerTheme(theme);
+  try { localStorage.setItem('tv_theme', theme); } catch (_) {}
+}
+_appliquerTheme(document.documentElement.getAttribute('data-theme') === 'clair' ? 'clair' : 'nuit');
 
 /* ── ACTUALISATION DES DONNÉES ──
    Chaque module n'était chargé qu'une fois par session : les saisies faites ensuite
