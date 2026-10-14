@@ -344,12 +344,17 @@
   .carte-zone { font-size: 12px; color: var(--texte-2); }
   .carte-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
   .carte-ligne > span:first-child { color: var(--texte-2); }
+  .carte-periode { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--bordure); }
+  .carte-periode > span:first-child { color: var(--texte); font-weight: 600; }
+  .carte-periode strong { font-size: 17px; }
   .carte-sup .etat { align-self: flex-start; }
   @media (max-width: 768px) {
     .cartes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
     .carte-sup { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; padding: 12px 14px; }
     .carte-tete { display: contents; }
-    .carte-tete svg { grid-row: span 4; width: 62px; height: 62px; }
+    /* Jauge seule dans la première colonne ; tout le reste dans la seconde. */
+    .carte-tete svg { grid-column: 1; grid-row: 1 / span 6; width: 62px; height: 62px; }
+    .carte-sup > :not(.carte-tete), .carte-id { grid-column: 2; }
   }
   .ecart-momo { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--etat-attention); }
 
@@ -3007,14 +3012,18 @@ function _jaugeSvg(part, partAttendue, cls, libelle) {
 
 /* Sans cible (poste « Hors liste »), la jauge porte le nombre d'activations au lieu d'un
    pourcentage. momo : total New MoMo User de la période, signalé s'il s'écarte du GA. */
-function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo) {
+/* libPeriode : dates de l'onglet choisi. La première ligne suit cet onglet ; MTD et WTD
+   restent sur le mois et la semaine en cours, d'où leurs libellés explicites (sans eux,
+   le MTD se lisait comme le chiffre de la semaine choisie). */
+function _carteSuperviseur(sup, ga, cible, etat, wtd, mtd, momo, libPeriode) {
   const part = cible > 0 ? ga / cible : 0;
   const pa = etat.rythme && cible > 0 ? etat.attendu / cible : null;
   const ecart = momo === undefined ? 0 : momo - ga;
   return `<article class="carte-sup carte-${etat.cls}">
     <div class="carte-tete">${_jaugeSvg(part, pa, etat.cls, cible > 0 ? '' : ga.toLocaleString('fr-FR'))}<div class="carte-id"><div class="carte-nom">${esc(sup.nom)}</div><div class="carte-zone">${esc(sup.zone || '')}</div></div></div>
-    <div class="carte-ligne carte-mtd"><span>MTD</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
-    <div class="carte-ligne carte-wtd"><span>WTD</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
+    <div class="carte-ligne carte-periode"><span>${esc(libPeriode || 'Période')}</span><span><strong>${ga.toLocaleString('fr-FR')}</strong>${cible > 0 ? ' / ' + cible.toLocaleString('fr-FR') : ''}</span></div>
+    <div class="carte-ligne carte-mtd"><span>Mois en cours (MTD)</span><span><strong>${mtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(mtd.val, mtd.prev)}</span></div>
+    <div class="carte-ligne carte-wtd"><span>Semaine en cours (WTD)</span><span><strong>${wtd.val.toLocaleString('fr-FR')}</strong> ${_evolPct(wtd.val, wtd.prev)}</span></div>
     <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
     ${ecart ? `<span class="ecart-momo" style="margin-left:0">MoMo ≠ GA (${ecart > 0 ? '+' : ''}${ecart.toLocaleString('fr-FR')})</span>` : ''}
   </article>`;
@@ -3255,7 +3264,10 @@ function renderDashboard() {
   }
   /* Les plus en retard d'abord ; sans pourcentage (pas de cible, pas de rapport) : en fin de liste. */
   cartes.sort((a, b) => (a.etat.pct == null) - (b.etat.pct == null) || (a.etat.pct || 0) - (b.etat.pct || 0));
-  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo)).join('');
+  const libPeriode = !bornes ? _periodLabel()
+    : +bornes.debut === +bornes.fin ? _jourCourt(bornes.debut)
+    : _jourCourt(bornes.debut) + ' au ' + _jourCourt(bornes.fin);
+  let html = cartes.map(c => _carteSuperviseur(c.sup, c.ga, c.cible, c.etat, c.wtd, c.mtd, c.momo, libPeriode)).join('');
   if (isRa && (orphelins.ga || orphelins.momo)) {
     /* WTD et MTD des identifiants inconnus : tout ce qui ne correspond à aucun superviseur. */
     const horsListe = m => m ? Object.entries(m).reduce((t, [k, v]) => t + (totals[k] === undefined ? v : 0), 0) : null;
@@ -3263,7 +3275,7 @@ function renderDashboard() {
     const zone = ids.length ? ids.slice(0, 3).join(', ') + (ids.length > 3 ? ' et ' + (ids.length - 3) + ' autre(s)' : '') : 'Identifiant vide';
     html += _carteSuperviseur({ nom: 'Hors liste', zone }, orphelins.ga, 0,
       { cls: 'neutre', mot: 'Identifiants à corriger', pct: null },
-      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo);
+      { val: horsListe(wtd), prev: horsListe(lwtd) }, { val: horsListe(mtd), prev: horsListe(lmtd) }, orphelins.momo, libPeriode);
   }
   document.getElementById('dash-cartes').innerHTML = html;
 
