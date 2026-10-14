@@ -27,6 +27,9 @@ const VALLEE_SHEET_ID = '18d-gD9pg8CYQLRgonL87pqHX1n7TJM6WNcz2VPVHd34'; // ← R
 // MISE EN PLACE : exécuter une fois initialiserSecurite() depuis l'éditeur.
 // ─────────────────────────────────────────────────────────────
 const DUREE_JETON_MS = 24 * 3600 * 1000;
+const MAX_ECHECS_CONNEXION = 5;
+const DUREE_BLOCAGE_S = 900;
+const INSIGHTPANEL_SHEET_ID = '1heK1_Gfv7BaaZ4k3I5oae7MQ8ueMG336-akYHUMLtgw';
 
 /* Identifiants de connexion qui désignent un autre compte (même table que la page). */
 const ALIAS_IDS = { dbah: 'Ghislain.Bah' };
@@ -973,7 +976,16 @@ function _getOrCreateSwapVallee(ss) {
 // (superviseurs, agences, services CARE). Ne s'ajoute PAS aux comptes
 // existants codés en dur côté client : système indépendant, en secours.
 // ─────────────────────────────────────────────────────────────
+/* Connexion. Après 5 échecs sur un identifiant, il est bloqué 15 minutes (compteur en
+   cache, remis à zéro par une connexion réussie) : on ne devine pas un mot de passe à
+   force d'essais. */
 function handleLoginVallee(data) {
+  const cache     = CacheService.getScriptCache();
+  const cleEchecs = 'echecs:' + _cellStr(data.id).toLowerCase();
+  const echecs    = Number(cache.get(cleEchecs)) || 0;
+  if (echecs >= MAX_ECHECS_CONNEXION) {
+    return jsonResponse({ success: false, code: 'BLOQUE', error: 'Trop d\'essais : réessaie dans 15 minutes.' });
+  }
   const ss    = SpreadsheetApp.openById(VALLEE_SHEET_ID);
   const sheet = _getOrCreateUtilisateursVallee(ss);
   const rows  = sheet.getDataRange().getValues();
@@ -994,20 +1006,63 @@ function handleLoginVallee(data) {
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    if (_cellStr(row[COL.id]).toLowerCase() === idIn && _cellStr(row[COL.password]) === pwdIn) {
-      return jsonResponse({
-        success: true,
-        user: {
-          id:        _cellStr(row[COL.id]),
-          nom:       _cellStr(row[COL.nom]),
-          role:      _cellStr(row[COL.role]),
-          libelle:   _cellStr(row[COL.libelle]),
-          initiales: _cellStr(row[COL.initiales])
-        }
-      });
+    if (pwdIn && _cellStr(row[COL.id]).toLowerCase() === idIn && _cellStr(row[COL.password]) === pwdIn) {
+      cache.remove(cleEchecs);
+      const user = {
+        id:        _idCanonique(_cellStr(row[COL.id])),
+        nom:       _cellStr(row[COL.nom]),
+        role:      _cellStr(row[COL.role]).toLowerCase(),
+        libelle:   _cellStr(row[COL.libelle]),
+        initiales: _cellStr(row[COL.initiales])
+      };
+      return jsonResponse({ success: true, user, jeton: _emettreJeton(user) });
     }
   }
+  cache.put(cleEchecs, String(echecs + 1), DUREE_BLOCAGE_S);
   return jsonResponse({ success: false, error: 'Identifiant ou mot de passe incorrect.' });
+}
+
+/* Recopie une fois, depuis le classeur InsightPanel, les comptes actifs RA, admin et
+   superviseurs absents de UtilisateursVallee, avec leurs mots de passe actuels.
+   À lancer depuis l'éditeur. Relancer ne crée pas de doublon. Le journal ne liste que
+   des identifiants, jamais de mot de passe. */
+function migrerComptesInsightPanel() {
+  const source = SpreadsheetApp.openById(INSIGHTPANEL_SHEET_ID).getSheetByName('Utilisateurs');
+  if (!source) throw new Error('Feuille « Utilisateurs » introuvable dans le classeur InsightPanel.');
+  const src = source.getDataRange().getValues();
+  const hs = src[0].map(h => h.toString().toLowerCase().trim());
+  const S = { id: hs.indexOf('id'), pwd: hs.indexOf('pwd'), nom: hs.indexOf('nom'), role: hs.indexOf('role'),
+              zone: hs.indexOf('zone'), init: hs.indexOf('initiales'), statut: hs.indexOf('statut') };
+
+  const sheet = _getOrCreateUtilisateursVallee(SpreadsheetApp.openById(VALLEE_SHEET_ID));
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => h.toString().toLowerCase().trim());
+  const existants = {};
+  sheet.getDataRange().getValues().slice(1).forEach(r => { existants[_cellStr(r[headers.indexOf('id')]).toLowerCase()] = true; });
+
+  const copies = [], ignores = [];
+  for (let i = 1; i < src.length; i++) {
+    const r = src[i];
+    const id = _cellStr(r[S.id]);
+    const role = _cellStr(r[S.role]).toLowerCase();
+    if (!id || _cellStr(r[S.statut]).toLowerCase() !== 'actif' || ['ra', 'admin', 'superviseur'].indexOf(role) < 0) continue;
+    if (existants[id.toLowerCase()]) { ignores.push(id); continue; }
+    const row = new Array(headers.length).fill('');
+    const set = (cle, val) => { const k = headers.indexOf(cle); if (k >= 0) row[k] = val; };
+    set('id', id);
+    set('password', _cellStr(r[S.pwd]));
+    set('nom', _cellStr(r[S.nom]));
+    set('role', role);
+    set('libelle', _cellStr(r[S.zone]));
+    set('initiales', _cellStr(r[S.init]));
+    set('creepar', 'migration');
+    set('horodatage', _nowTs());
+    _appendRowTexte(sheet, row, [_colNum(headers, 'id'), _colNum(headers, 'password')]);
+    existants[id.toLowerCase()] = true;
+    copies.push(id);
+  }
+  Logger.log('Comptes copiés (' + copies.length + ') : ' + (copies.join(', ') || 'aucun'));
+  Logger.log('Déjà présents (' + ignores.length + ') : ' + (ignores.join(', ') || 'aucun'));
+  return { copies, ignores };
 }
 
 // Liste des comptes SANS mot de passe (alimente VALLEE_SUPS et la liste en Paramètres).
