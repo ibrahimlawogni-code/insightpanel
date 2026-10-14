@@ -262,12 +262,29 @@
     --etat-critique: var(--critique);   --etat-critique-fond: var(--critique-fond);
     --etat-neutre: var(--texte-2);      --etat-neutre-fond: var(--neutre-fond);
   }
-  .rythme { grid-column: 1 / -1; background: var(--card-bg); border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,.07); display: grid; gap: 12px; min-width: 0; }
+  .rythme { grid-column: 1 / -1; background: var(--surface-2); border: 1px solid var(--bordure); border-radius: 22px; padding: 22px 24px; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 26px; align-items: center; min-width: 0; }
+  .rythme.sans-graphe { grid-template-columns: minmax(0, 1fr); }
+  .rythme-gauche { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .rythme-dl { margin: 2px 0 0; display: grid; grid-template-columns: auto auto; gap: 8px 16px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .rythme-dl dt { color: var(--texte-2); }
+  .rythme-dl dd { margin: 0; text-align: right; font-weight: 700; color: var(--texte); }
+  .rythme-graphes { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rythme-graphes svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .rythme-graphes figcaption { font-size: 11px; color: var(--texte-2); margin-top: 4px; }
+  /* Traits d'épaisseur constante à toutes les tailles d'écran. */
+  .rythme-graphes svg * { vector-effect: non-scaling-stroke; }
+  /* Sur téléphone, le dessin est réduit d'environ trois fois : libellés agrandis, secondaires masqués. */
+  @media (max-width: 600px) {
+    .rythme-graphes svg text { font-size: 30px; }
+    .rythme-graphes svg .lib-sec { display: none; }
+  }
+  @media (max-width: 900px) { .rythme { grid-template-columns: minmax(0, 1fr); padding: 18px; } }
   .rythme-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
   .rythme-titre { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
   .rythme-titre span { font-weight: 400; color: var(--text-muted); }
-  .rythme-chiffre { font-family: var(--police-chiffres); font-size: 52px; font-weight: 700; line-height: 1; color: var(--mtn-dark); letter-spacing: -0.01em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-  .rythme-cible { font-family: inherit; font-size: 20px; font-weight: 600; color: var(--text-muted); letter-spacing: 0; }
+  .rythme-chiffre { font-family: var(--police-chiffres); font-size: 68px; font-weight: 700; line-height: .9; color: var(--jaune); letter-spacing: -0.01em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  :root[data-theme="clair"] .rythme-chiffre { color: var(--texte); }
+  .rythme-cible { font-family: var(--police-texte); font-size: 18px; font-weight: 600; color: var(--texte-2); letter-spacing: 0; }
   .rythme-barre { position: relative; height: 10px; border-radius: 99px; background: var(--surface-3); }
   .rythme-rempli { position: absolute; inset: 0 auto 0 0; border-radius: 99px; }
   .rythme-repere { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--mtn-dark); }
@@ -2835,6 +2852,80 @@ function _renderTuiles(isRa, myId) {
     + tEquipe;
 }
 
+/* ── COURBE DU CUMUL ET BARRES QUOTIDIENNES ──
+   Deux graphiques distincts, alignés jour par jour sur le même axe des dates : le cumul
+   face au rythme attendu, et en dessous le total de chaque jour. Deux échelles sur un
+   même graphique se liraient de travers. Couleurs passées par style (var(--…)), pour
+   suivre le thème. */
+function _serieJours(lignes, bornes, av) {
+  if (!bornes || !av || !av.dernier) return [];
+  const parJour = {};
+  lignes.forEach(r => {
+    const d = parseSaisieDate(r.date);
+    if (d) { const k = +_debutJour(d); parJour[k] = (parJour[k] || 0) + (Number(r.grossAdd) || 0); }
+  });
+  const serie = [];
+  let cumul = 0;
+  for (let j = _debutJour(bornes.debut); j <= av.dernier; j = _ajouterJours(j, 1)) {
+    const total = parJour[+j] || 0;
+    cumul += total;
+    serie.push({ jour: j, total, cumul });
+  }
+  return serie;
+}
+
+function _svgCumul(serie, cible, bornes, av) {
+  const total = _nbJours(bornes.debut, bornes.fin);
+  const X = i => 40 + i * (720 / Math.max(total - 1, 1));
+  const iD = serie.length - 1, dernier = serie[iD].cumul;
+  const projection = av.enCours ? dernier / serie.length * total : dernier;
+  const max = Math.max(cible, projection, dernier, 1) * 1.08;
+  const Y = v => 200 - v * (180 / max);
+  const fmt = n => Math.round(n).toLocaleString('fr-FR');
+  const pts = serie.map((p, i) => X(i).toFixed(1) + ',' + Y(p.cumul).toFixed(1));
+  let g = `<svg class="graphe-cumul" viewBox="0 0 800 230" width="100%" role="img" aria-label="Cumul des activations jour par jour : ${fmt(dernier)} au ${_jourCourt(serie[iD].jour)}${cible > 0 ? ', cible ' + fmt(cible) : ''}">`;
+  g += `<line x1="40" y1="200" x2="760" y2="200" style="stroke:var(--bordure)" stroke-width="1"/>`;
+  if (cible > 0) {
+    g += `<line x1="40" y1="${Y(cible).toFixed(1)}" x2="760" y2="${Y(cible).toFixed(1)}" style="stroke:var(--jaune)" stroke-width="1" stroke-dasharray="2 4" opacity=".7"/>`;
+    g += `<text x="760" y="${(Y(cible) - 8).toFixed(1)}" text-anchor="end" font-size="12" style="fill:var(--jaune-texte)">Cible ${fmt(cible)}</text>`;
+    g += `<path d="M40,${Y(cible / total).toFixed(1)} L760,${Y(cible).toFixed(1)}" style="stroke:var(--texte-2)" stroke-width="2" stroke-dasharray="6 6" fill="none" opacity=".7"/>`;
+    g += `<text x="520" y="${(Y(cible * 480 / 720) + 18).toFixed(1)}" font-size="12" class="lib-sec" style="fill:var(--texte-2)">rythme attendu</text>`;
+  }
+  if (av.enCours && iD < total - 1) {
+    g += `<path d="M${pts[iD]} L760,${Y(projection).toFixed(1)}" style="stroke:var(--jaune)" stroke-width="2" stroke-dasharray="2 5" fill="none" opacity=".75"/>`;
+  }
+  g += `<path d="M${X(0).toFixed(1)},200 L${pts.join(' L')} L${X(iD).toFixed(1)},200 Z" style="fill:var(--jaune)" opacity=".14"/>`;
+  g += `<path d="M${pts.join(' L')}" style="stroke:var(--jaune)" stroke-width="3" fill="none" stroke-linejoin="round"/>`;
+  const xd = X(iD), yd = Y(dernier);
+  g += `<circle cx="${xd.toFixed(1)}" cy="${yd.toFixed(1)}" r="6" style="fill:var(--jaune);stroke:var(--surface-2)" stroke-width="3"/>`;
+  const aDroite = xd < 600;
+  g += `<text x="${(xd + (aDroite ? 12 : -12)).toFixed(1)}" y="${(yd - 8).toFixed(1)}" text-anchor="${aDroite ? 'start' : 'end'}" font-size="13" font-weight="700" class="lib-sec" style="fill:var(--texte)">${_jourCourt(serie[iD].jour)} · ${fmt(dernier)}</text>`;
+  g += `<text x="40" y="222" font-size="11" style="fill:var(--texte-2)">${_jourCourt(bornes.debut)}</text>`;
+  g += `<text x="760" y="222" text-anchor="end" font-size="11" style="fill:var(--texte-2)">${_jourCourt(bornes.fin)}</text>`;
+  return g + '</svg>';
+}
+
+function _svgBarresJours(serie, cibleJour, bornes) {
+  const total = _nbJours(bornes.debut, bornes.fin);
+  const X = i => 40 + i * (720 / Math.max(total - 1, 1));
+  const larg = Math.max(2, Math.min(18, (720 / Math.max(total - 1, 1)) * 0.6));
+  const max = Math.max(cibleJour, ...serie.map(p => p.total), 1) * 1.1;
+  const H = v => v * (90 / max);
+  let g = `<svg class="barres-jours" viewBox="0 0 800 120" width="100%" role="img" aria-label="Activations de chaque jour, cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}">`;
+  g += `<line x1="30" y1="100" x2="770" y2="100" style="stroke:var(--bordure)" stroke-width="1"/>`;
+  serie.forEach((p, i) => {
+    const h = p.total > 0 ? Math.max(1.5, H(p.total)) : 0;
+    const atteint = cibleJour > 0 && p.total >= cibleJour;
+    g += `<rect x="${(X(i) - larg / 2).toFixed(1)}" y="${(100 - h).toFixed(1)}" width="${larg.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${atteint ? 'var(--jaune)' : 'var(--texte-2)'}" opacity="${atteint ? 1 : .55}"><title>${_jourCourt(p.jour)} : ${p.total.toLocaleString('fr-FR')}</title></rect>`;
+  });
+  if (cibleJour > 0) {
+    const yc = (100 - H(cibleJour)).toFixed(1);
+    g += `<line x1="30" y1="${yc}" x2="770" y2="${yc}" style="stroke:var(--jaune)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    g += `<text x="770" y="${(+yc - 6).toFixed(1)}" text-anchor="end" font-size="11" style="fill:var(--jaune-texte)">cible du jour ${Math.round(cibleJour).toLocaleString('fr-FR')}</text>`;
+  }
+  return g + '</svg>';
+}
+
 /* Déclarations de fonction et non constantes : renderDashboard peut tourner pendant
    l'évaluation du script (restauration de session), avant ces lignes. */
 function _sommeGA(lignes)   { return lignes.reduce((s, r) => s + (Number(r.grossAdd) || 0), 0); }
@@ -2935,18 +3026,6 @@ function renderDashboard() {
      au lieu de deux cartes identiques. MoMo ne réapparaît que s'il s'en écarte. */
   const etat   = _etatCible(curGA, targetGA, av);
   const titre  = isRa ? 'Activations de l\'équipe' : 'Mes activations';
-  const rempli = targetGA > 0 ? Math.min(100, curGA / targetGA * 100) : 0;
-  const repere = etat.rythme ? Math.min(100, etat.attendu / targetGA * 100) : null;
-
-  const infos = [];
-  if (av && av.dernier && _dashPeriod !== 'jour') infos.push(`Données jusqu'au <strong>${_jourCourt(av.dernier)}</strong>`);
-  if (etat.rythme) {
-    infos.push(`Attendu à date : <strong>${Math.round(etat.attendu).toLocaleString('fr-FR')}</strong>`);
-    const projection = Math.round(curGA / av.ecoules * av.total);
-    const finDe = { semaine: 'de semaine', mois: 'de mois', trimestre: 'de trimestre', annee: 'd\'année' }[_dashPeriod] || 'de période';
-    infos.push(`Projection fin ${finDe} : <strong>~${projection.toLocaleString('fr-FR')}</strong> (${Math.round(projection / targetGA * 100)} % de la cible)`);
-  }
-  if (comp) infos.push(_evolutionHtml(curGA, _sommeGA(prevFiltered), comp.libelle));
 
   let noteMomo;
   if (curMomo !== curGA) {
@@ -2962,21 +3041,32 @@ function renderDashboard() {
     noteMomo = '';
   }
 
-  const descBarre = `${curGA.toLocaleString('fr-FR')} activations sur une cible de ${targetGA.toLocaleString('fr-FR')}`
-    + (etat.rythme ? `, ${Math.round(etat.attendu).toLocaleString('fr-FR')} attendues à date` : '');
+  const serie = _dashPeriod === 'jour' ? [] : _serieJours(filtered, bornes, av);
+  const cibleJour = targetGA > 0 && bornes ? targetGA / _nbJours(bornes.debut, bornes.fin) : 0;
+  const graphes = serie.length
+    ? `<figure class="rythme-graphes">${_svgCumul(serie, targetGA, bornes, av)}${_svgBarresJours(serie, cibleJour, bornes)}
+        <figcaption>Courbe : cumul des activations · pointillés : rythme attendu et projection · barres : chaque jour (jaune : cible du jour atteinte)</figcaption></figure>`
+    : '';
+  const lignesDl = [];
+  if (av && av.dernier && _dashPeriod !== 'jour') lignesDl.push(['Données jusqu\'au', _jourCourt(av.dernier)]);
+  if (etat.rythme) {
+    const projection = Math.round(curGA / av.ecoules * av.total);
+    const finDe = { semaine: 'de semaine', mois: 'de mois', trimestre: 'de trimestre', annee: 'd\'année' }[_dashPeriod] || 'de période';
+    lignesDl.push([`Attendu au ${_jourCourt(av.dernier)}`, Math.round(etat.attendu).toLocaleString('fr-FR')]);
+    lignesDl.push([`Projection fin ${finDe}`, `~${projection.toLocaleString('fr-FR')} (${Math.round(projection / targetGA * 100)} %)`]);
+  }
+  const dl = lignesDl.map(([t, v]) => `<dt>${esc(t)}</dt><dd>${esc(v)}</dd>`).join('')
+    + (comp ? `<dt>${esc(comp.libelle)}</dt><dd>${_evolutionHtml(curGA, _sommeGA(prevFiltered), '')}</dd>` : '');
   document.getElementById('kpi-big-grid').innerHTML = `
-    <section class="rythme" aria-label="${esc(titre)}">
-      <div class="rythme-tete">
-        <h2 class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></h2>
-        <span class="etat etat-${etat.cls}">${esc(etat.mot)}</span>
+    <section class="rythme${graphes ? '' : ' sans-graphe'}" id="dash-rythme" aria-label="${esc(titre)}">
+      <div class="rythme-gauche">
+        <div class="rythme-titre">${esc(titre)} <span>· ${esc(_periodLabel())}</span></div>
+        <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">/ ${targetGA.toLocaleString('fr-FR')}</span></div>
+        <div><span class="etat etat-${etat.cls}">${esc(etat.mot)}${etat.rythme ? ' sur le rythme' : ''}</span></div>
+        ${dl ? `<dl class="rythme-dl">${dl}</dl>` : ''}
+        ${noteMomo}
       </div>
-      <div class="rythme-chiffre">${curGA.toLocaleString('fr-FR')}<span class="rythme-cible">sur une cible de ${targetGA.toLocaleString('fr-FR')}</span></div>
-      <div class="rythme-barre" role="img" aria-label="${esc(descBarre)}">
-        <div class="rythme-rempli fond-${etat.cls}" style="width:${rempli}%"></div>
-        ${repere !== null ? `<div class="rythme-repere" style="left:${repere}%" title="Attendu à date"></div>` : ''}
-      </div>
-      ${infos.length ? `<div class="rythme-infos">${infos.map(i => `<span>${i}</span>`).join('')}</div>` : ''}
-      ${noteMomo}
+      ${graphes}
     </section>`;
 
   _renderTuiles(isRa, myId);
