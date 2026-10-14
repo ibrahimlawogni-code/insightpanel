@@ -52,6 +52,8 @@
     --info:          #9CC0FF;  --info-fond:      #1B2A44;  --info-plein:      #5B8DEF;
     --neutre-fond:   #2A2B30;
     --sur-info:      #0B1220;
+    --sur-critique:  #101113;
+    --sur-attention: #101113;
     --police-texte:  Manrope, "Segoe UI", system-ui, sans-serif;
 
     /* Alias historiques : le reste du fichier les utilise encore. */
@@ -90,6 +92,8 @@
     --info:          #1E40AF;  --info-fond:      #DBEAFE;  --info-plein:      #2563EB;
     --neutre-fond:   #EDEAE2;
     --sur-info:      #FFFFFF;
+    --sur-critique:  #FFFFFF;
+    --sur-attention: #16150F;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--police-texte); background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -225,7 +229,7 @@
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn-primary { background: var(--mtn-yellow); color: var(--sur-jaune); }
   .btn-secondary { background: var(--surface-3); color: var(--text); }
-  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger { background: var(--danger); color: var(--sur-critique); }
   .btn-sm { padding: 5px 10px; font-size: 12px; }
   .form-actions { display: flex; gap: 8px; margin-top: 8px; }
 
@@ -407,7 +411,7 @@
 
   #barre-hors-ligne {
     display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9998;
-    background: var(--warning); color: #fff;
+    background: var(--warning); color: var(--sur-attention);
     padding: 9px 16px; font-size: 13px; font-weight: 600; text-align: center;
     box-shadow: 0 -2px 12px rgba(0,0,0,.25);
   }
